@@ -133,6 +133,14 @@ Prompt *content* is another matter: if your prompts carry PII, redact it with a
   the chat advisor chain and are not cached.
 - **Lossy by design.** Provider-native usage objects and non-portable metadata are dropped.
   If a test must assert on those, run it in `BYPASS`.
+- **A fixture freezes one sample, not the model's behaviour.** If a prompt is recorded at
+  `temperature > 0` (or with any other source of sampling variance), the fixture holds
+  exactly one draw from that distribution. Replaying it makes the test deterministic —
+  that is the entire point — but it does **not** mean the underlying model call is
+  deterministic in production. A prompt that is genuinely flaky against the real provider
+  will look perfectly stable in a replayed test forever. This is a property of testing
+  against a cache, not a claim about the model. If a test's purpose is to catch
+  output *variance* itself, VCR replay is the wrong tool for it — run that one in `BYPASS`.
 
 ## Requirements
 

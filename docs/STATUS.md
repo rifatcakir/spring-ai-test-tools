@@ -113,25 +113,40 @@ embedding, this library does not currently help.
 
 ## Next tasks, in order
 
+See `docs/ROADMAP.md` for the full prioritized, sized, prior-art-informed version of
+this list — kept here in short form so this file stays a quick "what's true right now"
+read.
+
 1. ~~**Make it compile and go green.** `mvn clean test`.~~ **Done** — see "Bugs found on
    first compile" above.
-2. **Real end-to-end test.** Testcontainers + Ollama with a tiny model
+2. ~~**Auto-configuration slice test.**~~ **Done** — `SpringAiVcrAutoConfigurationTests`
+   (`ApplicationContextRunner`): absent when disabled, all four collaborator beans
+   present and correctly ordered when enabled, explicit `order` overrides scope,
+   `@ConditionalOnMissingBean` verified for all four bean types, and registered
+   `VcrPromptNormalizer` beans confirmed to reach the generated `VcrCacheKeyGenerator`.
+3. ~~**`additional-spring-configuration-metadata.json`**~~ **Done** — every
+   `spring.ai.test.vcr.*` property now has a description and default value in IDE
+   completion.
+4. **Separate the cache-key normalizer from fixture redaction.** New finding (see
+   `docs/ROADMAP.md` must-have #1 for the full writeup and a proposed design sketch):
+   `VcrPromptNormalizer` currently both stabilizes the hash and is the only tool
+   available for redacting PII from a committed fixture, and using it for the latter
+   silently corrupts the cache. Needs a design sign-off before any code.
+5. **Real end-to-end test.** Testcontainers + Ollama with a tiny model
    (`qwen2.5:0.5b`), recording on the first run and replaying on the second. Assert the
    second run makes zero network calls. This is the test that proves the library actually
-   works; everything above it is unit-level.
-3. **Auto-configuration slice test.** `ApplicationContextRunner` — assert the advisor bean
-   is absent when `enabled=false`, present and correctly ordered when `true`, and that a
-   user-supplied `@Bean` of each type overrides the default via `@ConditionalOnMissingBean`.
-4. **`additional-spring-configuration-metadata.json`** for IDE completion and property
-   descriptions.
-5. **Decide the `REPLAY_ONLY` escape hatch.** Should a single test be able to opt into a
+   works; everything above it is unit-level. **Currently blocked**: Docker Desktop's
+   daemon is not running in this environment (`docker ps` fails to reach
+   `dockerDesktopLinuxEngine`; the CLI itself is installed). Start Docker Desktop to
+   unblock.
+6. **Decide the `REPLAY_ONLY` escape hatch.** Should a single test be able to opt into a
    live call while the rest of CI stays sealed? An `AdvisorParams`-style per-request
    override, or a `@Vcr(mode = BYPASS)` JUnit extension. Currently there is no way to do
    this, which will eventually be a problem.
-6. **CI workflow.** GitHub Actions: build on JDK 21, run tests with
+7. **CI workflow.** GitHub Actions: build on JDK 21, run tests with
    `-Dspring.ai.test.vcr.mode=REPLAY_ONLY`, and fail if any fixture in the working tree
    is modified by the run (a fixture change in CI means someone bypassed review).
-7. **Publishing.** Sonatype OSSRH coordinates, GPG signing, `maven-source-plugin`,
+8. **Publishing.** Sonatype OSSRH coordinates, GPG signing, `maven-source-plugin`,
    `maven-javadoc-plugin`, `LICENSE` (Apache-2.0), `CONTRIBUTING.md`.
 
 ## Open questions for the maintainer

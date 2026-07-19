@@ -4,7 +4,7 @@ Last updated: 2026-07-19 · Version `0.1.0-SNAPSHOT`
 
 ## Current state
 
-Core architecture scaffolded and now proven end-to-end. **`mvn test` is green (42/42)**,
+Core architecture scaffolded and now proven end-to-end. **`mvn test` is green (47/47)**,
 plus a real Testcontainers + Ollama integration test (excluded from the default run,
 verified separately via `mvn test -Pintegration-test`) that proves the library's actual
 reason to exist: record on a real cache miss, replay on a hit, zero additional network
@@ -18,6 +18,11 @@ what gets written to a committed fixture without ever being able to change the c
 a request resolves to; the guarantee is enforced in code (`DeterministicVcrAdvisor`
 always re-applies the originally-computed `hash`/`schemaVersion` after every redactor
 runs, ignoring whatever a redactor returns for those two fields), not just documented.
+
+A `@Vcr(mode = ...)` JUnit 5 annotation now exists too — see "Escaping REPLAY_ONLY for one
+test" in the README. It lets a single test override the effective `VcrMode` (typically to
+`BYPASS`, to reach a real model) via a `ThreadLocal` cleared automatically after every
+test, without weakening `REPLAY_ONLY` for the rest of a CI run.
 
 ## Bugs found on first compile (fixed)
 
@@ -168,10 +173,22 @@ read.
    feature. Documented in the README under "Redacting fixture content" — the
    normalizer/redactor distinction (merges vs. never merges, hash vs. no-hash) was
    flagged as easy to confuse, so it gets a table and a worked example there.
-6. **Decide the `REPLAY_ONLY` escape hatch.** Should a single test be able to opt into a
-   live call while the rest of CI stays sealed? An `AdvisorParams`-style per-request
-   override, or a `@Vcr(mode = BYPASS)` JUnit extension. Currently there is no way to do
-   this, which will eventually be a problem.
+6. ~~**Decide the `REPLAY_ONLY` escape hatch.**~~ **Done** — `@Vcr(mode = ...)`
+   (`io.github.rifatcakira.springai.vcr.junit`), a JUnit 5 annotation + extension.
+   Compared against the other three options from `DISPATCH_PROMPT.md` Task 4 in
+   `docs/ROADMAP.md`'s design note; the `AdvisorParams`-style per-request override was
+   rejected specifically because it would require the *application* code under test to
+   opt in, which contradicts `SpringAiVcrAutoConfiguration`'s own "no test-only
+   conditional in production code" principle. The override is a `ThreadLocal`
+   (`VcrModeOverride`), consulted once at the top of `adviseCall` and cleared
+   unconditionally in the extension's `afterEach`. Five tests in
+   `VcrModeExtensionTests` prove: the override works, an unannotated test running right
+   after an annotated one sees default (sealed) behavior (ordered explicitly with
+   `@TestMethodOrder` to make this a real proof rather than an assumption), an override
+   still runs the full record path including a registered redactor, and class-level vs.
+   method-level precedence. Required one new *main*-scope (optional) dependency,
+   `junit-jupiter-api` — see the design note for why that's necessary rather than a
+   test-scope leak.
 7. **CI workflow.** GitHub Actions: build on JDK 21, run tests with
    `-Dspring.ai.test.vcr.mode=REPLAY_ONLY`, and fail if any fixture in the working tree
    is modified by the run (a fixture change in CI means someone bypassed review).

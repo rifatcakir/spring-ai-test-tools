@@ -23,13 +23,14 @@ to, so you only need to read one thing to plan work.
 
 ## Current state (as of this writing)
 
-`mvn test` green (42/42), plus a real Testcontainers + Ollama end-to-end test
+`mvn test` green (47/47), plus a real Testcontainers + Ollama end-to-end test
 (`OllamaEndToEndTests`, excluded from the default run, verified via
 `mvn test -Pintegration-test`) proving record → replay → zero additional network
 requests on the hit against a real model, not a mock. `VcrFixtureRedactor` now exists
 alongside `VcrPromptNormalizer` for redacting committed-fixture content without ever
-being able to change a request's cache key. See `STATUS.md` for the full detail and the
-bugs fixed to get here.
+being able to change a request's cache key, and `@Vcr(mode = ...)` now exists as a
+per-test escape hatch out of a sealed `REPLAY_ONLY` CI run. See `STATUS.md` for the full
+detail and the bugs fixed to get here.
 
 ---
 
@@ -56,7 +57,7 @@ existing planning doc — they're flagged as such.
 |---|---|---|---|---|
 | 1 | ~~**Separate the cache-key normalizer from fixture redaction**~~ **Done** | `VcrFixtureRedactor` (new SPI in the root `vcr` package, alongside `VcrPromptNormalizer`): applied only on the write path, after the hash is already computed from the un-redacted request; `hash()`/`schemaVersion()` on a redactor's return value are ignored and re-applied from the original track by `DeterministicVcrAdvisor`, enforced in code (belt-and-suspenders — a redactor is structurally unable to change the cache key, not merely asked not to). Collected the same way normalizers already are (`List<VcrFixtureRedactor>`, `Ordered` sequence). Five tests in `VcrFixtureRedactorTests` cover bit-identical no-redactor behavior, redaction never reaching a live response or replay, a forged-hash attempt being ignored, ordering across multiple redactors, and a throwing redactor propagating with nothing written. README gained a "Redacting fixture content" section with a comparison table, specifically because a normalizer *merges* requests and a redactor *never* does — confusing the two silently causes cache collisions on real PII, which is exactly the failure mode this item exists to close | M (1–2 days) | New |
 | 2 | ~~**Auto-configuration slice tests + `additional-spring-configuration-metadata.json`**~~ **Done** | `SpringAiVcrAutoConfigurationTests` (9 tests): absence/presence by `enabled`, scope-derived vs. explicit order, `@ConditionalOnMissingBean` for all four bean types, and registered `VcrPromptNormalizer` beans confirmed reaching the generated `VcrCacheKeyGenerator`. Metadata file merges cleanly (verified against the built `spring-configuration-metadata.json`) | S–M (1 day) | `STATUS.md` #3/#4, `DISPATCH_PROMPT.md` Task 3 |
-| 3 | **`REPLAY_ONLY` escape hatch** — design note comparing the four options already listed in `DISPATCH_PROMPT.md` Task 4 (advisor-params override, `@Vcr` JUnit 5 extension, exempt-class property list, or "do nothing, use a separate source set"), then implement the chosen one | CI runs sealed (`REPLAY_ONLY`); there is currently no sanctioned way for a single test to make a live call without weakening the whole suite's guarantee. This is the single most VCR.py-like ergonomic feature missing (`@pytest.mark.vcr(record_mode=...)`) and it's already scoped as a design-first task — recommend the `@Vcr(mode=...)` extension unless the design note surfaces a reason not to | Design: hours. Impl: M (1 day) | `STATUS.md` #6, `DISPATCH_PROMPT.md` Task 4 |
+| 3 | ~~**`REPLAY_ONLY` escape hatch**~~ **Done** — `@Vcr(mode = ...)` JUnit 5 annotation + extension. See the design note below for the comparison and rationale | CI runs sealed (`REPLAY_ONLY`); there is now a sanctioned, narrowly-scoped way for a single test to make a live call without weakening the whole suite's guarantee | Design: hours. Impl: M (1 day) | `STATUS.md` #6, `DISPATCH_PROMPT.md` Task 4 |
 | 4 | ~~**Real end-to-end proof**~~ **Core proof done** — `OllamaEndToEndTests` (`@Tag("integration")`, `mvn test -Pintegration-test`): real Testcontainers-managed Ollama container, real `llama3.2:1b`, genuine cache miss → record → hit → replay, with an HTTP request counter wired into the `RestClient` underneath `OllamaApi` proving zero additional network requests on the hit — not inferred from response text alone. **Not yet covered** by this test (narrower, can be added incrementally rather than re-blocking anything): `REPLAY_ONLY` throwing on a miss without touching the container, and the `INSIDE_TOOL_LOOP` vs `OUTSIDE_TOOL_LOOP` distinction via a counting `@Tool`. Docker Desktop needed starting first; once started, this was unblocked the same session | Core: done. Remaining two scenarios: S (a few hours, same test class) | `STATUS.md` #2, `DISPATCH_PROMPT.md` Task 2 |
 | 5 | **CI workflow with a fixture-drift gate** — build on JDK 21, run with `-Dspring.ai.test.vcr.mode=REPLAY_ONLY`, fail if any committed fixture changed during the run | Turns "a fixture change in CI means someone bypassed review" from a stated intent into an enforced check. Needs items 2 and 4 done first so there's something meaningful to run in CI | S (a few hours once 2 and 4 land) | `STATUS.md` #6 |
 | 6 | **Document the non-determinism caveat** — a fixture recorded at `temperature > 0` freezes one sample from a distribution; replay will make a flaky-in-production prompt look deterministically stable in tests, and that's a property of testing, not of the model | Near-zero cost, prevents a confused bug report down the line ("why does this always pass in CI but the model is clearly non-deterministic in prod") | XS (docs only) | New, but small enough to just do — **done**, see README "Limitations" |
@@ -94,8 +95,61 @@ so `applyRedactors()` explicitly discards whatever a redactor returns for `hash(
 `schemaVersion()` and re-applies the original values after every redactor in the chain,
 rather than trusting well-behaved implementations to leave those two fields alone.
 
-This needs a decision from whoever owns the API surface before any of it is coded — it's
-listed here as a concrete starting point for that conversation, not a spec.
+#### Design note for item 3 — the `REPLAY_ONLY` escape hatch
+
+The problem, precisely: CI runs with `spring.ai.test.vcr.mode=REPLAY_ONLY` so the whole
+suite is sealed — a miss throws `VcrCacheMissException` rather than reaching a real
+model. `VcrCacheMissException` itself already carries everything `CLAUDE.md`'s own
+Javadoc conventions ask for (the hash, the expected file path, the full canonical request,
+and the exact command to re-record — see `VcrCacheMissException`, unchanged by this item).
+That part was never broken; what's missing is a way for *one* test to legitimately need a
+live call — a smoke test against a real provider, or an assertion on something `VcrTrack`
+deliberately drops (native usage objects, for instance) — without weakening the sealed
+guarantee for the other few thousand tests in the same CI run.
+
+Evaluated against three questions from `DISPATCH_PROMPT.md` Task 4 — does it keep CI
+sealed *by default*, can it be abused to silently re-enable network calls for the *whole*
+suite, and how much surface area does it add:
+
+| Option | Sealed by default? | Whole-suite abuse risk | Surface area added |
+|---|---|---|---|
+| **a) Per-request override via an `AdvisorParams`-style mechanism** | Yes, in principle | Low in isolation, but only works if application code cooperates | Requires threading a param through the *production* `ChatClient.prompt()...advisors(...)` call in app code under test — directly at odds with `SpringAiVcrAutoConfiguration`'s own stated goal that "no test-only conditional appears anywhere" in production code |
+| **b) `@Vcr(mode = ...)` JUnit 5 extension** | Yes — inert unless a test is annotated | Low — scoped to one test method/class, thread-local, automatically cleared after every test regardless of outcome | One annotation, one extension, one `ThreadLocal` holder; an optional `junit-jupiter-api` compile dependency (see below) |
+| **c) A property listing exempt test classes** | Yes, if the list starts empty | Higher — a single shared list is exactly the kind of config that silently grows over time and is easy to forget to prune; unlike (b), nothing restores it automatically once a test no longer needs it | A class-name-matching mechanism wired into advisor construction, plus a process reminder to prune the list |
+| **d) Do nothing — separate source set with the advisor absent entirely** | Yes, architecturally: no code path exists to bypass | None | A second source set/module, duplicated Spring wiring, and an argument that in-suite ergonomics for this case aren't worth it |
+
+**Recommendation: (b).** (a) turns out worse than it first looks: it requires the
+*application* code under test to explicitly opt in to being overridable, which means a
+test can't unilaterally request a live call without also reshaping how production code
+calls `ChatClient` — the opposite of this library's whole design principle of attaching
+via `ChatClientBuilderCustomizer` so application code never has test-only branches. (c) is
+the "blast radius creeps quietly" option — a shared list has no automatic cleanup the way
+(b)'s `afterEach` does. (d) is the architecturally purest option, and was seriously
+considered, but the concrete examples this item exists for (one smoke test, one
+lossy-round-trip assertion) are individual test *methods*, not whole modules' worth of
+work — a second source set is a heavier tool than the problem calls for. (b) matches the
+scoping of (d) (opt-in, cannot leak beyond where it's applied) while keeping the
+ergonomics of annotating just the one test that needs it, consistent with how
+`VcrPromptNormalizer` and `VcrFixtureRedactor` are already small, additive, opt-in SPIs
+rather than central configuration.
+
+**One thing not anticipated before actually building it:** shipping `@Vcr` means shipping
+a JUnit 5 dependency from *main* sources, not test sources — because `@Vcr` needs to be
+usable from a *consuming* project's own tests, and this library's main sources are what
+gets published as that project's `<scope>test</scope>` dependency. `pom.xml` gained
+`org.junit.jupiter:junit-jupiter-api` as an `optional` compile dependency for this reason
+— present so this module compiles, not force-propagated onto consumers, who already have
+`junit-jupiter-api` on their test classpath via `spring-boot-starter-test` (or equivalent)
+in any project that could use this library at all. This mirrors why
+`spring-boot-autoconfigure` is already `optional` in this same `pom.xml`.
+
+**Known limitation, documented rather than solved:** the override is a `ThreadLocal`, so
+it only applies to whichever thread actually invokes the advisor. Synchronous, blocking
+`ChatClient.call()` usage — everything this advisor currently supports, since `.stream()`
+already passes straight through by design — satisfies this. Code that switches threads
+(an async executor, a reactive chain) before reaching the advisor will not see the
+override; that is a pre-existing constraint of this advisor being `CallAdvisor`-only, not
+something this feature introduces.
 
 ### Nice-to-have (valuable, doesn't block a v0.1.0 tag)
 
@@ -168,9 +222,15 @@ Re-sequenced once Docker Desktop was started and the e2e proof became unblocked.
    independent of this feature. The hook is opt-in (default `List.of()`) and
    structurally unable to change the hash (enforced in `DeterministicVcrAdvisor`, not
    left to trust).
-5. Item 3 (`REPLAY_ONLY` escape hatch) — design note first, sign-off, then implement.
-6. Item 5 (CI workflow) — next natural step now that item 4 (redactor) has landed and
-   CI can exercise the final shape of the write path.
+5. **Done** — Item 3 (`@Vcr(mode = ...)` escape hatch). Design note compared all four
+   `DISPATCH_PROMPT.md` options against three questions (sealed by default? whole-suite
+   abuse risk? surface area?) and recommended the JUnit 5 extension; implementation
+   matched the recommendation. `VcrModeExtensionTests` proves the override works, that
+   it does not survive into a later unannotated test (ordered explicitly so this is a
+   real proof), that it still runs the full record path including a registered
+   redactor, and class-level vs. method-level precedence.
+6. Item 5 (CI workflow) — next natural step now that items 1 and 3 have both landed and
+   CI can exercise the final shape of both the write path and the escape hatch.
 7. Item 9 (publishing) — last, after the API has held still for a bit.
 8. Items 7–8 (diagnostics) — opportunistic, whenever convenient.
 9. Items 10–13 — not started without a dedicated design note each, per the table above.

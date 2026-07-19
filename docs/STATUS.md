@@ -4,8 +4,29 @@ Last updated: 2026-07-19 · Version `0.1.0-SNAPSHOT`
 
 ## Current state
 
-Core architecture scaffolded. **Never compiled.** See "Known risks" below — this is the
-single most important fact on this page.
+Core architecture scaffolded. **Compiles and `mvn clean test` is green (26/26).**
+Three real bugs were found and fixed getting there — see "Bugs found on first compile"
+below. Everything else in "Known risks" (the unverified specifics list) still applies:
+those were not exercised by fixing the compile, only the paths the existing tests cover
+were.
+
+## Bugs found on first compile (fixed)
+
+1. `VcrTrackStore.shortHash(String)` was package-private but called from
+   `advisor.DeterministicVcrAdvisor` — compile error. Made `public static`.
+2. `VcrCacheKeyGenerator.canonicalize()` built `stops` as `List.of()` (immutable) when
+   options or stop sequences were null, then called `.sort()` on it unconditionally —
+   `UnsupportedOperationException` on every prompt without options. This broke 21 of 26
+   tests. Fixed by using `new ArrayList<>()` in the null branch too.
+3. `VcrCacheKeyGenerator.NULL_TOKEN` contained a literal embedded NUL byte instead of a
+   space in the source file — `" \0null"` rather than `" null"`. Almost certainly an
+   artifact of how the file was originally authored/saved, not a typo. Fixed by
+   rewriting the byte. Worth a `grep -RP '\x00'` sanity check on any other file authored
+   the same way before trusting it blindly.
+
+No Spring AI 2.0.0 API signature mismatches turned up — every type/method name in
+`CLAUDE.md`'s verified-API table held. All three bugs above were internal, not against
+the real jars, so the table needed no correction.
 
 ## What exists
 
@@ -92,8 +113,8 @@ embedding, this library does not currently help.
 
 ## Next tasks, in order
 
-1. **Make it compile and go green.** `mvn clean test`. Fix signature mismatches against
-   the real jars. Update the verified-API table in `CLAUDE.md` with anything learned.
+1. ~~**Make it compile and go green.** `mvn clean test`.~~ **Done** — see "Bugs found on
+   first compile" above.
 2. **Real end-to-end test.** Testcontainers + Ollama with a tiny model
    (`qwen2.5:0.5b`), recording on the first run and replaying on the second. Assert the
    second run makes zero network calls. This is the test that proves the library actually

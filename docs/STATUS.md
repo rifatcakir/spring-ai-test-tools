@@ -4,13 +4,20 @@ Last updated: 2026-07-19 · Version `0.1.0-SNAPSHOT`
 
 ## Current state
 
-Core architecture scaffolded and now proven end-to-end. **`mvn test` is green (35/35)**,
+Core architecture scaffolded and now proven end-to-end. **`mvn test` is green (42/42)**,
 plus a real Testcontainers + Ollama integration test (excluded from the default run,
 verified separately via `mvn test -Pintegration-test`) that proves the library's actual
 reason to exist: record on a real cache miss, replay on a hit, zero additional network
 calls on the hit. Three real bugs were found and fixed getting the unit tests green —
 see "Bugs found on first compile" below. The rest of "Known risks" (the unverified
 specifics list) still applies except where superseded by the e2e test above.
+
+A second SPI, `VcrFixtureRedactor`, now exists alongside `VcrPromptNormalizer` — see
+"Redacting fixture content" in the README and `VcrFixtureRedactor`'s Javadoc. It redacts
+what gets written to a committed fixture without ever being able to change the cache key
+a request resolves to; the guarantee is enforced in code (`DeterministicVcrAdvisor`
+always re-applies the originally-computed `hash`/`schemaVersion` after every redactor
+runs, ignoring whatever a redactor returns for those two fields), not just documented.
 
 ## Bugs found on first compile (fixed)
 
@@ -144,13 +151,23 @@ read.
    `RestClient` underneath `OllamaApi` proves zero additional network requests on the
    hit, rather than assuming it from the response text alone. Docker Desktop needed to be
    started first; once it was, this was unblocked and completed the same session.
-5. **Separate the cache-key normalizer from fixture redaction.** New finding (see
-   `docs/ROADMAP.md` must-have #1 for the full writeup and a proposed design sketch):
-   `VcrPromptNormalizer` currently both stabilizes the hash and is the only tool
-   available for redacting PII from a committed fixture, and using it for the latter
-   silently corrupts the cache. Needs a design sign-off before any code. **Now the
-   top-priority remaining item** — everything else on this list is either done or lower
-   priority.
+5. ~~**Separate the cache-key normalizer from fixture redaction.**~~ **Done** —
+   `VcrFixtureRedactor` (new SPI, `src/main/java/.../VcrFixtureRedactor.java`): applied
+   in `DeterministicVcrAdvisor` only on the write path, after the hash is already
+   computed; `hash()`/`schemaVersion()` on whatever a redactor returns are ignored and
+   re-applied from the original track, enforced in code rather than merely documented.
+   Collected the same way `VcrPromptNormalizer` already is (auto-configured
+   `List<VcrFixtureRedactor>`, `Ordered` sequence). Five behavioural tests in
+   `VcrFixtureRedactorTests` cover: bit-identical fixtures with no redactor registered
+   (new constructor path vs. the pre-existing one), redaction never reaching a live
+   response or a replay, a redactor unable to forge a different cache key even trying
+   to, multiple redactors composing in registration order, and a throwing redactor
+   propagating with nothing written. A characterisation test
+   (`VcrCacheKeyGeneratorTests#hashIsPinnedForKnownInputs`) now pins literal SHA-256
+   values for known inputs as an additional regression guard, independent of this
+   feature. Documented in the README under "Redacting fixture content" — the
+   normalizer/redactor distinction (merges vs. never merges, hash vs. no-hash) was
+   flagged as easy to confuse, so it gets a table and a worked example there.
 6. **Decide the `REPLAY_ONLY` escape hatch.** Should a single test be able to opt into a
    live call while the rest of CI stays sealed? An `AdvisorParams`-style per-request
    override, or a `@Vcr(mode = BYPASS)` JUnit extension. Currently there is no way to do

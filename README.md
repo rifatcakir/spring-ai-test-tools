@@ -88,6 +88,49 @@ model on a miss is always the original, unmodified prompt.
 > Redact volatile values, not meaningful ones. Normalizing away something the model
 > conditions on will make two genuinely different requests share one fixture.
 
+## Redacting fixture content (without touching the cache key)
+
+`VcrPromptNormalizer` and `VcrFixtureRedactor` sound similar and solve adjacent problems,
+but **they change different things**, and confusing them has a real cost:
+
+|   | Affects the hash? | Affects what a hit returns? | Affects what's written to disk? |
+|---|---|---|---|
+| `VcrPromptNormalizer` | **Yes** | No (replay is unaffected either way) | Yes |
+| `VcrFixtureRedactor` | **No** | No | Yes |
+
+A normalizer *merges* requests: two prompts that normalize to the same text share one
+fixture. That's exactly what you want for a timestamp, and exactly what you don't want
+for something the model actually behaves differently for — say, a customer ID. If you
+reach for a normalizer to keep a customer ID out of a committed fixture, you've just made
+every request for every customer share one cache entry, which is silently wrong in a way
+nothing will warn you about.
+
+A redactor never merges anything. It runs once, after the real model has already
+answered and after the cache key has already been computed from the un-redacted request,
+and it only changes what a reviewer sees in the committed JSON:
+
+```java
+@Bean
+VcrFixtureRedactor redactCustomerId() {
+    return track -> /* return a copy of track with the customer ID replaced in
+                        track.request() and/or track.response() */;
+}
+```
+
+The value you redact **still determines which fixture a request resolves to** — it is
+simply never written down. Two requests differing only in a redacted field still get two
+different fixtures, exactly as before redaction existed. This is why it's safe to use on
+real secrets or PII in a way a normalizer is not: redacting can never cause a cache
+collision. The trade-off is the mirror image of a normalizer's — a redactor cannot
+collapse a volatile-but-harmless value the way `RegexPromptNormalizer.ISO_DATE` can; use a
+normalizer for that instead.
+
+`VcrTrack#hash()` and `VcrTrack#schemaVersion()` in whatever a redactor returns are
+ignored — the fixture is always filed under the hash actually computed, regardless of
+what a redactor's return value claims. Multiple redactors run in registration order
+(`Ordered` sequence when Spring-managed); a redactor that throws is not swallowed, so a
+broken redactor fails the recording loudly rather than shipping a half-redacted fixture.
+
 ## Tool calling
 
 Spring AI 2.0 moved the tool-calling loop into the advisor chain as `ToolCallingAdvisor`

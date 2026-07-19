@@ -4,11 +4,13 @@ Last updated: 2026-07-19 · Version `0.1.0-SNAPSHOT`
 
 ## Current state
 
-Core architecture scaffolded. **Compiles and `mvn clean test` is green (26/26).**
-Three real bugs were found and fixed getting there — see "Bugs found on first compile"
-below. Everything else in "Known risks" (the unverified specifics list) still applies:
-those were not exercised by fixing the compile, only the paths the existing tests cover
-were.
+Core architecture scaffolded and now proven end-to-end. **`mvn test` is green (35/35)**,
+plus a real Testcontainers + Ollama integration test (excluded from the default run,
+verified separately via `mvn test -Pintegration-test`) that proves the library's actual
+reason to exist: record on a real cache miss, replay on a hit, zero additional network
+calls on the hit. Three real bugs were found and fixed getting the unit tests green —
+see "Bugs found on first compile" below. The rest of "Known risks" (the unverified
+specifics list) still applies except where superseded by the e2e test above.
 
 ## Bugs found on first compile (fixed)
 
@@ -89,12 +91,19 @@ task.
 2. `ChatResponseMetadata.Builder.keyValue(String, Object)` — confirmed present via
    javadoc, not exercised.
 3. `ChatResponse.builder().generations(...)` when the generations list is empty.
-4. `ChatClientBuilderCustomizer`'s functional method shape — confirmed `customize` exists,
-   lambda target signature assumed to be `(ChatClient.Builder) -> void`.
+4. ~~`ChatClientBuilderCustomizer`'s functional method shape~~ **Confirmed** — exercised
+   for real against a live `ChatClient.Builder` in `OllamaEndToEndTests`; the assumed
+   `(ChatClient.Builder) -> void` shape is correct.
 5. Whether `spring-boot-dependencies:4.0.0` actually manages
    `tools.jackson.core:jackson-databind`. If not, pin an explicit version in `pom.xml`.
 6. `ToolDefinition` is confirmed to have `inputSchema` and `description`; `name` was not
    separately confirmed (it is almost certainly `name()`).
+7. `spring-boot-dependencies:4.0.0` manages `testcontainers.version=2.0.2` via an
+   imported `testcontainers-bom`, but that version does not exist as a published,
+   downloadable artifact (checked directly against Maven Central: the newest real
+   `org.testcontainers` release is `1.21.3`). `pom.xml` pins
+   `org.testcontainers:{testcontainers,junit-jupiter,ollama}` to `1.21.3` explicitly for
+   this reason — remove that override once the BOM-managed version is real.
 
 ### 3. Streaming is deliberately absent
 
@@ -127,18 +136,21 @@ read.
 3. ~~**`additional-spring-configuration-metadata.json`**~~ **Done** — every
    `spring.ai.test.vcr.*` property now has a description and default value in IDE
    completion.
-4. **Separate the cache-key normalizer from fixture redaction.** New finding (see
+4. ~~**Real end-to-end test.**~~ **Done** — `OllamaEndToEndTests`
+   (`@Tag("integration")`, run via `mvn test -Pintegration-test`): a real Testcontainers-
+   managed Ollama container, real `llama3.2:1b` model (the smallest already available in
+   this environment), first call is a genuine cache miss that records one fixture,
+   identical second call is a hit — and an HTTP request counter wired into the
+   `RestClient` underneath `OllamaApi` proves zero additional network requests on the
+   hit, rather than assuming it from the response text alone. Docker Desktop needed to be
+   started first; once it was, this was unblocked and completed the same session.
+5. **Separate the cache-key normalizer from fixture redaction.** New finding (see
    `docs/ROADMAP.md` must-have #1 for the full writeup and a proposed design sketch):
    `VcrPromptNormalizer` currently both stabilizes the hash and is the only tool
    available for redacting PII from a committed fixture, and using it for the latter
-   silently corrupts the cache. Needs a design sign-off before any code.
-5. **Real end-to-end test.** Testcontainers + Ollama with a tiny model
-   (`qwen2.5:0.5b`), recording on the first run and replaying on the second. Assert the
-   second run makes zero network calls. This is the test that proves the library actually
-   works; everything above it is unit-level. **Currently blocked**: Docker Desktop's
-   daemon is not running in this environment (`docker ps` fails to reach
-   `dockerDesktopLinuxEngine`; the CLI itself is installed). Start Docker Desktop to
-   unblock.
+   silently corrupts the cache. Needs a design sign-off before any code. **Now the
+   top-priority remaining item** — everything else on this list is either done or lower
+   priority.
 6. **Decide the `REPLAY_ONLY` escape hatch.** Should a single test be able to opt into a
    live call while the rest of CI stays sealed? An `AdvisorParams`-style per-request
    override, or a `@Vcr(mode = BYPASS)` JUnit extension. Currently there is no way to do

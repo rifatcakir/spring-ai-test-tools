@@ -23,9 +23,11 @@ to, so you only need to read one thing to plan work.
 
 ## Current state (as of this writing)
 
-Compiles, `mvn clean test` green (26/26). Nothing has been proven end-to-end against a
-real model yet — every green test today is a unit test with a mocked `CallAdvisorChain`.
-See `STATUS.md` for the full detail and the bugs fixed to get here.
+`mvn test` green (35/35), plus a real Testcontainers + Ollama end-to-end test
+(`OllamaEndToEndTests`, excluded from the default run, verified via
+`mvn test -Pintegration-test`) proving record → replay → zero additional network
+requests on the hit against a real model, not a mock. See `STATUS.md` for the full
+detail and the bugs fixed to get here.
 
 ---
 
@@ -51,9 +53,9 @@ existing planning doc — they're flagged as such.
 | # | Feature | Why | Size | Source |
 |---|---|---|---|---|
 | 1 | **Separate the cache-key normalizer from fixture redaction** *(new finding, not in either existing doc — promoted to top of the list because it's a design decision, not an implementation task; see the design sketch right after this table)* | `VcrPromptNormalizer` currently does double duty: it both stabilizes the hash against volatile values (dates, UUIDs) *and* is the only available tool for redacting PII/secrets from what gets written to a committed fixture. Per the README's own warning, normalizing away something the model conditions on makes two genuinely different requests share one fixture — so today, redacting a real PII field (say, a customer ID the model needs to behave differently for) to keep it out of a committed fixture **silently corrupts the cache**, which is exactly the failure mode rule #1 exists to prevent. VCR.py avoids this by keeping `match_on` (what decides a hit) and `before_record_request`/`filter_headers` (what gets written) as two independent hooks. This project needs the same split | M (1–2 days; touches `VcrCacheKeyGenerator`, `VcrTrackMapper`, `VcrProperties`, README) — **not started, awaiting sign-off on the design sketch below** | New |
-| 2 | **Auto-configuration slice tests + `additional-spring-configuration-metadata.json`** | `SpringAiVcrAutoConfiguration` is untested; `@ConditionalOnMissingBean` override behavior and advisor ordering relative to `ToolCallingAdvisor` are asserted nowhere. The metadata file is what makes `spring.ai.test.vcr.*` show up with docs in an IDE — cheap to do alongside | S–M (1 day) | `STATUS.md` #3/#4, `DISPATCH_PROMPT.md` Task 3 |
-| 3 | **`REPLAY_ONLY` escape hatch** — design note comparing the four options already listed in `DISPATCH_PROMPT.md` Task 4 (advisor-params override, `@Vcr` JUnit 5 extension, exempt-class property list, or "do nothing, use a separate source set"), then implement the chosen one | CI runs sealed (`REPLAY_ONLY`); there is currently no sanctioned way for a single test to make a live call without weakening the whole suite's guarantee. This is the single most VCR.py-like ergonomic feature missing (`@pytest.mark.vcr(record_mode=...)`) and it's already scoped as a design-first task — recommend the `@Vcr(mode=...)` extension unless the design note surfaces a reason not to | Design: hours. Impl: M (1 day) | `STATUS.md` #5, `DISPATCH_PROMPT.md` Task 4 |
-| 4 | **Real end-to-end proof** — Testcontainers + Ollama, record on run 1, replay with zero network calls on run 2, `REPLAY_ONLY` throws on a changed prompt without touching the container, and an `INSIDE_TOOL_LOOP` vs `OUTSIDE_TOOL_LOOP` proof via a counting `@Tool` | Every green test today mocks the chain. Nothing has proven the library's actual reason to exist — replacing a real model call — works | M (1–2 days) — **BLOCKED: Docker Desktop daemon is not running in this environment** (`docker ps` fails to connect to `dockerDesktopLinuxEngine`; the CLI is installed). Start Docker Desktop to unblock; nothing else about this task is uncertain | `STATUS.md` #2, `DISPATCH_PROMPT.md` Task 2 |
+| 2 | ~~**Auto-configuration slice tests + `additional-spring-configuration-metadata.json`**~~ **Done** | `SpringAiVcrAutoConfigurationTests` (9 tests): absence/presence by `enabled`, scope-derived vs. explicit order, `@ConditionalOnMissingBean` for all four bean types, and registered `VcrPromptNormalizer` beans confirmed reaching the generated `VcrCacheKeyGenerator`. Metadata file merges cleanly (verified against the built `spring-configuration-metadata.json`) | S–M (1 day) | `STATUS.md` #3/#4, `DISPATCH_PROMPT.md` Task 3 |
+| 3 | **`REPLAY_ONLY` escape hatch** — design note comparing the four options already listed in `DISPATCH_PROMPT.md` Task 4 (advisor-params override, `@Vcr` JUnit 5 extension, exempt-class property list, or "do nothing, use a separate source set"), then implement the chosen one | CI runs sealed (`REPLAY_ONLY`); there is currently no sanctioned way for a single test to make a live call without weakening the whole suite's guarantee. This is the single most VCR.py-like ergonomic feature missing (`@pytest.mark.vcr(record_mode=...)`) and it's already scoped as a design-first task — recommend the `@Vcr(mode=...)` extension unless the design note surfaces a reason not to | Design: hours. Impl: M (1 day) | `STATUS.md` #6, `DISPATCH_PROMPT.md` Task 4 |
+| 4 | ~~**Real end-to-end proof**~~ **Core proof done** — `OllamaEndToEndTests` (`@Tag("integration")`, `mvn test -Pintegration-test`): real Testcontainers-managed Ollama container, real `llama3.2:1b`, genuine cache miss → record → hit → replay, with an HTTP request counter wired into the `RestClient` underneath `OllamaApi` proving zero additional network requests on the hit — not inferred from response text alone. **Not yet covered** by this test (narrower, can be added incrementally rather than re-blocking anything): `REPLAY_ONLY` throwing on a miss without touching the container, and the `INSIDE_TOOL_LOOP` vs `OUTSIDE_TOOL_LOOP` distinction via a counting `@Tool`. Docker Desktop needed starting first; once started, this was unblocked the same session | Core: done. Remaining two scenarios: S (a few hours, same test class) | `STATUS.md` #2, `DISPATCH_PROMPT.md` Task 2 |
 | 5 | **CI workflow with a fixture-drift gate** — build on JDK 21, run with `-Dspring.ai.test.vcr.mode=REPLAY_ONLY`, fail if any committed fixture changed during the run | Turns "a fixture change in CI means someone bypassed review" from a stated intent into an enforced check. Needs items 2 and 4 done first so there's something meaningful to run in CI | S (a few hours once 2 and 4 land) | `STATUS.md` #6 |
 | 6 | **Document the non-determinism caveat** — a fixture recorded at `temperature > 0` freezes one sample from a distribution; replay will make a flaky-in-production prompt look deterministically stable in tests, and that's a property of testing, not of the model | Near-zero cost, prevents a confused bug report down the line ("why does this always pass in CI but the model is clearly non-deterministic in prod") | XS (docs only) | New, but small enough to just do — **done**, see README "Limitations" |
 
@@ -149,27 +151,40 @@ is a model call, not a REST response.
 | **Token/usage accounting** | `VcrTrack.ResponseSnapshot.usage` (`UsageSnapshot`: prompt/completion/total tokens) already captured and round-tripped | None currently known; provider-native usage objects are deliberately dropped (lossy by design, documented in README) |
 | **Non-deterministic output** | This is the library's entire value proposition (freeze one sample, replay it) | Needs the caveat documented — item 6 above |
 | **Embeddings** | Out of scope; embedding calls don't pass through `ChatClient`'s advisor chain | Item 12 above |
-| **Tool / function calls** | Modeled today: `ToolDefinitionSnapshot` (name/description/schema) feeds the hash, `ToolCallSnapshot` round-trips tool-call fixtures, and `VcrScope` (`OUTSIDE_TOOL_LOOP` / `INSIDE_TOOL_LOOP`) already decides whether replay skips or re-runs `@Tool` methods | Behavior is designed but **unproven** — folded into item 4's e2e test (the counting `@Tool` proof), currently blocked on Docker Desktop |
+| **Tool / function calls** | Modeled today: `ToolDefinitionSnapshot` (name/description/schema) feeds the hash, `ToolCallSnapshot` round-trips tool-call fixtures, and `VcrScope` (`OUTSIDE_TOOL_LOOP` / `INSIDE_TOOL_LOOP`) already decides whether replay skips or re-runs `@Tool` methods | Behavior is designed but the `INSIDE_TOOL_LOOP` vs `OUTSIDE_TOOL_LOOP` distinction specifically is still **unproven** — the counting-`@Tool` scenario from item 4 was not yet added to `OllamaEndToEndTests` |
 | **PII / secrets in prompt text** | Transport secrets (API keys, bearer tokens) never reach a fixture because interception is above HTTP — genuinely solved, better than VCR.py's manual `sk-...` scrubbing | Secrets/PII *inside the message text itself* have no safe redaction path today — that's item 1 above, the normalizer/redactor split, awaiting design sign-off |
 
 ---
 
 ## Suggested order
 
-Re-sequenced after the redactor/normalizer finding and the Docker Desktop block below.
+Re-sequenced once Docker Desktop was started and the e2e proof became unblocked.
 
 1. **Done** — Item 6 (document non-determinism caveat, in README "Limitations").
-2. **Done** — Item 2 (`ApplicationContextRunner` auto-configuration slice tests).
-3. Item 1 (redactor/normalizer design sign-off, then implementation) — sequenced ahead
-   of the e2e test because it's a design decision that's cheap to make now and expensive
-   to retrofit once fixtures exist that relied on the old, conflated behavior.
-4. Item 4 (e2e proof) — **blocked**: requires Docker Desktop running. Unblock by
-   starting Docker Desktop, then this is next.
+2. **Done** — Item 2 (`ApplicationContextRunner` auto-configuration slice tests +
+   config metadata).
+3. **Done (core)** — Item 4 (e2e proof): `OllamaEndToEndTests` against a real
+   Testcontainers-managed Ollama container proves record → replay → zero additional
+   network requests on the hit. Chosen to run before the redactor/normalizer work
+   (reversing the previous plan) precisely because it's the safety net for that next
+   change: once it exists, any future change to the hashing/fixture-write path can be
+   checked against a real model, not just mocks. Two narrower scenarios from the
+   original scope (`REPLAY_ONLY` miss without touching the container, and the
+   `INSIDE_TOOL_LOOP`/`OUTSIDE_TOOL_LOOP` counting-`@Tool` proof) are not yet added —
+   tracked as a small follow-up in the same test class, not a blocker.
+4. Item 1 (redactor/normalizer design sign-off, then implementation) — next. Hard
+   constraint carried over from the design sketch: existing fixture hashes must not
+   change bit-for-bit when no redactor is registered, and the redaction hook must be
+   opt-in. A test proving hash-stability with and without a no-op-equivalent redactor
+   registered is part of the acceptance bar for this item, not optional polish.
 5. Item 3 (`REPLAY_ONLY` escape hatch) — design note first, sign-off, then implement.
-6. Item 5 (CI workflow) — once 3–4 exist to actually run.
+6. Item 5 (CI workflow) — once 4 (redactor) lands, since CI should exercise the final
+   shape of the write path.
 7. Item 9 (publishing) — last, after the API has held still for a bit.
 8. Items 7–8 (diagnostics) — opportunistic, whenever convenient.
 9. Items 10–13 — not started without a dedicated design note each, per the table above.
+   Batch-verification brainstorm explicitly excluded from this list — see
+   `docs/BRAINSTORM.md`; no code planned there.
 
 ---
 

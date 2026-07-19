@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Nightly, not per-PR: the e2e job below pulls a real Ollama model into a fresh
+    # container on every run (no persistent Docker layer cache across GitHub-hosted
+    # runners), which took ~185s cold locally. Running that on every push/PR would slow
+    # down the feedback loop this workflow exists to keep fast; a nightly run plus
+    # workflow_dispatch (below) is enough to catch a real regression without taxing
+    # every commit.
+    - cron: "17 3 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Unit tests (JDK 21)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      # No -P flag: the integration-test profile is opt-in (see pom.xml), so this is the
+      # same command a contributor runs locally. Nothing here touches Docker or a real
+      # model — OllamaEndToEndTests is tagged @Tag("integration") and excluded from this
+      # run via Surefire's excludedGroups, which is what actually keeps this job fast and
+      # network-independent, not any flag added here.
+      - name: mvn test
+        run: mvn --batch-mode --no-transfer-progress test
+
+      # The gate this job exists for. Deliberately a whole-tree check, not one scoped to
+      # a specific fixture directory: target/ is already gitignored, so on a healthy run
+      # `git status --porcelain` is empty and this is a no-op. The day this project (or
+      # a consumer copying this workflow) commits real VCR fixtures under
+      # src/test/resources/llm-cache, a test that silently re-recorded one becomes
+      # exactly "a tracked file changed during a build that should have been read-only"
+      # — the same check, no new logic needed. A hard failure, not a warning: this
+      # project's whole design (VcrCacheMissException, rule #7 in CLAUDE.md) treats
+      # silent drift as worse than a loud failure, and a warning is exactly the kind of
+      # check a reviewer learns to scroll past.
+      - name: Fail if the test run left the working tree dirty
+        run: |
+          git status --porcelain
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::mvn test modified the working tree. If a fixture changed, that means REPLAY_ONLY was not actually in effect somewhere, or a test re-recorded on a miss instead of failing loudly. Review the diff below, and if the change is legitimate, commit it deliberately in its own reviewed commit rather than letting CI carry it forward silently."
+            git diff
+            exit 1
+          fi
+
+  e2e:
+    name: Real Ollama end-to-end proof (JDK 21)
+    runs-on: ubuntu-latest
+    # Scheduled or manually triggered only — see the comment on the top-level `schedule`
+    # trigger for why this does not run on every push/PR.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: mvn test -Pintegration-test (OllamaEndToEndTests only)
+        run: mvn --batch-mode --no-transfer-progress test -Pintegration-test -Dtest=OllamaEndToEndTests

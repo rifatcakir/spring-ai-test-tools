@@ -12,6 +12,35 @@
 
     <name>spring-ai-test-vcr</name>
     <description>Deterministic, file-based record-and-replay (VCR) caching for Spring AI integration tests.</description>
+    <!-- TODO before first release: confirm this matches the actual GitHub repository name
+         once it exists — inferred from groupId io.github.rifatcakira, not yet verified
+         against a real remote (this repo has none configured as of this commit). -->
+    <url>https://github.com/rifatcakira/spring-ai-test-vcr</url>
+
+    <licenses>
+        <license>
+            <name>Apache-2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>rifatcakira</id>
+            <name>Rifat Cakira</name>
+            <url>https://github.com/rifatcakira</url>
+            <!-- TODO before first release: add a public contact email if you want one
+                 listed — deliberately left out rather than guessed, since this becomes
+                 permanent, public metadata on every published artifact. -->
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:https://github.com/rifatcakira/spring-ai-test-vcr.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/rifatcakira/spring-ai-test-vcr.git</developerConnection>
+        <url>https://github.com/rifatcakira/spring-ai-test-vcr</url>
+    </scm>
 
     <properties>
         <java.version>21</java.version>
@@ -169,6 +198,91 @@
             <properties>
                 <surefire.excludedGroups></surefire.excludedGroups>
             </properties>
+        </profile>
+
+        <!-- Everything needed to publish to Maven Central, isolated in its own profile so
+             an ordinary `mvn test` / `mvn install` for local development never requires a
+             GPG key or Sonatype credentials. Activate explicitly with -Prelease. See
+             docs/PUBLISHING.md for the full walkthrough — namespace verification, GPG key
+             setup, settings.xml credentials, and the actual release command — none of
+             which this pom can do for you. -->
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <!-- Attaches a -sources.jar, required by Maven Central. -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <version>3.3.1</version>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- Attaches a -javadoc.jar, required by Maven Central. Verified with
+                         `mvn -Prelease javadoc:javadoc` — see docs/PUBLISHING.md for what
+                         that actually checked. -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <version>3.12.0</version>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- Signs every produced artifact. Requires a GPG key to be available
+                         to the build (via gpg-agent, or gpg.passphrase / gpg.keyname
+                         properties) — deliberately not configured here; see
+                         docs/PUBLISHING.md. Bound to `verify` so signing happens after
+                         tests, before install/deploy. -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>3.2.8</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- Uploads to the Sonatype Central Publishing Portal (OSSRH's
+                         successor — the old s01.oss.sonatype.org staging-repo flow is
+                         retired). No <distributionManagement> needed for this plugin;
+                         `publishingServerId` refers to a <server> entry named "central" in
+                         settings.xml, which this pom does not and must not define — see
+                         docs/PUBLISHING.md. autoPublish is deliberately false: a build
+                         uploads and validates a bundle, but a human still has to click
+                         "Publish" in the Central Portal UI, so a bad release can be
+                         dropped before it becomes permanent. -->
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.11.0</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>false</autoPublish>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
     </profiles>
 

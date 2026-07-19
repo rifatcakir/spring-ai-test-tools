@@ -177,7 +177,7 @@ public class VcrTrackStore {
 		return this.cacheDirectory;
 	}
 
-	static String shortHash(String hash) {
+	public static String shortHash(String hash) {
 		return (hash == null || hash.length() < 12) ? String.valueOf(hash) : hash.substring(0, 12);
 	}
 

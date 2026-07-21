@@ -27,12 +27,16 @@ bottom.
   Isolated in its own profile so an ordinary `mvn test` / `mvn install` never needs a GPG
   key — nothing about local development changed.
 - **Verified**: `mvn -Prelease package -DskipTests` actually runs `javadoc:javadoc`
-  end-to-end and produces `target/spring-ai-test-vcr-0.1.0-SNAPSHOT-javadoc.jar` and
+  end-to-end and produces `target/spring-ai-test-vcr-0.1.0-javadoc.jar` and
   `-sources.jar` alongside the main jar, with **zero Javadoc errors** (66 warnings, all
   "no comment" / "no @param" / "no @return" on getters, setters, and constructors that
   inherit their meaning from the class-level Javadoc — cosmetic, not blocking). This is
   the step most projects find out is broken only when they try to actually release, so it
   was checked here rather than assumed.
+- **Version bumped: `0.1.0-SNAPSHOT` → `0.1.0`.** Central rejects SNAPSHOT versions
+  outright, so this had to happen before a real release regardless. Verified afterward
+  with a fresh `mvn clean verify -Prelease`: 47/47 tests still green, all four required
+  artifacts produced and signed under the new, non-SNAPSHOT filenames (see below).
 - **GPG key generated and published.** Ed25519/Cv25519 (`sec ed25519` + `ssb cv25519`,
   not RSA — a modern, equally valid choice; this doc's earlier draft suggested RSA 4096
   as *a* safe default, not the only one). Fingerprint
@@ -139,14 +143,15 @@ doing if this machine is shared or backed up somewhere you don't fully control.
 
 ### 5. A real release build
 
-Once 1–4 are done:
+Once 1–4 are done — and the version bump below is already committed:
 
 ```bash
-# Bump the version first — 0.1.0-SNAPSHOT cannot be released as-is; Central rejects
-# SNAPSHOT versions outright. Edit pom.xml's <version> to 0.1.0, commit that separately.
-
 mvn clean verify -Prelease
 ```
+
+The version is already `0.1.0`, not `0.1.0-SNAPSHOT` — Central rejects SNAPSHOT versions
+outright, so this was bumped (`mvn versions:set -DnewVersion=0.1.0`) and verified ahead of
+time, rather than left as a step to remember mid-release.
 
 `verify` (not just `package`) matters here: `maven-gpg-plugin`'s `sign` execution is
 bound to the `verify` phase deliberately, so this is the first command that will actually

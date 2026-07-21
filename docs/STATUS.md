@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-07-21 · Version `0.1.0-SNAPSHOT`
+Last updated: 2026-07-21 · Version `0.1.0`
 
 ## Current state
 

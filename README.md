@@ -20,7 +20,7 @@ rather than the HTTP socket layer.
 <dependency>
     <groupId>io.github.rifatcakir</groupId>
     <artifactId>spring-ai-test-vcr</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0</version>
     <scope>test</scope>
 </dependency>
 ```

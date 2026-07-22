@@ -3,6 +3,7 @@ package io.github.rifatcakir.springai.testtools.recorder.track;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import io.github.rifatcakir.springai.testtools.recorder.key.VcrCacheKey;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import org.springframework.ai.chat.client.ChatClientAttributes;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.ToolResponseMessage;
 import org.springframework.ai.chat.messages.UserMessage;
@@ -211,6 +213,67 @@ class VcrTrackStoreRoundTripTests {
 		assertThat(onlyMessage.toolCalls()).as("missing in the JSON -- must default to empty, not null, "
 				+ "and must not throw").isNull();
 		assertThat(onlyMessage.toolResponses()).isNull();
+	}
+
+	@Test
+	@DisplayName("a schema-version-2 fixture predating structured-output capture still replays")
+	void schemaVersion2FixtureWithoutStructuredOutputStillReplays() throws Exception {
+		VcrTrackStore store = new VcrTrackStore(this.cacheDirectory);
+		String hash = "d".repeat(64);
+		// Deliberately the pre-"3" shape: RequestSnapshot had no "structuredOutput" key at
+		// all -- exactly what every fixture recorded before entity() support existed looks
+		// like on disk, tool-call fields included since schema "2" already had those.
+		Files.writeString(store.pathFor(hash), """
+				{
+				  "schemaVersion" : "2",
+				  "hash" : "%s",
+				  "recordedAt" : "2026-07-21T12:00:00Z",
+				  "canonicalRequest" : "irrelevant",
+				  "request" : {
+				    "model" : "llama3.2",
+				    "temperature" : 0.0,
+				    "messages" : [ { "type" : "user", "text" : "hello", "toolCalls" : [], "toolResponses" : [] } ],
+				    "tools" : []
+				  },
+				  "response" : {
+				    "id" : "x",
+				    "model" : "llama3.2",
+				    "generations" : [ { "text" : "hi", "finishReason" : "STOP", "toolCalls" : [] } ],
+				    "usage" : null,
+				    "metadata" : {}
+				  }
+				}
+				""".formatted(hash));
+
+		VcrTrack track = store.read(hash).orElseThrow();
+
+		assertThat(this.mapper.toChatResponse(track).getResult().getOutput().getText()).isEqualTo("hi");
+		assertThat(track.request().structuredOutput()).as("missing in the JSON -- must default to null, not throw")
+			.isNull();
+	}
+
+	@Test
+	@DisplayName("a structured-output schema in the request's context round-trips into the fixture")
+	void structuredOutputSchemaRoundTrips() {
+		VcrTrackStore store = new VcrTrackStore(this.cacheDirectory);
+		Map<String, Object> context = Map.of(ChatClientAttributes.OUTPUT_FORMAT.getKey(),
+				"Respond in JSON matching this schema: {city, temperatureCelsius}",
+				ChatClientAttributes.STRUCTURED_OUTPUT_SCHEMA.getKey(),
+				"{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"}}}");
+
+		VcrCacheKey key = this.keyGenerator.generate(prompt(), context);
+		store.write(this.mapper.toTrack(key, prompt(), context,
+				ChatResponse.builder()
+					.generations(List.of(new Generation(new AssistantMessage("{\"city\":\"Ankara\"}"))))
+					.build()));
+
+		VcrTrack written = store.read(key.hash()).orElseThrow();
+
+		assertThat(written.request().structuredOutput()).isNotNull();
+		assertThat(written.request().structuredOutput().format())
+			.isEqualTo("Respond in JSON matching this schema: {city, temperatureCelsius}");
+		assertThat(written.request().structuredOutput().jsonSchema())
+			.isEqualTo("{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"}}}");
 	}
 
 	@Test

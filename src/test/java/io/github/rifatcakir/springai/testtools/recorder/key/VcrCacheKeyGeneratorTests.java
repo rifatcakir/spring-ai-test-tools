@@ -1,11 +1,13 @@
 package io.github.rifatcakir.springai.testtools.recorder.key;
 
 import java.util.List;
+import java.util.Map;
 
 import io.github.rifatcakir.springai.testtools.recorder.RegexPromptNormalizer;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import org.springframework.ai.chat.client.ChatClientAttributes;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.ToolResponseMessage;
@@ -254,6 +256,89 @@ class VcrCacheKeyGeneratorTests {
 					toolResponse("call-1", "getWeather", "sunny, 28C")), options))
 			.hash();
 		assertThat(toolResponseHash).isEqualTo("80def403803879bcd822ed84c3bcfe22f37717a708ee0296ab4e685150af4073");
+	}
+
+	private static Map<String, Object> structuredOutputContext(String format, String jsonSchema) {
+		return Map.of(ChatClientAttributes.OUTPUT_FORMAT.getKey(), format,
+				ChatClientAttributes.STRUCTURED_OUTPUT_SCHEMA.getKey(), jsonSchema);
+	}
+
+	/**
+	 * {@code generate(Prompt)} — the overload every call site used before {@code
+	 * ChatClient...entity(Class)} support existed — must remain exactly equivalent to
+	 * {@code generate(Prompt, Map.of())}. This is what guarantees every fixture recorded
+	 * before this feature existed still resolves to the same hash: an empty or absent
+	 * context must never add anything to the canonical form.
+	 */
+	@Test
+	@DisplayName("no request-scoped context is exactly equivalent to an empty one")
+	void noContextEqualsEmptyContext() {
+		Prompt prompt = prompt("hello", options("llama3", 0.0));
+
+		assertThat(this.generator.generate(prompt).hash()).isEqualTo(this.generator.generate(prompt, Map.of()).hash());
+		assertThat(this.generator.generate(prompt).canonicalRequest())
+			.isEqualTo(this.generator.generate(prompt, Map.of()).canonicalRequest());
+	}
+
+	/**
+	 * The actual bug this test suite exists to close: before this fix, {@code
+	 * ChatModelCallAdvisor} spliced {@code entity()}'s format instructions/schema into the
+	 * message text strictly after {@code DeterministicVcrAdvisor} had already computed the
+	 * hash from the un-augmented {@link Prompt} alone — so two structurally different
+	 * {@code entity()} target types sharing identical prompt text canonicalized
+	 * identically. Confirmed end to end against a real model in
+	 * {@code OllamaStructuredOutputEndToEndTests} before this fix landed.
+	 */
+	@Test
+	@DisplayName("structured-output format/schema participates in the hash — two different entity() types sharing "
+			+ "the same prompt text must not collide")
+	void structuredOutputParticipatesInTheHash() {
+		Prompt samePromptText = prompt("Give me an example. Make up any reasonable data.", options("llama3.2", 0.0));
+
+		String noStructuredOutput = this.generator.generate(samePromptText, Map.of()).hash();
+		String cityWeatherSchema = this.generator
+			.generate(samePromptText,
+					structuredOutputContext("Respond in JSON matching this schema: {city, temperatureCelsius}",
+							"{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"},"
+									+ "\"temperatureCelsius\":{\"type\":\"integer\"}}}"))
+			.hash();
+		String reminderSchema = this.generator
+			.generate(samePromptText, structuredOutputContext("Respond in JSON matching this schema: {title, done}",
+					"{\"type\":\"object\",\"properties\":{\"title\":{\"type\":\"string\"},"
+							+ "\"done\":{\"type\":\"boolean\"}}}"))
+			.hash();
+
+		assertThat(cityWeatherSchema)
+			.as("a structured-output call must not collide with the same prompt text asked without entity()")
+			.isNotEqualTo(noStructuredOutput);
+		assertThat(reminderSchema)
+			.as("a structured-output call must not collide with the same prompt text asked without entity()")
+			.isNotEqualTo(noStructuredOutput);
+		assertThat(cityWeatherSchema)
+			.as("BUG FIXED: two different entity() target types sharing identical prompt text must now hash "
+					+ "differently instead of colliding on one fixture")
+			.isNotEqualTo(reminderSchema);
+	}
+
+	/**
+	 * Same golden-master guarantee as {@link #hashIsPinnedForKnownInputs()}, for the
+	 * structured-output canonicalization added alongside {@code VcrTrack} schema version
+	 * "3". Pinned separately because these exercise the structured-output-aware
+	 * canonicalization path in {@link VcrCacheKeyGenerator}, which every golden test above
+	 * predates.
+	 */
+	@Test
+	@DisplayName("pins the exact hash for a known structured-output schema")
+	void hashIsPinnedForKnownStructuredOutput() {
+		Prompt samePromptText = prompt("Give me an example. Make up any reasonable data.", options("llama3.2", 0.0));
+
+		String cityWeatherHash = this.generator
+			.generate(samePromptText,
+					structuredOutputContext("Respond in JSON matching this schema: {city, temperatureCelsius}",
+							"{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"},"
+									+ "\"temperatureCelsius\":{\"type\":\"integer\"}}}"))
+			.hash();
+		assertThat(cityWeatherHash).isEqualTo("22232d5274962bb8619eb4837668e407c61e461f59d2acfff8f1cd886d798cd2");
 	}
 
 }

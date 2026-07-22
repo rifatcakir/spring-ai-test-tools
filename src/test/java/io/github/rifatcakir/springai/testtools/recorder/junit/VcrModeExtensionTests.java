@@ -148,7 +148,7 @@ class VcrModeExtensionTests {
 									message.text().replace("SECRET", "[REDACTED]"), message.toolCalls(),
 									message.toolResponses()))
 							.toList(),
-						track.request().tools()),
+						track.request().tools(), track.request().structuredOutput()),
 				track.response());
 
 		DeterministicVcrAdvisor advisor = new DeterministicVcrAdvisor(this.keyGenerator, this.store, this.mapper,

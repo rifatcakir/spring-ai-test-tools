@@ -192,7 +192,7 @@ public class DeterministicVcrAdvisor implements CallAdvisor {
 			return callAdvisorChain.nextCall(chatClientRequest);
 		}
 
-		VcrCacheKey key = this.keyGenerator.generate(chatClientRequest.prompt());
+		VcrCacheKey key = this.keyGenerator.generate(chatClientRequest.prompt(), chatClientRequest.context());
 		String shortHash = VcrTrackStore.shortHash(key.hash());
 
 		if (effectiveMode == VcrMode.RECORD_ALWAYS) {
@@ -234,7 +234,7 @@ public class DeterministicVcrAdvisor implements CallAdvisor {
 			return response;
 		}
 
-		this.store.write(applyRedactors(this.mapper.toTrack(key, request.prompt(), chatResponse)));
+		this.store.write(applyRedactors(this.mapper.toTrack(key, request.prompt(), request.context(), chatResponse)));
 		return response;
 	}
 

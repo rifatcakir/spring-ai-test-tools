@@ -157,7 +157,7 @@ VcrFixtureRedactor redactCustomerId() {
                                 message.text().replaceAll("customer-\\d+", "[REDACTED]"),
                                 message.toolCalls(), message.toolResponses()))
                         .toList(),
-                    track.request().tools()),
+                    track.request().tools(), track.request().structuredOutput()),
             track.response());
 }
 ```
@@ -205,6 +205,33 @@ answers) records two fixtures under `INSIDE_TOOL_LOOP`, replays both with zero f
 network calls, and still re-invokes the real `@Tool` method on replay, exactly as
 documented above — see `OllamaToolCallingEndToEndTests` in the test suite.
 
+## Structured output
+
+`ChatClient...call().entity(MyDto.class)` (Spring AI's `BeanOutputConverter`-based
+structured output) round-trips through Recorder — verified against a real model, not
+assumed:
+
+```java
+record CityWeather(String city, Integer temperatureCelsius) {}
+
+CityWeather weather = chatClient.prompt().user(prompt).call().entity(CityWeather.class);
+```
+
+POJO conversion happens entirely client-side, after the advisor chain returns, so a
+replayed response converts to the same object a live call would have produced — no extra
+configuration needed.
+
+One thing this library had to fix, not just verify: `entity()`'s format instructions and
+JSON schema are spliced into the actual prompt text by Spring AI's own terminal advisor
+(`ChatModelCallAdvisor`), strictly *after* every other advisor — including this one — has
+already run. Before `VcrTrack` schema version `"3"`, the cache key was computed from the
+un-augmented prompt alone, so two structurally different `entity()` target types sharing
+identical prompt text hashed identically and silently replayed each other's fixture. The
+cache key now also accounts for the format instructions and schema `entity()` attaches to
+the request, so different target types on the same prompt text correctly record and
+replay as separate fixtures — see `OllamaStructuredOutputEndToEndTests` (real model) and
+`DeterministicVcrAdvisorStructuredOutputTests` (fast, Docker-free) in the test suite.
+
 ## What busts the cache
 
 Any of these changes the SHA-256 and forces a re-record:
@@ -216,6 +243,9 @@ Any of these changes the SHA-256 and forces a re-record:
   with — including inside conversation history under `INSIDE_TOOL_LOOP`, where two
   different tool calls or two different tool results now hash differently instead of
   colliding on the same fixture
+- an `entity()` call's target type — its format instructions and JSON schema participate
+  in the hash, so two different structured-output types sharing the same prompt text
+  never collide on the same fixture
 
 That makes fixtures a prompt regression check. If a teammate reshapes a system prompt, CI
 fails with the exact canonical request that changed rather than a silently different answer.

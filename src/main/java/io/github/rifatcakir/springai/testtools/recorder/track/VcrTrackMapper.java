@@ -8,6 +8,7 @@ import java.util.Map;
 import io.github.rifatcakir.springai.testtools.recorder.VcrPromptNormalizer;
 import io.github.rifatcakir.springai.testtools.recorder.key.VcrCacheKey;
 
+import org.springframework.ai.chat.client.ChatClientAttributes;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.ToolResponseMessage;
@@ -53,22 +54,39 @@ public final class VcrTrackMapper {
 	// ---------------------------------------------------------------------
 
 	/**
-	 * Capture a live exchange as a fixture.
+	 * Capture a live exchange as a fixture with no request-scoped context — equivalent to
+	 * {@link #toTrack(VcrCacheKey, Prompt, Map, ChatResponse)} with an empty map.
 	 * @param key the computed cache key
 	 * @param prompt the request that was sent
 	 * @param chatResponse the response that came back
 	 * @return a fully serialisable fixture
 	 */
 	public VcrTrack toTrack(VcrCacheKey key, Prompt prompt, ChatResponse chatResponse) {
+		return toTrack(key, prompt, Map.of(), chatResponse);
+	}
+
+	/**
+	 * Capture a live exchange as a fixture, also recording any structured-output format
+	 * instructions/schema found in {@code ChatClientRequest}'s request-scoped context — see
+	 * {@code VcrCacheKeyGenerator#generate(Prompt, Map)} for why this needs to be captured
+	 * at all.
+	 * @param key the computed cache key
+	 * @param prompt the request that was sent
+	 * @param context {@code ChatClientRequest.context()} at the point this was recorded
+	 * @param chatResponse the response that came back
+	 * @return a fully serialisable fixture
+	 */
+	public VcrTrack toTrack(VcrCacheKey key, Prompt prompt, Map<String, Object> context, ChatResponse chatResponse) {
 		Assert.notNull(key, "key must not be null");
 		Assert.notNull(prompt, "prompt must not be null");
+		Assert.notNull(context, "context must not be null");
 		Assert.notNull(chatResponse, "chatResponse must not be null");
 
 		return new VcrTrack(VcrTrack.CURRENT_SCHEMA_VERSION, key.hash(), Instant.now().toString(),
-				key.canonicalRequest(), toRequestSnapshot(prompt), toResponseSnapshot(chatResponse));
+				key.canonicalRequest(), toRequestSnapshot(prompt, context), toResponseSnapshot(chatResponse));
 	}
 
-	private VcrTrack.RequestSnapshot toRequestSnapshot(Prompt prompt) {
+	private VcrTrack.RequestSnapshot toRequestSnapshot(Prompt prompt, Map<String, Object> context) {
 		ChatOptions options = prompt.getOptions();
 
 		List<VcrTrack.MessageSnapshot> messages = new ArrayList<>();
@@ -87,7 +105,25 @@ public final class VcrTrackMapper {
 				options == null ? null : options.getTopK(), options == null ? null : options.getMaxTokens(),
 				(options == null || options.getStopSequences() == null) ? List.of()
 						: List.copyOf(options.getStopSequences()),
-				messages, toToolSnapshots(options));
+				messages, toToolSnapshots(options), toStructuredOutputSnapshot(context));
+	}
+
+	/**
+	 * {@code null} whenever neither {@link ChatClientAttributes#OUTPUT_FORMAT} nor
+	 * {@link ChatClientAttributes#STRUCTURED_OUTPUT_SCHEMA} is present — the overwhelming
+	 * majority of requests, which never called {@code entity()} at all.
+	 */
+	private VcrTrack.StructuredOutputSnapshot toStructuredOutputSnapshot(Map<String, Object> context) {
+		if (context == null || context.isEmpty()) {
+			return null;
+		}
+		Object format = context.get(ChatClientAttributes.OUTPUT_FORMAT.getKey());
+		Object schema = context.get(ChatClientAttributes.STRUCTURED_OUTPUT_SCHEMA.getKey());
+		if (format == null && schema == null) {
+			return null;
+		}
+		return new VcrTrack.StructuredOutputSnapshot(format == null ? null : format.toString(),
+				schema == null ? null : schema.toString());
 	}
 
 	/**

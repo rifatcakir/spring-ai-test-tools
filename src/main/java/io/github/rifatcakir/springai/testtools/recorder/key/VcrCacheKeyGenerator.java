@@ -7,11 +7,13 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
 import io.github.rifatcakir.springai.testtools.recorder.VcrPromptNormalizer;
 
+import org.springframework.ai.chat.client.ChatClientAttributes;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.ToolResponseMessage;
@@ -65,24 +67,69 @@ public class VcrCacheKeyGenerator {
 	}
 
 	/**
-	 * Compute the cache key for a prompt.
+	 * Compute the cache key for a prompt with no request-scoped context — equivalent to
+	 * {@link #generate(Prompt, Map)} with an empty map. Prompts driven purely by {@code
+	 * ChatClient.prompt()...call()} (no {@code entity()}/structured output) never carry
+	 * anything the other overload would find anyway, so the two are interchangeable for
+	 * that case.
 	 * @param prompt the prompt about to be sent to the model
 	 * @return the digest and the canonical string it was derived from
 	 */
 	public VcrCacheKey generate(Prompt prompt) {
+		return generate(prompt, Map.of());
+	}
+
+	/**
+	 * Compute the cache key for a prompt, also accounting for {@code ChatClientRequest}'s
+	 * request-scoped context map.
+	 *
+	 * <p>Structured output (a {@code ChatClient...entity(Class)} call) is the reason this
+	 * overload exists: {@code ChatModelCallAdvisor} — the terminal advisor,
+	 * {@code getOrder() == Integer.MAX_VALUE} — splices the format instructions and JSON
+	 * schema into the actual message text only after every other advisor, including this
+	 * library's, has already run. Before this overload, {@link #generate(Prompt)} saw only
+	 * the un-augmented {@link Prompt} and had no way to see {@code entity()}'s target type
+	 * at all, so two structurally different {@code entity()} calls sharing the same prompt
+	 * text canonicalized identically and collided on one fixture — confirmed against a
+	 * real model in {@code OllamaStructuredOutputEndToEndTests}, not assumed.
+	 * @param prompt the prompt about to be sent to the model
+	 * @param context {@code ChatClientRequest.context()} at the point this advisor
+	 * intercepts the call; only the two {@link ChatClientAttributes} keys relevant to
+	 * structured output are read from it, everything else is ignored
+	 * @return the digest and the canonical string it was derived from
+	 */
+	public VcrCacheKey generate(Prompt prompt, Map<String, Object> context) {
 		Assert.notNull(prompt, "prompt must not be null");
-		String canonical = canonicalize(prompt);
+		Assert.notNull(context, "context must not be null");
+		String canonical = canonicalize(prompt, context);
 		return new VcrCacheKey(sha256Hex(canonical), canonical);
 	}
 
 	/**
-	 * Build the canonical, line-oriented representation of a prompt.
+	 * Build the canonical, line-oriented representation of a prompt with no request-scoped
+	 * context — equivalent to {@link #canonicalize(Prompt, Map)} with an empty map.
 	 *
 	 * <p>Exposed as {@code protected} so a project with an exotic requirement can override
 	 * the contract, but overriding it changes every existing hash. Prefer a
 	 * {@link VcrPromptNormalizer} for anything less than a total redefinition.
 	 */
 	protected String canonicalize(Prompt prompt) {
+		return canonicalize(prompt, Map.of());
+	}
+
+	/**
+	 * Build the canonical, line-oriented representation of a prompt, also accounting for
+	 * {@code ChatClientRequest}'s request-scoped context map. See
+	 * {@link #generate(Prompt, Map)} for why this overload exists.
+	 *
+	 * <p>Deliberately conditional: when {@code context} carries neither structured-output
+	 * key, nothing about the canonical form changes from {@link #canonicalize(Prompt)} —
+	 * not even an explicit "absent" marker line — so every prompt recorded before this
+	 * overload existed keeps hashing exactly as it always did. Only a real {@code
+	 * entity()}/structured-output call, which is the only caller that ever populates these
+	 * two context keys, changes the canonical form at all.
+	 */
+	protected String canonicalize(Prompt prompt, Map<String, Object> context) {
 		StringBuilder sb = new StringBuilder(512);
 
 		sb.append("vcr-canonical-form/v1").append(FIELD_SEPARATOR);
@@ -113,6 +160,8 @@ public class VcrCacheKeyGenerator {
 			sb.append("tool=").append(tool).append(FIELD_SEPARATOR);
 		}
 
+		appendStructuredOutput(sb, context);
+
 		// Order preserved: conversation sequence is semantic.
 		List<Message> messages = prompt.getInstructions();
 		if (messages != null) {
@@ -129,6 +178,35 @@ public class VcrCacheKeyGenerator {
 		}
 
 		return sb.toString();
+	}
+
+	/**
+	 * {@code ChatClient...entity(Class)} stashes its format instructions and JSON schema on
+	 * {@code ChatClientRequest.context()}, under {@link ChatClientAttributes#OUTPUT_FORMAT}
+	 * and {@link ChatClientAttributes#STRUCTURED_OUTPUT_SCHEMA} respectively —
+	 * {@code ChatModelCallAdvisor} only splices them into the actual message text
+	 * afterwards, downstream of every other advisor. Without this, two different
+	 * {@code entity()} target types sharing identical prompt text canonicalize identically.
+	 *
+	 * <p>Deliberately silent when neither key is present: this must not add so much as an
+	 * "absent" marker line for a request that never touched {@code entity()}, or every
+	 * fixture recorded before this method existed would hash differently.
+	 */
+	private void appendStructuredOutput(StringBuilder sb, Map<String, Object> context) {
+		if (context == null || context.isEmpty()) {
+			return;
+		}
+		Object outputFormat = context.get(ChatClientAttributes.OUTPUT_FORMAT.getKey());
+		Object schema = context.get(ChatClientAttributes.STRUCTURED_OUTPUT_SCHEMA.getKey());
+		if (outputFormat == null && schema == null) {
+			return;
+		}
+		if (outputFormat != null) {
+			sb.append("outputFormat=").append(escape(value(outputFormat))).append(FIELD_SEPARATOR);
+		}
+		if (schema != null) {
+			sb.append("structuredOutputSchema=").append(escape(value(schema))).append(FIELD_SEPARATOR);
+		}
 	}
 
 	/**

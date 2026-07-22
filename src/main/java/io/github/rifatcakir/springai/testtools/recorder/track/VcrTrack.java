@@ -60,8 +60,23 @@ public record VcrTrack(String schemaVersion, String hash, String recordedAt, Str
 	 * There is deliberately no reader-side version check
 	 * enforcing this; the version number here is provenance, telling a reviewer which
 	 * behaviour produced a given fixture, not a migration gate this library runs.
+	 *
+	 * <p>{@code "3"}: {@link RequestSnapshot} gained {@code structuredOutput}, capturing
+	 * what {@code ChatClient...entity(Class)} stashes on {@code ChatClientRequest.context()}
+	 * (the format instructions and JSON schema {@code ChatModelCallAdvisor} — the terminal
+	 * advisor — splices into the message text after every other advisor, including this
+	 * one, has already run). Before this bump, {@code VcrCacheKeyGenerator} canonicalized
+	 * only the un-augmented {@link org.springframework.ai.chat.prompt.Prompt}, so two
+	 * structurally different {@code entity()} target types sharing identical prompt text
+	 * hashed identically and collided on one fixture — confirmed end to end against a real
+	 * model in {@code OllamaStructuredOutputEndToEndTests} before this fix, the same
+	 * "diagnose against a real model before touching the hash" discipline schema {@code "2"}
+	 * followed for tool calls. Additive, same as {@code "2"}: a {@code "1"} or {@code "2"}
+	 * fixture still deserializes, with {@code structuredOutput} simply {@code null} — nothing
+	 * in this library reads {@code RequestSnapshot} back after deserialization, so that
+	 * {@code null} is harmless, not merely tolerated.
 	 */
-	public static final String CURRENT_SCHEMA_VERSION = "2";
+	public static final String CURRENT_SCHEMA_VERSION = "3";
 
 	/**
 	 * What went to the model. Recorded for reviewability — a fixture diff in a pull
@@ -76,9 +91,25 @@ public record VcrTrack(String schemaVersion, String hash, String recordedAt, Str
 	 * necessarily the order the caller supplied them in
 	 * @param messages every message in the prompt, in original conversation order
 	 * @param tools tool definitions available to the model for this request
+	 * @param structuredOutput the {@code entity()} format instructions/JSON schema this
+	 * request carried, or {@code null} if this was not a structured-output call
 	 */
 	public record RequestSnapshot(String model, Double temperature, Double topP, Integer topK, Integer maxTokens,
-			List<String> stopSequences, List<MessageSnapshot> messages, List<ToolDefinitionSnapshot> tools) {
+			List<String> stopSequences, List<MessageSnapshot> messages, List<ToolDefinitionSnapshot> tools,
+			StructuredOutputSnapshot structuredOutput) {
+	}
+
+	/**
+	 * What {@code ChatClient...entity(Class)} stashed on {@code ChatClientRequest.context()}
+	 * for this request — both participate in the hash (see {@code VcrCacheKeyGenerator}),
+	 * captured here too purely for fixture reviewability, the same reason
+	 * {@link ToolDefinitionSnapshot} exists alongside the hash rather than only inside it.
+	 * @param format the human-readable format instructions {@code StructuredOutputConverter
+	 * #getFormat()} produced, or {@code null} if this request had none
+	 * @param jsonSchema the JSON Schema {@code StructuredOutputConverter#getJsonSchema()}
+	 * produced, or {@code null} if this request had none
+	 */
+	public record StructuredOutputSnapshot(String format, String jsonSchema) {
 	}
 
 	/**

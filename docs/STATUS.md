@@ -21,14 +21,35 @@ first for either of them to be usable in CI at all.
 
 ## Current state
 
-Core architecture scaffolded and now proven end-to-end. **`mvn test` is green (55/55)**,
-plus two real Testcontainers + Ollama integration tests (excluded from the default run,
+Core architecture scaffolded and now proven end-to-end. **`mvn test` is green (61/61)**,
+plus three real Testcontainers + Ollama integration tests (excluded from the default run,
 verified separately via `mvn test -Pintegration-test`) that prove the library's actual
 reason to exist: record on a real cache miss, replay on a hit, zero additional network
-calls on the hit — one for a plain call, one for a two-turn tool-calling round trip.
-Three real bugs were found and fixed getting the unit tests green — see "Bugs found on
-first compile" below. The rest of "Known risks" (the unverified specifics list) still
-applies except where superseded by the e2e tests above.
+calls on the hit — one for a plain call, one for a two-turn tool-calling round trip, one
+for structured output (`entity()`). Three real bugs were found and fixed getting the unit
+tests green — see "Bugs found on first compile" below. The rest of "Known risks" (the
+unverified specifics list) still applies except where superseded by the e2e tests above.
+
+**Structured output (`ChatClient...entity(Class)`) is now verified against a real model,
+and a real cache-key blind spot was found and fixed, same discipline as tool calling.**
+The single-DTO round trip already worked with zero new code (POJO conversion is pure
+client-side text parsing, independent of Recorder). But `entity()`'s format
+instructions/JSON schema are spliced into the prompt by Spring AI's own terminal advisor,
+`ChatModelCallAdvisor` (`getOrder() == Integer.MAX_VALUE`), strictly *after*
+`DeterministicVcrAdvisor` already computed the hash from the un-augmented `Prompt` —
+confirmed by reading both classes' bytecode, not guessed. So two structurally different
+`entity()` target types sharing identical prompt text used to hash identically and
+silently replay each other's fixture; reproduced end to end against a real model before
+the fix (`OllamaStructuredOutputEndToEndTests`), then confirmed fixed after it. Fixed by
+bumping `VcrTrack.CURRENT_SCHEMA_VERSION` to `"3"`: `VcrCacheKeyGenerator` and
+`VcrTrackMapper` gained a `(Prompt, Map<String,Object>)` overload that also canonicalizes/
+captures `ChatClientAttributes.OUTPUT_FORMAT`/`STRUCTURED_OUTPUT_SCHEMA` from
+`ChatClientRequest.context()` — conditionally, so a request that never called `entity()`
+adds nothing to the canonical form and keeps its exact pre-existing hash. Every prior
+golden hash test is unchanged (verified, not assumed); new golden hash tests pin the
+structured-output canonicalization specifically, and a fast, Docker-free test
+(`DeterministicVcrAdvisorStructuredOutputTests`) proves the same fix against a real
+`ChatClient`/`BeanOutputConverter` pipeline wired to a fake `ChatModel`.
 
 **Tool/function-call support is now verified against a real model, not just designed.**
 Building `OllamaToolCallingEndToEndTests` surfaced a real gap: `Message.getText()` is

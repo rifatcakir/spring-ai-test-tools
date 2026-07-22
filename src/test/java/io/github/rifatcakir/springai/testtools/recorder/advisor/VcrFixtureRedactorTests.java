@@ -162,7 +162,7 @@ class VcrFixtureRedactorTests {
 									message.text().replace("SECRET", "[REDACTED]"), message.toolCalls(),
 									message.toolResponses()))
 							.toList(),
-						track.request().tools()),
+						track.request().tools(), track.request().structuredOutput()),
 				track.response());
 	}
 
@@ -270,7 +270,7 @@ class VcrFixtureRedactorTests {
 				new VcrTrack.RequestSnapshot(from.equals(track.request().model()) ? to : track.request().model(),
 						track.request().temperature(), track.request().topP(), track.request().topK(),
 						track.request().maxTokens(), track.request().stopSequences(), track.request().messages(),
-						track.request().tools()),
+						track.request().tools(), track.request().structuredOutput()),
 				track.response());
 	}
 

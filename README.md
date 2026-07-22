@@ -241,6 +241,23 @@ Spring AI supports two ways to get structured output, and both are cached the sa
   reliable for smaller models. See the `spring-ai-test-vcr-example` project's
   `StructuredOutputRecordReplayTest` for a worked example.
 
+## Providers
+
+Interception happens at the `ChatClient` advisor layer, above any provider-specific HTTP
+client — the cache key is built from `ChatOptions` and message content alone, never from
+which `ChatModel` implementation or wire protocol is in use. This means switching
+implementations doesn't require re-recording fixtures, as long as the model name and
+parameters stay the same: a fixture is filed under what would be sent to a model, not
+under which Java class sent it.
+
+Verified with two genuinely different implementations, not assumed from one: alongside
+`OllamaChatModel` (`spring-ai-ollama`'s native, `RestClient`-based client), `OpenAiChatModel`
+(built in Spring AI 2.0 on the official OpenAI Java SDK — an entirely different HTTP stack)
+records and replays correctly on its own, and a fixture recorded through the native Ollama
+client replays identically through the OpenAI-SDK client too, at zero additional network
+cost — see `OpenAiViaOllamaEndToEndTests` in the test suite, which points `OpenAiChatModel`
+at Ollama's own OpenAI-compatible endpoint rather than a real OpenAI account.
+
 ## What busts the cache
 
 Any of these changes the SHA-256 and forces a re-record:

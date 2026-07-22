@@ -22,13 +22,35 @@ first for either of them to be usable in CI at all.
 ## Current state
 
 Core architecture scaffolded and now proven end-to-end. **`mvn test` is green (61/61)**,
-plus three real Testcontainers + Ollama integration tests (excluded from the default run,
+plus four real Testcontainers + Ollama integration tests (excluded from the default run,
 verified separately via `mvn test -Pintegration-test`) that prove the library's actual
 reason to exist: record on a real cache miss, replay on a hit, zero additional network
 calls on the hit — one for a plain call, one for a two-turn tool-calling round trip, one
-for structured output (`entity()`). Three real bugs were found and fixed getting the unit
-tests green — see "Bugs found on first compile" below. The rest of "Known risks" (the
-unverified specifics list) still applies except where superseded by the e2e tests above.
+for structured output (`entity()`), one for a second `ChatModel` implementation (see
+below). Three real bugs were found and fixed getting the unit tests green — see "Bugs
+found on first compile" below. The rest of "Known risks" (the unverified specifics list)
+still applies except where superseded by the e2e tests above.
+
+**"Provider independent" is now empirically proven at the implementation level, not just
+claimed.** Every e2e test until now ran against `OllamaChatModel` only.
+`OpenAiViaOllamaEndToEndTests` exercises `OpenAiChatModel` instead — built in Spring AI
+2.0 on the official OpenAI Java SDK (`com.openai.client.OpenAIClient`, an OkHttp-based
+stack), architecturally distinct from `OllamaChatModel`'s `RestClient`-based `OllamaApi`,
+pointed at Ollama's own OpenAI-compatible endpoint so no paid API key or new model was
+needed. Two things proven: record/replay works correctly through this second
+implementation on its own; and, the critical proof, a fixture recorded through the
+*native* Ollama client replays byte-for-byte identical through the *OpenAI-SDK* client, at
+zero network cost. This confirms `VcrCacheKeyGenerator` genuinely does not encode which
+`ChatModel` implementation or wire protocol is in use (it only ever reads `ChatOptions`
+interface getters, never `instanceof OllamaChatOptions`/`OpenAiChatOptions`) — the correct
+behavior, reasoned through before writing any code: which Java class or transport reaches
+a model cannot change what that model computes given the same model name and parameters,
+so it must not be able to bust the cache. **No production code changed** to make this
+pass. Honest scope limit, not overclaimed: both provider paths in this test still talk to
+the same underlying `llama3.2:1b` weights via the same Ollama instance — this proves
+implementation/transport independence, not independence from an actually different model
+vendor (a real OpenAI/Anthropic/Bedrock account remains unverified) — see `docs/VISION.md`
+for the full caveat.
 
 **Structured output (`ChatClient...entity(Class)`) is now verified against a real model,
 and a real cache-key blind spot was found and fixed, same discipline as tool calling.**

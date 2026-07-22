@@ -100,19 +100,39 @@ So the intended positioning is: **a test-and-evaluation toolkit for Spring AI**,
 abstraction level Spring AI itself works in — not a narrower "VCR clone that happens to
 target LLMs."
 
-## Honest caveat: provider independence is a goal, not a proven fact
+## Honest caveat: provider independence is proven at the implementation level, not yet at the vendor level
 
 Recorder is designed to be provider-agnostic — it intercepts at the `ChatClient` advisor
 layer, above any provider-specific HTTP client, and `VcrTrack` never round-trips a
-provider-native object. That design intent is real. What is **not** yet true is empirical
-proof of it: every end-to-end test in this repository (`OllamaEndToEndTests`,
-`OllamaToolCallingEndToEndTests`) runs against real Ollama only. Nothing has been verified
-against OpenAI, Anthropic, Azure OpenAI, Bedrock, or any other Spring AI chat model
-implementation. It is entirely possible a provider-specific quirk (a different tool-call
-argument encoding, a metadata field this project doesn't know to expect) surfaces the
-first time this runs against a second provider. Until that test exists, "provider
-independent" is a claim about the design, not a verified property of the software — do
-not represent it as more than that in README or marketing copy.
+provider-native object. This is now empirically proven for a second, genuinely different
+`ChatModel` implementation, not just claimed: `OpenAiViaOllamaEndToEndTests` runs
+`OpenAiChatModel` — built in Spring AI 2.0 on the official OpenAI Java SDK
+(`com.openai.client.OpenAIClient`, an OkHttp-based stack), architecturally distinct from
+`OllamaChatModel`'s `RestClient`-based `OllamaApi`, not merely a different Spring AI
+wrapper around the same transport — against Ollama's own OpenAI-compatible endpoint.
+Two things were proven, not assumed: (1) record/replay works correctly through this second
+implementation on its own, with zero additional requests on a hit; (2) a fixture recorded
+through the *native* Ollama client replays, byte-for-byte identical, through the
+*OpenAI-SDK* client too, at zero network cost — meaning the cache key genuinely does not
+(and structurally cannot, since `VcrCacheKeyGenerator` reads only `ChatOptions` interface
+getters, never `instanceof OllamaChatOptions`/`OpenAiChatOptions`) encode which Java class
+or wire protocol reached the model. **No production code changed to make this pass** — the
+advisor-layer design was already this provider-agnostic before this test existed; the test
+only made that a demonstrated fact instead of an intended one.
+
+**What is still not proven, and should not be overclaimed:** both provider paths in that
+test talk to the exact same underlying model weights (`llama3.2:1b`, served by the same
+Ollama instance) — one via Ollama's native API, one via its OpenAI-compatibility layer.
+This proves implementation/transport independence, not independence from an actually
+different vendor's model. Nothing in this repository has been verified against a real
+OpenAI, Anthropic, Azure OpenAI, or Bedrock account with a genuinely different model
+behind it — that would need real credentials and real token spend, deliberately out of
+scope for a proof that was designed to need neither. A provider-specific quirk unique to
+those real backends (a different tool-call argument encoding a real GPT/Claude model
+happens to produce, say) remains a theoretical, unverified risk. Don't represent
+"provider independent" as more than "proven across two different Spring AI `ChatModel`
+implementations talking to the same model; unverified against a genuinely different
+model vendor" in README or marketing copy.
 
 ## What this document is not
 

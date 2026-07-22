@@ -146,6 +146,16 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- A second, genuinely different ChatModel implementation, for the multi-provider
+             empirical validation proof only: see OpenAiViaOllamaEndToEndTests. Pointed at
+             Ollama's own OpenAI-compatible endpoint rather than a real OpenAI account, so
+             this needs no paid API key. Never a dependency of the library itself. -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-openai</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <!-- Testcontainers + its Ollama module, for the same test. Explicit version: see
              the testcontainers.version property comment above. -->
         <dependency>

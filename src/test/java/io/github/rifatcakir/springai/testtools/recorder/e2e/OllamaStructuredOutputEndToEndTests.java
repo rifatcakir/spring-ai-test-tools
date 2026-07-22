@@ -69,6 +69,17 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  * {@code STRUCTURED_OUTPUT_SCHEMA} from the request context, closing the gap.</li>
  * </ol>
  *
+ * <p>Every {@code entity()} call here uses {@code spec.useProviderStructuredOutput()} —
+ * Ollama's native, JSON-schema-constrained decoding — rather than the default
+ * text-instruction-based converter. {@code llama3.2:1b} (this project's model
+ * throughout, chosen for size) did not reliably populate a DTO's fields under the
+ * default converter's verbose written instructions; constraining generation at the
+ * token level is far more reliable for a model this small, and — confirmed by reading
+ * {@code ChatModelCallAdvisor}'s {@code augmentWithFormatInstructions}, not assumed —
+ * still populates both {@code OUTPUT_FORMAT} and {@code STRUCTURED_OUTPUT_SCHEMA} in the
+ * request context either way, so the cache-key fix this test class exists to prove is
+ * exercised identically regardless of which structured-output mode is used.
+ *
  * <p>Tagged {@code integration} and excluded from the default {@code mvn test} run — see
  * {@link OllamaEndToEndTests} for why and how to run it explicitly. See
  * {@code DeterministicVcrAdvisorStructuredOutputTests} for the same collision-fix proof,
@@ -185,8 +196,16 @@ class OllamaStructuredOutputEndToEndTests {
 
 		String prompt = "Invent a plausible city and a temperature in Celsius for it right now.";
 
-		CityWeather first = chatClient.prompt().user(prompt).call().entity(CityWeather.class);
-		assertThat(first).isNotNull();
+		CityWeather first = chatClient.prompt().user(prompt).call().entity(CityWeather.class, spec -> spec.useProviderStructuredOutput());
+		// A live model invents its own city/temperature, so the exact value can't be
+		// pinned without risking flakiness -- but the fields being genuinely populated
+		// (not silently null, the way an empty or malformed response would convert) is a
+		// real, checkable claim: it proves entity() actually extracted structured data
+		// from the live response, not just that some object got constructed.
+		assertThat(first.city()).as("the model must have named an actual city, not left the field empty")
+			.isNotBlank();
+		assertThat(first.temperatureCelsius())
+			.as("the model must have supplied an actual temperature, not left the field empty").isNotNull();
 		assertThat(httpRequestCount.get()).as("the live call must reach Ollama at least once").isGreaterThanOrEqualTo(1);
 		int requestsAfterFirstCall = httpRequestCount.get();
 
@@ -194,7 +213,7 @@ class OllamaStructuredOutputEndToEndTests {
 			assertThat(fixtures).as("one fixture for one structured-output call").hasSize(1);
 		}
 
-		CityWeather second = chatClient.prompt().user(prompt).call().entity(CityWeather.class);
+		CityWeather second = chatClient.prompt().user(prompt).call().entity(CityWeather.class, spec -> spec.useProviderStructuredOutput());
 
 		assertThat(httpRequestCount.get()).as("a replay must make zero additional HTTP requests")
 			.isEqualTo(requestsAfterFirstCall);
@@ -214,8 +233,9 @@ class OllamaStructuredOutputEndToEndTests {
 		// to the cache key before this fix.
 		String prompt = "Give me an example. Make up any reasonable data.";
 
-		CityWeather weather = chatClient.prompt().user(prompt).call().entity(CityWeather.class);
-		assertThat(weather).isNotNull();
+		CityWeather weather = chatClient.prompt().user(prompt).call().entity(CityWeather.class, spec -> spec.useProviderStructuredOutput());
+		assertThat(weather.city()).as("the model must have named an actual city, not left the field empty")
+			.isNotBlank();
 		int requestsAfterFirstCall = httpRequestCount.get();
 		assertThat(requestsAfterFirstCall).as("recording the first entity() call must reach the real model")
 			.isGreaterThanOrEqualTo(1);
@@ -232,8 +252,9 @@ class OllamaStructuredOutputEndToEndTests {
 			.contains("temperatureCelsius");
 
 		// A structurally different entity type, but byte-for-byte the same prompt text.
-		Reminder reminder = chatClient.prompt().user(prompt).call().entity(Reminder.class);
-		assertThat(reminder).isNotNull();
+		Reminder reminder = chatClient.prompt().user(prompt).call().entity(Reminder.class, spec -> spec.useProviderStructuredOutput());
+		assertThat(reminder.title()).as("the model must have invented an actual title, not left the field empty")
+			.isNotBlank();
 
 		assertThat(httpRequestCount.get())
 			.as("BUG FIXED: the second call — a structurally different entity type — must reach the real model "
@@ -259,7 +280,7 @@ class OllamaStructuredOutputEndToEndTests {
 
 		// A genuine repeat of the second call must still replay from its own fixture.
 		int requestsAfterSecondCall = httpRequestCount.get();
-		Reminder replayedReminder = chatClient.prompt().user(prompt).call().entity(Reminder.class);
+		Reminder replayedReminder = chatClient.prompt().user(prompt).call().entity(Reminder.class, spec -> spec.useProviderStructuredOutput());
 		assertThat(httpRequestCount.get()).as("a real replay of the Reminder call must make zero additional requests")
 			.isEqualTo(requestsAfterSecondCall);
 		assertThat(replayedReminder).isEqualTo(reminder);

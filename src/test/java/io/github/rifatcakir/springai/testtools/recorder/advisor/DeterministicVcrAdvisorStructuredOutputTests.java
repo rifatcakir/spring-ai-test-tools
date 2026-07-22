@@ -82,12 +82,18 @@ class DeterministicVcrAdvisorStructuredOutputTests {
 		ChatClient chatClient = ChatClient.builder(fakeModel).defaultAdvisors(advisor).build();
 		String prompt = "Give me an example. Make up any reasonable data.";
 
+		// FakeChatModel always answers the bare JSON object "{}", so the converted DTO's
+		// exact shape is fully known in advance -- asserting it precisely (not just
+		// "non-null") proves entity() actually ran the real BeanOutputConverter parsing
+		// path against that exact text, rather than merely constructing some object.
 		CityWeather weather = chatClient.prompt().user(prompt).call().entity(CityWeather.class);
-		assertThat(weather).isNotNull();
+		assertThat(weather).as("\"{}\" has no matching properties, so every field must come back null")
+			.isEqualTo(new CityWeather(null, null));
 		assertThat(fakeModel.invocations).as("recording the first entity() call must reach the model").hasValue(1);
 
 		Reminder reminder = chatClient.prompt().user(prompt).call().entity(Reminder.class);
-		assertThat(reminder).isNotNull();
+		assertThat(reminder).as("\"{}\" has no matching properties, so every field must come back null")
+			.isEqualTo(new Reminder(null, null));
 		assertThat(fakeModel.invocations)
 			.as("BUG FIXED: a structurally different entity() type, even with identical prompt text, must reach "
 					+ "the model again rather than replaying the CityWeather fixture")

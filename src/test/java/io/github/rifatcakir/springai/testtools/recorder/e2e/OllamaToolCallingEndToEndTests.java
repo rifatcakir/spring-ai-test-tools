@@ -1,11 +1,13 @@
 package io.github.rifatcakir.springai.testtools.recorder.e2e;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import io.github.rifatcakir.springai.testtools.recorder.autoconfigure.SpringAiVcrAutoConfiguration;
@@ -187,10 +189,20 @@ class OllamaToolCallingEndToEndTests {
 						+ "Ollama — one per model turn").isGreaterThanOrEqualTo(2);
 				int requestsAfterFirstCall = httpRequestCount.get();
 
+				String combinedFixtureContent;
 				try (Stream<Path> fixtures = Files.list(this.cacheDirectory)) {
-					assertThat(fixtures).as("INSIDE_TOOL_LOOP caches one fixture per model turn — two turns here")
+					List<Path> written = fixtures.toList();
+					assertThat(written).as("INSIDE_TOOL_LOOP caches one fixture per model turn — two turns here")
 						.hasSize(2);
+					combinedFixtureContent = written.stream().map(OllamaToolCallingEndToEndTests::readQuietly)
+						.collect(Collectors.joining("\n"));
 				}
+				// Not just "two fixtures exist" -- the exact function name and city
+				// argument the model actually committed to calling, across both files.
+				assertThat(combinedFixtureContent)
+					.as("the recorded tool call must be getWeather for Ankara, not just any call")
+					.contains("\"name\" : \"getWeather\"")
+					.contains("Ankara");
 
 				// --- second call: identical prompt, both turns must replay ---
 				String secondResponse = chatClient.prompt().user(prompt).tools(weatherTool).call().content();
@@ -205,6 +217,15 @@ class OllamaToolCallingEndToEndTests {
 							+ "even though the model turns around it did not reach the network")
 					.hasValue(2);
 			});
+	}
+
+	private static String readQuietly(Path path) {
+		try {
+			return Files.readString(path);
+		}
+		catch (IOException ex) {
+			throw new UncheckedIOException(ex);
+		}
 	}
 
 }

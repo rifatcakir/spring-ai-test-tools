@@ -221,16 +221,25 @@ POJO conversion happens entirely client-side, after the advisor chain returns, s
 replayed response converts to the same object a live call would have produced — no extra
 configuration needed.
 
-One thing this library had to fix, not just verify: `entity()`'s format instructions and
-JSON schema are spliced into the actual prompt text by Spring AI's own terminal advisor
-(`ChatModelCallAdvisor`), strictly *after* every other advisor — including this one — has
-already run. Before `VcrTrack` schema version `"3"`, the cache key was computed from the
-un-augmented prompt alone, so two structurally different `entity()` target types sharing
-identical prompt text hashed identically and silently replayed each other's fixture. The
-cache key now also accounts for the format instructions and schema `entity()` attaches to
-the request, so different target types on the same prompt text correctly record and
-replay as separate fixtures — see `OllamaStructuredOutputEndToEndTests` (real model) and
-`DeterministicVcrAdvisorStructuredOutputTests` (fast, Docker-free) in the test suite.
+The cache key is sensitive to *what* `entity()` asks for, not just the prompt text it's
+paired with: the target type's format instructions and JSON schema participate in the
+hash right alongside the message content. Two `entity()` calls that share identical
+prompt text but ask for different target types always record and replay as two separate
+fixtures — a schema change is exactly the kind of thing that should bust the cache, the
+same principle "What busts the cache" below is built around. Verified end to end against
+a real model in `OllamaStructuredOutputEndToEndTests`, and fast/Docker-free in
+`DeterministicVcrAdvisorStructuredOutputTests`.
+
+Spring AI supports two ways to get structured output, and both are cached the same way:
+
+- **Text-instruction-based** (the default) — the model is asked, in plain language, to
+  produce JSON matching a schema. Works with any provider, but asks a smaller model to
+  follow written instructions closely.
+- **Provider-native** (`entity(Class, spec -> spec.useProviderStructuredOutput())`) — for
+  providers that support it (Ollama included), the schema constrains generation at the
+  token level instead of relying on the model to read and follow instructions. More
+  reliable for smaller models. See the `spring-ai-test-vcr-example` project's
+  `StructuredOutputRecordReplayTest` for a worked example.
 
 ## What busts the cache
 
@@ -240,12 +249,12 @@ Any of these changes the SHA-256 and forces a re-record:
 - model, temperature, topP, topK, maxTokens, penalties, stop sequences
 - tool name, description or JSON input schema
 - which tool a model turn called, with what arguments, and what that tool responded
-  with — including inside conversation history under `INSIDE_TOOL_LOOP`, where two
-  different tool calls or two different tool results now hash differently instead of
-  colliding on the same fixture
+  with — the hash tells two different tool calls, or two different tool results, apart
+  even inside conversation history under `INSIDE_TOOL_LOOP`, where each model turn gets
+  its own fixture
 - an `entity()` call's target type — its format instructions and JSON schema participate
   in the hash, so two different structured-output types sharing the same prompt text
-  never collide on the same fixture
+  always record and replay as their own separate fixtures
 
 That makes fixtures a prompt regression check. If a teammate reshapes a system prompt, CI
 fails with the exact canonical request that changed rather than a silently different answer.

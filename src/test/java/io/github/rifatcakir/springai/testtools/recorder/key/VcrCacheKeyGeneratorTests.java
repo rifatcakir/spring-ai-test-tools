@@ -14,6 +14,9 @@ import org.springframework.ai.chat.messages.ToolResponseMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.model.tool.ToolCallingChatOptions;
+import org.springframework.ai.tool.ToolCallback;
+import org.springframework.ai.tool.definition.ToolDefinition;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -339,6 +342,82 @@ class VcrCacheKeyGeneratorTests {
 									+ "\"temperatureCelsius\":{\"type\":\"integer\"}}}"))
 			.hash();
 		assertThat(cityWeatherHash).isEqualTo("22232d5274962bb8619eb4837668e407c61e461f59d2acfff8f1cd886d798cd2");
+	}
+
+	private static ToolCallback toolCallback(String name, String description, String inputSchema) {
+		ToolDefinition definition = ToolDefinition.builder()
+			.name(name)
+			.description(description)
+			.inputSchema(inputSchema)
+			.build();
+		return new ToolCallback() {
+
+			@Override
+			public ToolDefinition getToolDefinition() {
+				return definition;
+			}
+
+			@Override
+			public String call(String toolInput) {
+				return "";
+			}
+
+		};
+	}
+
+	private static ChatOptions optionsWithTool(String model, ToolCallback callback) {
+		return ToolCallingChatOptions.builder().model(model).temperature(0.0).toolCallbacks(callback).build();
+	}
+
+	/**
+	 * The actual cross-platform bug this test (and {@link #structuredOutputFormatCrlfAndLfHashIdentically()})
+	 * exist to close, found by actually pushing to a real Linux GitHub Actions runner, not
+	 * hypothesized: a tool's input schema is rendered by Jackson's pretty printer, which
+	 * embeds the recording JVM's own {@code System.lineSeparator()} — {@code \r\n} on
+	 * Windows, {@code \n} on Linux/macOS. A fixture recorded on Windows and replayed in CI
+	 * on Linux used to hash the same logical schema differently and miss for a reason with
+	 * nothing to do with the actual request.
+	 */
+	@Test
+	@DisplayName("BUG FIXED: a tool's input schema hashes identically whether it's pretty-printed with CRLF "
+			+ "(Windows) or LF (Linux/macOS) line endings")
+	void toolSchemaCrlfAndLfHashIdentically() {
+		String schemaBody = "{\n  \"type\" : \"object\",\n  \"properties\" : {\n    \"city\" : {\n      \"type\" : "
+				+ "\"string\"\n    }\n  }\n}";
+		String schemaWithLf = schemaBody;
+		String schemaWithCrlf = schemaBody.replace("\n", "\r\n");
+		assertThat(schemaWithCrlf).as("sanity check: the two schema strings really do differ, byte for byte")
+			.isNotEqualTo(schemaWithLf);
+
+		Prompt withLfSchema = new Prompt(List.of(new UserMessage("what is the weather?")),
+				optionsWithTool("llama3.2", toolCallback("getWeather", "Get the weather", schemaWithLf)));
+		Prompt withCrlfSchema = new Prompt(List.of(new UserMessage("what is the weather?")),
+				optionsWithTool("llama3.2", toolCallback("getWeather", "Get the weather", schemaWithCrlf)));
+
+		assertThat(this.generator.generate(withCrlfSchema).hash())
+			.as("BUG FIXED: the same logical schema, pretty-printed with Windows vs. Unix line endings, must hash "
+					+ "identically -- recording on Windows and replaying on Linux CI must not be a cache miss")
+			.isEqualTo(this.generator.generate(withLfSchema).hash());
+	}
+
+	@Test
+	@DisplayName("BUG FIXED: an entity() call's format instructions and JSON schema hash identically whether "
+			+ "they're pretty-printed with CRLF (Windows) or LF (Linux/macOS) line endings")
+	void structuredOutputFormatCrlfAndLfHashIdentically() {
+		Prompt samePromptText = prompt("Give me an example.", options("llama3.2", 0.0));
+		String formatLf = "Your response should be in JSON format.\nHere is the schema:\n{\n  \"type\" : \"object\"\n}";
+		String schemaLf = "{\n  \"type\" : \"object\",\n  \"properties\" : {\n    \"city\" : {\n      \"type\" : "
+				+ "\"string\"\n    }\n  }\n}";
+
+		String hashWithLf = this.generator.generate(samePromptText, structuredOutputContext(formatLf, schemaLf)).hash();
+		String hashWithCrlf = this.generator
+			.generate(samePromptText, structuredOutputContext(formatLf.replace("\n", "\r\n"), schemaLf.replace("\n", "\r\n")))
+			.hash();
+
+		assertThat(hashWithCrlf)
+			.as("BUG FIXED: the same logical format instructions/schema, pretty-printed with Windows vs. Unix line "
+					+ "endings, must hash identically")
+			.isEqualTo(hashWithLf);
 	}
 
 }

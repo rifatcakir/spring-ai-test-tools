@@ -29,6 +29,14 @@ designed:
 - **Record/replay with exact-match SHA-256 fingerprinting.** One JSON file per canonical
   request hash; a prompt that changes by one character produces a new fixture or a loud
   `VcrCacheMissException`, never a "close enough" hit.
+- **Cross-platform hashing** (schema `"4"`) — a tool's input schema and an `entity()`
+  call's format instructions/JSON schema are pretty-printed with the recording JVM's own
+  line separator (`\r\n` on Windows, `\n` on Linux/macOS); both are normalized to `\n`
+  before hashing (and in the stored fixture, kept consistent with the hash), so a fixture
+  recorded on Windows replays identically on Linux/macOS CI. Found for real, not
+  hypothesized: two example-project fixtures recorded on Windows failed on a real Linux
+  GitHub Actions runner until this landed. Message/response text is deliberately excluded
+  from this normalization — see `VcrCacheKeyGenerator#normalizeLineEndings`'s Javadoc.
 - **Four modes** (`RECORD_OR_REPLAY`, `REPLAY_ONLY`, `RECORD_ALWAYS`, `BYPASS`) plus a
   per-test `@Vcr` escape hatch out of a sealed `REPLAY_ONLY` CI run.
 - **`VcrPromptNormalizer`** — pre-hash normalization for volatile-but-harmless values

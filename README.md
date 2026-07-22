@@ -40,6 +40,9 @@ Every run after that replays that file in milliseconds — no Ollama container, 
   in an otherwise sealed `REPLAY_ONLY` run, without weakening the seal for anything else.
 - **Committed, human-reviewable fixtures.** Pretty-printed JSON, meant to be read in a pull
   request — a fixture diff is a prompt regression check.
+- **Fixtures are cross-platform.** Line endings inside a tool's input schema or an
+  `entity()` call's format instructions/JSON schema are normalized before hashing, so a
+  fixture recorded on Windows replays identically on a Linux or macOS CI runner.
 
 ## Quick start
 

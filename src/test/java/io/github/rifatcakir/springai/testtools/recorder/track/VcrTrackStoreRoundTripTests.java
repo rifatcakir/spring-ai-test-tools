@@ -276,6 +276,81 @@ class VcrTrackStoreRoundTripTests {
 			.isEqualTo("{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"}}}");
 	}
 
+	/**
+	 * The committed fixture must never disagree, invisibly, with what was actually
+	 * hashed: {@code VcrCacheKeyGenerator} normalizes a schema's line endings before
+	 * hashing it (schema version {@code "4"}), so the stored {@code structuredOutput}
+	 * field is normalized the same way -- otherwise a reviewer would see {@code \r\n} in
+	 * the committed JSON while the hash was computed over {@code \n}, a confusing and
+	 * avoidable mismatch.
+	 */
+	@Test
+	@DisplayName("BUG FIXED: CRLF line endings in a structured-output schema are normalized to LF in the "
+			+ "committed fixture too, not just in the hash")
+	void structuredOutputSchemaLineEndingsAreNormalizedInTheStoredFixtureToo() {
+		VcrTrackStore store = new VcrTrackStore(this.cacheDirectory);
+		Map<String, Object> context = Map.of(ChatClientAttributes.OUTPUT_FORMAT.getKey(),
+				"Respond in JSON matching this schema:\r\n{\r\n  \"type\" : \"object\"\r\n}",
+				ChatClientAttributes.STRUCTURED_OUTPUT_SCHEMA.getKey(), "{\r\n  \"type\" : \"object\"\r\n}");
+
+		VcrCacheKey key = this.keyGenerator.generate(prompt(), context);
+		store.write(this.mapper.toTrack(key, prompt(), context,
+				ChatResponse.builder().generations(List.of(new Generation(new AssistantMessage("{}")))).build()));
+
+		VcrTrack written = store.read(key.hash()).orElseThrow();
+
+		assertThat(written.request().structuredOutput().format()).as("no literal CRLF must survive into the fixture")
+			.doesNotContain("\r")
+			.isEqualTo("Respond in JSON matching this schema:\n{\n  \"type\" : \"object\"\n}");
+		assertThat(written.request().structuredOutput().jsonSchema()).doesNotContain("\r")
+			.isEqualTo("{\n  \"type\" : \"object\"\n}");
+	}
+
+	/**
+	 * Schema version {@code "4"} changed only the canonicalization formula, not any
+	 * {@code RequestSnapshot}/{@code StructuredOutputSnapshot} field -- so, unlike the
+	 * {@code "1"} and {@code "2"} bumps, there is nothing new to default to {@code null}
+	 * here. This exists anyway, for the same completeness the earlier bumps' backward-
+	 * compatibility tests provide: a fixture recorded under the pre-normalization formula
+	 * (containing a literal CRLF schema, exactly like a real fixture recorded on Windows
+	 * before this fix) still deserializes and replays without throwing.
+	 */
+	@Test
+	@DisplayName("a schema-version-3 fixture predating line-ending normalization still replays")
+	void schemaVersion3FixtureWithCrlfSchemaStillReplays() throws Exception {
+		VcrTrackStore store = new VcrTrackStore(this.cacheDirectory);
+		String hash = "e".repeat(64);
+		Files.writeString(store.pathFor(hash), """
+				{
+				  "schemaVersion" : "3",
+				  "hash" : "%s",
+				  "recordedAt" : "2026-07-22T12:00:00Z",
+				  "canonicalRequest" : "irrelevant",
+				  "request" : {
+				    "model" : "llama3.2",
+				    "temperature" : 0.0,
+				    "messages" : [ { "type" : "user", "text" : "hello", "toolCalls" : [], "toolResponses" : [] } ],
+				    "tools" : [],
+				    "structuredOutput" : { "format" : "line one\\r\\nline two", "jsonSchema" : "{\\r\\n  \\"type\\" : \\"object\\"\\r\\n}" }
+				  },
+				  "response" : {
+				    "id" : "x",
+				    "model" : "llama3.2",
+				    "generations" : [ { "text" : "hi", "finishReason" : "STOP", "toolCalls" : [] } ],
+				    "usage" : null,
+				    "metadata" : {}
+				  }
+				}
+				""".formatted(hash));
+
+		VcrTrack track = store.read(hash).orElseThrow();
+
+		assertThat(this.mapper.toChatResponse(track).getResult().getOutput().getText()).isEqualTo("hi");
+		assertThat(track.request().structuredOutput().format()).as("a pre-existing fixture's literal CRLF is left "
+				+ "exactly as committed -- normalization only ever applies going forward, to newly recorded fixtures")
+			.isEqualTo("line one\r\nline two");
+	}
+
 	@Test
 	@DisplayName("fixtures are human-readable, because they get reviewed in pull requests")
 	void fixturesArePrettyPrinted() throws Exception {

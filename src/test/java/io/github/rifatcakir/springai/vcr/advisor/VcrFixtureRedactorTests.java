@@ -1,5 +1,7 @@
 package io.github.rifatcakir.springai.vcr.advisor;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -50,7 +52,11 @@ import static org.mockito.Mockito.mock;
  * <li>a redactor only ever touches what is written, never what a live caller or a replay
  * receives;</li>
  * <li>multiple redactors compose in registration order;</li>
- * <li>a throwing redactor fails loudly rather than shipping a partially-redacted fixture.</li>
+ * <li>a throwing redactor fails loudly rather than shipping a partially-redacted fixture;</li>
+ * <li>a redaction that only covers {@code request().messages()} and forgets
+ * {@code canonicalRequest()} is <em>not</em> a complete redaction — it leaks the same value
+ * back through a different field, verified against the field itself and separately against
+ * the raw committed file's actual text.</li>
  * </ul>
  *
  * @author Rifat Cakir
@@ -133,11 +139,19 @@ class VcrFixtureRedactorTests {
 		assertThat(fromExplicitEmptyList.get().response()).isEqualTo(fromLegacyConstructor.response());
 	}
 
-	@Test
-	@DisplayName("a redactor changes what is written, never what the live caller or a replay receives")
-	void redactionNeverReachesAResponse() {
-		VcrFixtureRedactor redactSecret = track -> new VcrTrack(track.schemaVersion(), track.hash(),
-				track.recordedAt(), track.canonicalRequest(),
+	/**
+	 * {@code canonicalRequest} is a separate, top-level field from {@code request.messages()}
+	 * that also embeds the full message text — it is what the hash was computed over. A
+	 * redactor that only rewrites {@code request().messages()} and forgets this field writes
+	 * the secret right back into the committed fixture through it. This is the shape of a real
+	 * mistake caught by actually reading a committed fixture rather than trusting an assertion
+	 * that only checked one field — see {@link #redactorMustCoverCanonicalRequestToo()} and
+	 * {@link #redactionIsAbsentFromTheRawCommittedFile()}, which check the other field and the
+	 * raw file text respectively, precisely because this one does not.
+	 */
+	private static VcrFixtureRedactor redactSecret() {
+		return track -> new VcrTrack(track.schemaVersion(), track.hash(), track.recordedAt(),
+				track.canonicalRequest().replace("SECRET", "[REDACTED]"),
 				new VcrTrack.RequestSnapshot(track.request().model(), track.request().temperature(),
 						track.request().topP(), track.request().topK(), track.request().maxTokens(),
 						track.request().stopSequences(),
@@ -149,8 +163,12 @@ class VcrFixtureRedactorTests {
 							.toList(),
 						track.request().tools()),
 				track.response());
+	}
 
-		DeterministicVcrAdvisor advisor = advisor(List.of(redactSecret));
+	@Test
+	@DisplayName("a redactor changes what is written, never what the live caller or a replay receives")
+	void redactionNeverReachesAResponse() {
+		DeterministicVcrAdvisor advisor = advisor(List.of(redactSecret()));
 
 		ChatClientResponse liveResponse = advisor.adviseCall(request("my SECRET value"), chainReturning("42"));
 		assertThat(liveResponse.chatResponse().getResult().getOutput().getText()).isEqualTo("42");
@@ -163,6 +181,37 @@ class VcrFixtureRedactorTests {
 		assertThat(replayed.chatResponse().getResult().getOutput().getText())
 			.as("replay must still return the model's real recorded answer — redaction never touches the response")
 			.isEqualTo("42");
+	}
+
+	@Test
+	@DisplayName("a redactor must cover canonicalRequest too, or the secret leaks right back through it")
+	void redactorMustCoverCanonicalRequestToo() {
+		DeterministicVcrAdvisor advisor = advisor(List.of(redactSecret()));
+
+		advisor.adviseCall(request("my SECRET value"), chainReturning("42"));
+
+		VcrTrack written = readOnlyFixture();
+		assertThat(written.canonicalRequest()).as("canonicalRequest is a separate field embedding the same "
+				+ "message text — redacting request().messages() alone does not redact this one")
+			.doesNotContain("SECRET")
+			.contains("[REDACTED]");
+	}
+
+	@Test
+	@DisplayName("the secret is verifiably absent from the raw committed file, not just from one deserialized field")
+	void redactionIsAbsentFromTheRawCommittedFile() throws IOException {
+		DeterministicVcrAdvisor advisor = advisor(List.of(redactSecret()));
+
+		advisor.adviseCall(request("my SECRET value"), chainReturning("42"));
+
+		Path fixtureFile = onlyFixtureFile();
+		String rawFileText = Files.readString(fixtureFile);
+
+		assertThat(rawFileText)
+			.as("no field of the committed JSON may contain the raw secret, checked against the file's "
+					+ "actual bytes rather than one field of a deserialized VcrTrack")
+			.doesNotContain("SECRET")
+			.contains("[REDACTED]");
 	}
 
 	@Test
@@ -242,10 +291,15 @@ class VcrFixtureRedactorTests {
 			.isEmpty();
 	}
 
-	private VcrTrack readOnlyFixture() {
+	private Path onlyFixtureFile() {
 		var files = this.cacheDirectory.toFile().listFiles((dir, name) -> name.endsWith(".json"));
 		assertThat(files).as("exactly one fixture must exist").hasSize(1);
-		String hash = files[0].getName().replace(".json", "");
+		return files[0].toPath();
+	}
+
+	private VcrTrack readOnlyFixture() {
+		Path file = onlyFixtureFile();
+		String hash = file.getFileName().toString().replace(".json", "");
 		Optional<VcrTrack> track = this.store.read(hash);
 		assertThat(track).isPresent();
 		return track.get();

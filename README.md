@@ -138,7 +138,10 @@ and it only changes what a reviewer sees in the committed JSON:
 @Bean
 VcrFixtureRedactor redactCustomerId() {
     return track -> new VcrTrack(track.schemaVersion(), track.hash(), track.recordedAt(),
-            track.canonicalRequest(),
+            // canonicalRequest is a *separate* top-level field that also embeds the raw
+            // message text — redact it too, or the value leaks right back through here
+            // even though request.messages() below looks correctly redacted.
+            track.canonicalRequest().replaceAll("customer-\\d+", "[REDACTED]"),
             new VcrTrack.RequestSnapshot(track.request().model(), track.request().temperature(),
                     track.request().topP(), track.request().topK(), track.request().maxTokens(),
                     track.request().stopSequences(),
@@ -150,6 +153,14 @@ VcrFixtureRedactor redactCustomerId() {
             track.response());
 }
 ```
+
+> **A partial redaction is a silent leak, not a smaller one.** The `canonicalRequest`
+> line above is not optional decoration — an earlier version of this exact example
+> redacted `request.messages()` only, and the raw customer ID was still sitting in
+> `canonicalRequest` in the committed fixture. The bug wasn't caught by an assertion; it
+> was caught by actually opening the generated JSON file and reading it. Do the same
+> before trusting any redactor you write: check the raw committed file, not just the one
+> field you remembered to test.
 
 The value you redact **still determines which fixture a request resolves to** — it is
 simply never written down. Two requests differing only in a redacted field still get two

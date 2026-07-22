@@ -25,6 +25,19 @@ import io.github.rifatcakir.springai.vcr.track.VcrTrack;
  * cache collision, at the cost of not being able to collapse volatile-but-harmless values the way a
  * normalizer can.
  *
+ * <h2>A partial redaction is a silent leak, not a smaller one</h2>
+ *
+ * <p>{@link VcrTrack#canonicalRequest()} is a real, previously-shipped mistake, not a hypothetical
+ * one: it is a top-level field, separate from {@link VcrTrack#request()}, that <em>also</em>
+ * embeds the full message text a redactor might already believe it has scrubbed from
+ * {@code request().messages()}. Redacting only the messages and leaving {@code canonicalRequest()}
+ * untouched writes the exact same secret right back into the committed fixture through a different
+ * field — the fixture looks redacted at a glance (the message text reads {@code [REDACTED]}) while
+ * the raw value is still sitting a few lines further down in the same file. There is no field this
+ * interface hides from a redactor to make this safe by default; every field capable of holding the
+ * value being redacted has to be redacted, deliberately, by the implementation. When in doubt,
+ * verify by reading the committed JSON itself, not by trusting that redacting one field was enough.
+ *
  * <h2>Called only on the write path</h2>
  *
  * <p>Invoked once, on a cache miss, after the real model has already answered and after the hash

@@ -238,7 +238,8 @@ Spring AI supports two ways to get structured output, and both are cached the sa
 - **Provider-native** (`entity(Class, spec -> spec.useProviderStructuredOutput())`) — for
   providers that support it (Ollama included), the schema constrains generation at the
   token level instead of relying on the model to read and follow instructions. More
-  reliable for smaller models. See the `spring-ai-test-vcr-example` project's
+  reliable for smaller models. See
+  [`spring-ai-test-tools-example`](https://github.com/rifatcakir/spring-ai-test-tools-example)'s
   `StructuredOutputRecordReplayTest` for a worked example.
 
 ## Providers

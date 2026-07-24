@@ -86,10 +86,10 @@ never changes regardless of which one a test supplies.
 
 | Need | Use |
 |---|---|
+| A realistic answer captured from a real model once, replayed automatically forever, without hand-authoring it yourself | [Record & Replay](record-replay.md) |
 | Prove the integration actually works against a real provider | A real `ChatModel` — a genuine integration test, typically `@Tag("integration")` |
 | A specific, hand-authored answer — including one no real model will reliably produce on demand (a timeout, a refusal, `finishReason = "length"`) | `VcrStubs.chatModel().respondingWith(...)` / `.failingWith(...)` — inline, in the test itself |
 | A realistic, longer, or reused answer you'd rather keep out of Java string literals | `VcrStubs.chatModel().respondingWithContentOf("...")` — the same stub, sourced from a file you name and manage |
-| A realistic answer captured from a real model once, replayed automatically forever, without hand-authoring it yourself | [Record & Replay](record-replay.md) |
 
 ## Why this is deliberately narrower than a general-purpose mocking framework
 

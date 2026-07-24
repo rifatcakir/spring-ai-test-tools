@@ -36,13 +36,20 @@ on top: run the exact same evaluator in either of two modes, with zero new mecha
 purely by which mode its `ChatClient.Builder` was built with:**
 
 - **Deterministic replay** (`REPLAY_ONLY`) — every CI run, every push/PR. No network, no
-  token spend, no flakiness. The judge's verdict for a known input is read from a
-  committed fixture.
+  token spend, no flakiness. **This is not a live evaluation running deterministically —
+  it is the *same, frozen* verdict from whenever the fixture was recorded, read back
+  unchanged.** It answers "does my code still produce the exact input this judge already
+  approved" — a regression check against a past verdict, not "is this answer good, right
+  now." If the code under test changes what it sends the judge, the cache key changes and
+  `REPLAY_ONLY` throws on the miss rather than silently reusing a verdict for different
+  content.
 - **Live drift/quality check** (`BYPASS`, or `RECORD_ALWAYS` to overwrite the fixture with
   a fresh verdict) — a deliberate, separate run: nightly, on demand, or a developer
   checking before a release whether the model's judgment on a known case has drifted.
-  `BYPASS` reaches the real model on *every* call, even when a matching fixture already
-  sits on disk — the live path never replays, by construction.
+  **This is the actual, real-time evaluation** — the judge model is asked again, live, and
+  its answer can differ from what's committed. `BYPASS` reaches the real model on *every*
+  call, even when a matching fixture already sits on disk — the live path never replays,
+  by construction.
 
 !!! danger "Never run the live path in default CI"
     It reintroduces every problem record/replay exists to eliminate. It belongs in a

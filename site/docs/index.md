@@ -1,10 +1,12 @@
 # Spring AI Tests
 
 Test Spring AI `ChatClient`/`EmbeddingModel` code without hitting a real model every run.
-Pick, per test: a real model, an explicit stub you write inline or load from a file you
-name and manage — no hash, no lookup, WireMock-style — or record/replay if you'd rather
-capture a real answer once and let it replay automatically forever instead of
-hand-authoring one.
+The core of it is **record/replay**: the first call reaches a real model and writes the
+exchange to a fixture, and every call after that replays it — no container, no network,
+no tokens, and no answer to hand-author yourself. For what record/replay structurally
+can't capture — a timeout, a refusal, a specific `finishReason` no real provider will
+reproduce on demand — reach for an explicit **stub** instead, written inline or loaded
+from a file you name and manage, WireMock-style, no hash, no lookup.
 
 ## The problem
 
@@ -25,11 +27,37 @@ Spring AI's own production semantic cache doesn't help either: it matches on sim
 thresholds — exactly backwards for a test, where a prompt that changed by one character
 should produce a new fixture or a loud failure, never a "close enough" hit.
 
-## The fix — choose per test
+## The fix — record/replay first, stub for what it can't capture
 
-All three (four, counting file-sourced stubs separately) produce the same
+All (four, counting file-sourced stubs separately) produce the same
 `ChatModel`/`EmbeddingModel`. The choice is purely which one gets constructed in the test
 itself — the application code under test never changes.
+
+=== "Record/replay"
+
+    ```yaml
+    # application-test.yml -- the entire integration
+    spring:
+      ai:
+        test:
+          vcr:
+            enabled: true
+            mode: RECORD_OR_REPLAY   # REPLAY_ONLY in CI
+    ```
+
+    ```java
+    @Test
+    void answersAQuestionAboutTheOrder() {
+        // First run records against a real model; every run after that
+        // replays from disk in milliseconds -- no hand-authored answer.
+        String answer = chatClient.prompt()
+            .user("What's the status of order ORD-4471?")
+            .call()
+            .content();
+
+        assertThat(answer).contains("shipped");
+    }
+    ```
 
 === "Inline stub"
 
@@ -69,44 +97,18 @@ itself — the application code under test never changes.
     }
     ```
 
-=== "Record/replay"
-
-    ```yaml
-    # application-test.yml -- the entire integration
-    spring:
-      ai:
-        test:
-          vcr:
-            enabled: true
-            mode: RECORD_OR_REPLAY   # REPLAY_ONLY in CI
-    ```
-
-    ```java
-    @Test
-    void answersAQuestionAboutTheOrder() {
-        // Identical test shape. First run records against a real model;
-        // every run after that replays from disk in milliseconds.
-        String answer = chatClient.prompt()
-            .user("What's the status of order ORD-4471?")
-            .call()
-            .content();
-
-        assertThat(answer).contains("shipped");
-    }
-    ```
-
 See [Quick Start](quick-start.md) for the dependency coordinate, and
 [Stubbing](stub.md#choosing-per-test-real-vs-stub-vs-recordreplay) for the full
 per-test decision guide.
 
-## Two first-class ways to get a deterministic model, chosen per test
+## Record & Replay is the core — Stubbing complements it
 
-- **[Stubbing](stub.md)** — explicit, WireMock-style: write the response, inline or from
-  a file you name and manage. No hash, no lookup. Reach for this when you want to say
-  exactly what the model returns, including a scenario no real provider will reliably
-  reproduce on demand.
-- **[Record & Replay](record-replay.md)** — automatic: capture a real model's answer
-  once, replay it forever, without hand-authoring one.
+- **[Record & Replay](record-replay.md)** — the library's reason to exist: capture a real
+  model's answer once, replay it automatically forever, without hand-authoring one.
+- **[Stubbing](stub.md)** — explicit, WireMock-style, for what record/replay structurally
+  can't capture: a timeout, a refusal, a specific `finishReason` no real provider will
+  reproduce on demand, or a pure unit test that wants zero I/O and zero Spring context at
+  all. Write the response, inline or from a file you name and manage. No hash, no lookup.
 
 Both build on top of the same underlying pieces:
 

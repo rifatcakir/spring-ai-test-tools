@@ -36,6 +36,33 @@ answers) records two fixtures under `INSIDE_TOOL_LOOP`, replays both with zero f
 network calls, and still re-invokes the real `@Tool` method on replay, exactly as
 documented above.
 
+## ⚠️ Tool side-effects on replay
+
+**Under `INSIDE_TOOL_LOOP`, your real `@Tool` method runs on every replay, not just the
+first live call.** That's by design — it's what makes side-effect assertions possible at
+all — but it means exactly what it says: if the tool writes to a database, calls an
+external API, sends an email, or does anything else with a real-world effect, **that
+effect happens again, every single time the test runs** — on your machine, on a
+teammate's, in CI, forever, not just once at recording time. A fixture only replaces the
+*model call*; it has no opinion about what your own tool code does when Spring AI's tool
+loop invokes it.
+
+!!! danger "This is a real bug-report magnet — read it before you pick a scope"
+    - A `@Tool` method that only computes and returns a value (a lookup, a calculation) is
+      fine under `INSIDE_TOOL_LOOP` — re-running it on every replay is exactly the point.
+    - A `@Tool` method with a real side effect (writes a row, POSTs to a third-party API,
+      sends a notification) will perform that side effect on **every test run**, not once,
+      for as long as `INSIDE_TOOL_LOOP` is in effect.
+    - If that's not what you want, either use `OUTSIDE_TOOL_LOOP` (the default — the tool
+      never runs on a replay at all, only on the first live call that produces the fixture),
+      or make the tool itself idempotent/safe to re-run (write to a test double, guard
+      against duplicate side effects, point it at a sandboxed target) — the same discipline
+      any test re-running against a real dependency already needs.
+
+This is not a bug — it's the literal, documented contract of `INSIDE_TOOL_LOOP` — but it's
+exactly the kind of thing that reads as a bug report if it's discovered by surprise
+instead of read here first.
+
 The cache key is sensitive to which tool was called, with what arguments, and what that
 tool responded with — two different tool calls, or two different tool results, are told
 apart even inside conversation history under `INSIDE_TOOL_LOOP`, where each model turn

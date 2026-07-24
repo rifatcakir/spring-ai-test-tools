@@ -82,8 +82,8 @@ nav:
   - Overview: index.md
   - Getting Started:
       - Quick Start: quick-start.md
-      - Stubbing: stub.md
       - Record & Replay: record-replay.md
+      - Stubbing: stub.md
   - Guides:
       - Tool Calling: tool-calling.md
       - Structured Output: structured-output.md

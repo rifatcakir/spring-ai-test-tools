@@ -1,5 +1,22 @@
 # Configuration Reference
 
+## Compatibility
+
+Tested against, and only against:
+
+| Component | Version |
+|---|---|
+| Java | 21 |
+| Spring Boot | 4.0.0 |
+| Spring AI | 2.0.0 |
+
+**Other versions are untested; compatibility is not guaranteed.** Spring AI's API surface
+has moved fast release to release — much of what pre-2.0 tutorials and blog posts say
+about advisor interfaces, `ChatClientCustomizer`, or `ToolCallingChatOptions` no longer
+matches the 2.0.0 bytecode. Pinning to one verified combination is deliberate. If you're
+on a different Spring AI or Spring Boot version, expect to hit real breakage before you
+hit anything this library controls.
+
 ## Chat (`ChatClient`)
 
 Every property is under the `spring.ai.test.vcr` prefix:

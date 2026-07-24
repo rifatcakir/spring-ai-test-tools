@@ -5,12 +5,16 @@
 > and "Spring AI" are trademarks of their respective owners; this library simply
 > integrates with their public APIs.
 
-Test Spring AI `ChatClient`/`EmbeddingModel` code without hitting a real model every run.
-Pick, per test: a real model, an explicit stub you write inline or load from a file you
-name and manage — no hash, no lookup, WireMock-style — or record/replay if you'd rather
-capture a real answer once and let it replay automatically forever instead of
-hand-authoring one. All three hand back the same `ChatModel`/`EmbeddingModel`, so the
-application code under test never changes.
+Deterministic, file-based record-and-replay caching for Spring AI integration tests. The
+first call reaches a real model and writes the exchange to a fixture; every call after
+that — in this run, and every run after this one, forever — replays it instead. No
+container, no network, no tokens, and zero changes to the code under test.
+
+For the scenarios record/replay structurally can't give you — a timeout, a refusal, a
+specific `finishReason` no real provider will reproduce on demand — `VcrStubs` builds a
+plain, explicit `ChatModel`/`EmbeddingModel` instead, inline or from a file you name and
+manage, WireMock-style, no hash, no lookup. Pick per test; both mechanisms hand back the
+same `ChatModel`/`EmbeddingModel`, so the application code under test never changes.
 
 ## The problem
 
@@ -18,8 +22,8 @@ You're writing a test for code that calls a Spring AI `ChatClient`. You have thr
 options:
 
 1. **Mock `ChatModel` with Mockito.** You end up hand-building a `ChatResponse` from
-   scratch for every scenario — the exact boilerplate `VcrStubs` exists to remove — and
-   the mock never catches a real integration bug.
+   scratch for every scenario, and the mock never catches a real integration bug — the
+   wiring between your code and Spring AI's actual response shape is never exercised.
 2. **Stand up WireMock and replay raw HTTP.** Now you're maintaining JSON bodies shaped
    like your provider's wire protocol, at the wrong abstraction level entirely — tool
    calls and structured output don't exist yet at the HTTP layer WireMock operates at.
@@ -31,44 +35,8 @@ Spring AI's own production semantic cache doesn't help either: it matches on sim
 thresholds — exactly backwards for a test, where a prompt that changed by one character
 should produce a new fixture or a loud failure, never a "close enough" hit.
 
-## Choosing per test: real model, inline stub, file-sourced stub, or record/replay
-
-All four produce the same `ChatModel`/`EmbeddingModel`. The choice is purely which one
-gets constructed in the test itself — `ChatClient.builder(model)...` never changes.
-
-| Need | Use |
-|---|---|
-| Prove the integration actually works against a real provider | A real `ChatModel` — a genuine integration test, typically `@Tag("integration")` |
-| A specific, hand-authored answer — including one no real model will reliably produce on demand (a timeout, a refusal, `finishReason = "length"`) | `VcrStubs.chatModel().respondingWith(...)` / `.failingWith(...)` — inline, in the test itself |
-| A realistic, longer, or reused answer you'd rather keep out of Java string literals | `VcrStubs.chatModel().respondingWithContentOf("...")` — the same stub, sourced from a file you name and manage |
-| A realistic answer captured from a real model once, replayed automatically forever, without hand-authoring it yourself | Record/replay (`spring.ai.test.vcr.mode`) |
-
-```java
-// Real model -- a genuine integration test
-ChatModel model = ollamaChatModel;
-
-// Inline stub -- exactly what you typed, no lookup, no hash
-ChatModel model = VcrStubs.chatModel().respondingWith("Yes, shipped yesterday.").build();
-
-// File-sourced stub -- same stub, response text lives in a file you manage
-ChatModel model = VcrStubs.chatModel().respondingWithContentOf("responses/order-status.txt").build();
-
-// Record/replay -- captured from a real model once, replayed automatically forever
-ChatModel model = recorderBackedChatModel; // via spring.ai.test.vcr.enabled=true
-
-ChatClient chatClient = ChatClient.builder(model).build(); // identical either way
-```
-
-See [Stubbing](#stubbing) and [Record & Replay](#record--replay) below for each in full.
-
 ## Features
 
-- **Programmatic stubbing, WireMock-style — no hash, no lookup.** `VcrStubs.chatModel()`/
-  `VcrStubs.embeddingModel()` build a canned `ChatModel`/`EmbeddingModel` from an inline
-  string or a file you name and manage — plain Java, no fixture, no Spring context.
-- **File-sourced responses, read verbatim.** `.respondingWithContentOf("responses/x.txt")`
-  is the same stub as `.respondingWith(fileContent)`, just sourced from a classpath
-  resource instead of a Java string literal — no envelope, no schema, no hash.
 - **Record/replay for capturing a realistic answer without hand-authoring it.** The first
   call reaches a real model and writes the exchange to
   `src/test/resources/llm-cache/{sha256}.json`; every call after that replays it — no
@@ -99,27 +67,30 @@ See [Stubbing](#stubbing) and [Record & Replay](#record--replay) below for each 
 - **Fixtures are cross-platform.** Line endings inside a tool's input schema or an
   `entity()` call's format instructions/JSON schema are normalized before hashing, so a
   fixture recorded on Windows replays identically on a Linux or macOS CI runner.
+- **`EmbeddingModel` calls cache too, independently of chat.** Wraps the `EmbeddingModel`
+  bean transparently — no advisor chain to attach to the way `ChatClient` has one — and a
+  replayed vector is exactly, not approximately, what was recorded.
 - **Fluent, AssertJ-idiomatic assertions on top of a response.** `VcrAssertions.assertThat(...)`
   checks tool-call shape, finish reason, and JSON field content — deterministic, no model
   call made by the assertion itself, working identically on a live response, a stub, or a
   replay.
-- **`EmbeddingModel` calls cache too, independently of chat.** Wraps the `EmbeddingModel`
-  bean transparently — no advisor chain to attach to the way `ChatClient` has one — and a
-  replayed vector is exactly, not approximately, what was recorded.
-- **Spring AI's own `Evaluator`s (`RelevancyEvaluator`, `FactCheckingEvaluator`), run in
-  either of two modes.** Deterministic replay for CI, or a live drift/quality check
-  (`BYPASS`) that always reaches the real model even when a fixture already exists — the
-  same evaluator, zero new mechanism, purely a `VcrMode` choice. Spring AI's own
-  `Evaluator` has no replay concept at all; this is the choice it doesn't offer.
 - **Semantic similarity assertions, embedding-backed and deterministic.**
   `usingEmbeddingModel(...).isSemanticallySimilarTo(...)` compares a response to an
   expected answer by meaning, not exact text — both embedding calls run through the same
   Recorder-backed `EmbeddingModel` (R4), so a second identical assertion makes zero
   additional network calls.
+- **Spring AI's own `Evaluator`s (`RelevancyEvaluator`, `FactCheckingEvaluator`), run in
+  either of two modes.** Deterministic replay for CI, or a live drift/quality check
+  (`BYPASS`) that always reaches the real model even when a fixture already exists — the
+  same evaluator, zero new mechanism, purely a `VcrMode` choice. Spring AI's own
+  `Evaluator` has no replay concept at all; this is the choice it doesn't offer.
+- **Programmatic stubbing, WireMock-style, for what record/replay can't capture.**
+  `VcrStubs.chatModel()`/`VcrStubs.embeddingModel()` build a canned `ChatModel`/
+  `EmbeddingModel` from an inline string or a file you name and manage — for timeouts,
+  refusals, malformed responses, and specific finish reasons no real provider will
+  reproduce on demand. Plain Java, no fixture, no hash, no Spring context.
 
 ## Quick start
-
-The fastest path — no YAML, no Spring context, just Java:
 
 ```xml
 <dependency>
@@ -130,17 +101,7 @@ The fastest path — no YAML, no Spring context, just Java:
 </dependency>
 ```
 
-```java
-ChatModel model = VcrStubs.chatModel().respondingWith("Yes, shipped yesterday.").build();
-ChatClient chatClient = ChatClient.builder(model).build();
-
-String answer = chatClient.prompt().user("What's the status of order ORD-4471?").call().content();
-
-assertThat(answer).isEqualTo("Yes, shipped yesterday.");
-```
-
-Prefer to capture a real model's answer once and replay it automatically forever instead
-of writing the response yourself? `src/test/resources/application-test.yml`:
+`src/test/resources/application-test.yml`:
 
 ```yaml
 spring:
@@ -153,96 +114,103 @@ spring:
 
 That is the entire integration. The advisor attaches itself to every `ChatClient.Builder`
 in the context via `ChatClientBuilderCustomizer`, so no production code changes and no test
-knows the cache exists. In CI:
+knows the cache exists.
+
+```java
+@SpringBootTest
+class OrderStatusTest {
+
+    @Autowired
+    private ChatClient.Builder chatClientBuilder;
+
+    @Test
+    void answersAQuestionAboutTheOrder() {
+        ChatClient chatClient = this.chatClientBuilder.build();
+
+        String answer = chatClient.prompt()
+            .user("What's the status of order ORD-4471?")
+            .call()
+            .content();
+
+        assertThat(answer).contains("shipped");
+    }
+}
+```
+
+The first run needs a real model reachable and writes
+`src/test/resources/llm-cache/{sha256}.json`. Commit that file. Every run after that — on
+your machine, on a teammate's, in CI — replays it in milliseconds, with zero network calls.
+
+In CI:
 
 ```yaml
 spring.ai.test.vcr.mode: REPLAY_ONLY
 ```
 
-## Stubbing
-
-Programmatic, explicit, WireMock-style canned responses. `VcrStubs` builds a plain
-`ChatModel`/`EmbeddingModel` — no fixture, no cache, no hash, no Spring wiring:
+Prefer to write the response yourself instead of recording one — for an error scenario, or
+a pure unit test with no Spring context at all?
 
 ```java
-ChatModel model = VcrStubs.chatModel().respondingWith("Yes.").build();
+ChatModel model = VcrStubs.chatModel().respondingWith("Yes, shipped yesterday.").build();
+ChatClient chatClient = ChatClient.builder(model).build();
 
-ChatModel model = VcrStubs.chatModel()
-    .withToolCall("getWeather", "{\"city\":\"Ankara\"}")
-    .build(); // finish reason auto-defaults to "TOOL_CALLS", no need to say so separately
+String answer = chatClient.prompt().user("What's the status of order ORD-4471?").call().content();
 
-ChatModel model = VcrStubs.chatModel().withFinishReason("length").build();
-
-ChatModel model = VcrStubs.chatModel().failingWith(new RuntimeException("timeout")).build();
-
-EmbeddingModel embeddingModel = VcrStubs.embeddingModel().respondingWith(new float[] { 0.1f, 0.2f }).build();
+assertThat(answer).isEqualTo("Yes, shipped yesterday.");
 ```
 
-Every builder method is optional — `build()` with nothing configured still returns a
-valid, empty-text response, never `null`. Pass the built model straight to
-`ChatClient.builder(stub)`; no autoconfiguration, no `spring.ai.test.vcr.stub.*`
-property, no Spring context needed at all.
+See [Stubbing](#stubbing) below for the full builder, including file-sourced responses.
 
-### File-sourced responses
+## Choosing per test: record/replay, a real model, or a stub
 
-Keep a longer or reused response out of a Java string literal — read it from a file you
-name and manage instead. `.respondingWithContentOf(...)` produces exactly what
-`.respondingWith(fileContent)` would; it's an alternate *source* for the same text, not a
-new response shape, envelope, or schema:
+All hand back the same `ChatModel`/`EmbeddingModel` — the choice is purely which one gets
+constructed in the test itself; `ChatClient.builder(model)...` never changes.
+
+| Need | Use |
+|---|---|
+| A realistic answer captured from a real model once, replayed automatically forever, without hand-authoring it yourself | Record/replay (`spring.ai.test.vcr.mode`) |
+| Prove the integration actually works against a real provider | A real `ChatModel` — a genuine integration test, typically `@Tag("integration")` |
+| A specific, hand-authored answer — including one no real model will reliably produce on demand (a timeout, a refusal, `finishReason = "length"`) | `VcrStubs.chatModel().respondingWith(...)` / `.failingWith(...)` — inline, in the test itself |
+| A realistic, longer, or reused answer you'd rather keep out of Java string literals | `VcrStubs.chatModel().respondingWithContentOf("...")` — the same stub, sourced from a file you name and manage |
 
 ```java
-ChatModel model = VcrStubs.chatModel()
-    .respondingWithContentOf("responses/refund-approved.json")
-    .withFinishReason("stop")
-    .build();
+// Record/replay -- captured from a real model once, replayed automatically forever
+ChatModel model = recorderBackedChatModel; // via spring.ai.test.vcr.enabled=true
+
+// Real model -- a genuine integration test
+ChatModel model = ollamaChatModel;
+
+// Inline stub -- exactly what you typed, no lookup, no hash
+ChatModel model = VcrStubs.chatModel().respondingWith("Yes, shipped yesterday.").build();
+
+// File-sourced stub -- same stub, response text lives in a file you manage
+ChatModel model = VcrStubs.chatModel().respondingWithContentOf("responses/order-status.txt").build();
+
+ChatClient chatClient = ChatClient.builder(model).build(); // identical either way
 ```
 
-```
-src/test/resources/responses/refund-approved.json
-```
-```json
-{"status":"approved","refundId":"REF-9981","amount":42.50}
-```
+See [Record & Replay](#record--replay) and [Stubbing](#stubbing) below for each in full.
 
-Resolves a **test classpath resource** (`src/test/resources/responses/refund-approved.json`,
-addressed as `"responses/refund-approved.json"`), not a filesystem path — a filesystem
-path is relative to whatever the current working directory happens to be when the JVM
-starts, different between an IDE run, `mvn test`, and CI, and a source of flakiness that
-has nothing to do with what the test is actually checking. A classpath resource has no
-such ambiguity.
+## Compatibility
 
-The file is read **exactly as written** — no trimming, no normalization. A trailing
-newline an editor added on save is part of the file's content and will be part of the
-returned response's text, exactly as it would be had you typed it into
-`.respondingWith(...)` yourself. A missing or unreadable resource fails immediately, at
-the `.respondingWithContentOf(...)` call site, naming the exact path that couldn't be
-found — not a mysterious failure later when the model is actually invoked.
+Tested against, and only against:
 
-Composes with every other builder method exactly the way an inline response does, because
-it only ever sets the same `text` field:
+| Component | Version |
+|---|---|
+| Java | 21 |
+| Spring Boot | 4.0.0 |
+| Spring AI | 2.0.0 |
 
-```java
-ChatModel model = VcrStubs.chatModel()
-    .respondingWithContentOf("responses/order-status.json")
-    .withToolCall("getOrderStatus", "{\"orderId\":\"ORD-4471\"}")
-    .build();
-```
-
-### Why this is deliberately narrower than a general-purpose mocking framework
-
-A stub always answers the same way, for any prompt — there is no request-matching or
-per-prompt routing table, on purpose. A test that needs two different answers builds two
-stub instances, exactly the pattern this project's own unit tests already use for a
-hand-rolled fake `ChatModel`. Streaming stubs (`Flux<ChatResponse>`) are not built yet: a
-stub's default `.stream()` behaves exactly like a real non-streaming `ChatModel` does — it
-throws `UnsupportedOperationException("streaming is not supported")` — which is a correct,
-self-consistent default, not a missing feature. See `docs/STUB-PRD.md` and
-`docs/STUB-FILE-SOURCE-PRD.md` for the full reasoning.
+**Other versions are untested; compatibility is not guaranteed.** Spring AI's own API
+surface has moved fast release to release (see `CLAUDE.md`'s own verified-API-facts table
+for a partial list of what changed between pre-2.0 tutorials and the actual 2.0.0
+bytecode) — pinning to a single, verified combination is deliberate, not an oversight. If
+you're on a different Spring AI/Spring Boot version, expect to hit real breakage before
+you hit anything this library controls.
 
 ## Record & Replay
 
-The option for capturing a realistic answer automatically, without hand-authoring one:
-the first call reaches a real model and writes the exchange to
+The first call reaches a real model and writes the exchange to
 `src/test/resources/llm-cache/{sha256}.json`; every call after that — in this run, and in
 every run after this one, forever — replays it instead.
 
@@ -411,6 +379,34 @@ answers) records two fixtures under `INSIDE_TOOL_LOOP`, replays both with zero f
 network calls, and still re-invokes the real `@Tool` method on replay, exactly as
 documented above — see `OllamaToolCallingEndToEndTests` in the test suite.
 
+#### ⚠️ Tool side-effects on replay
+
+**Under `INSIDE_TOOL_LOOP`, your real `@Tool` method runs on every replay, not just the
+first live call.** This is by design (it's what makes side-effect assertions possible at
+all), but it means exactly what it says: if the tool writes to a database, calls an
+external API, sends an email, or does anything else with a real-world effect, **that
+effect happens again, every single time the test runs** — on your machine, on a
+teammate's, in CI, forever, not just once at recording time. A fixture only replaces the
+*model call*; it has no opinion about what your own tool code does when Spring AI's tool
+loop invokes it.
+
+Concretely:
+
+- A `@Tool` method that only computes and returns a value (a lookup, a calculation) is
+  fine under `INSIDE_TOOL_LOOP` — re-running it on every replay is exactly the point.
+- A `@Tool` method with a real side effect (writes a row, POSTs to a third-party API,
+  sends a notification) will perform that side effect on **every test run**, not once.
+  If that's not what you want, either:
+  - use `OUTSIDE_TOOL_LOOP` (the default) — the tool never runs on a replay at all, only
+    on the first live call that produces the fixture — or
+  - make the tool itself idempotent/safe to re-run (write to a test double, guard against
+    duplicate side effects, point it at a sandboxed target), the same discipline you'd
+    already need for any test that re-runs against a real dependency.
+
+This is not a bug — it's the literal, documented contract of `INSIDE_TOOL_LOOP` — but it's
+exactly the kind of thing that reads as a bug report if it's discovered by surprise
+instead of read here first.
+
 ### Streaming
 
 `ChatClient...stream()` records and replays too — chunk-for-chunk, not as a single-chunk
@@ -432,8 +428,8 @@ empirically, against real Ollama, a genuine tool call always arrives whole — i
 the complete arguments — in a single chunk, never fragmented across multiple chunks, so
 storing the raw chunk sequence verbatim already replays a streamed tool call faithfully.
 `VcrScope.INSIDE_TOOL_LOOP`/`OUTSIDE_TOOL_LOOP` apply to streaming exactly as they do to
-`.call()` (see "Tool calling" above) — the same advisor, and the same shared `getOrder()`,
-governs both chains.
+`.call()` (see "Tool calling" above, including the side-effects warning) — the same
+advisor, and the same shared `getOrder()`, governs both chains.
 
 The fixture is a new, independent type (`VcrStreamTrack`, not a field bolted onto the
 `.call()` fixture shape) so the two fixture families evolve separately. Alongside the raw
@@ -513,6 +509,89 @@ This is the foundation the roadmap's semantic/embedding assertions layer depends
 assertion that computes cosine similarity against a reference answer needs its own
 embedding call to be exactly this deterministic, or every CI run would make a live,
 non-reproducible embedding call to check a "deterministic" test.
+
+## Stubbing
+
+Explicit, WireMock-style canned responses, for the scenarios record/replay can't give
+you: a specific, hand-authored answer (including one no real model will reliably produce
+on demand — a timeout, a refusal, `finishReason = "length"`), or a pure unit test that
+wants zero I/O and zero Spring context. `VcrStubs` builds a plain `ChatModel`/
+`EmbeddingModel` — no fixture, no cache, no hash, no Spring wiring:
+
+```java
+ChatModel model = VcrStubs.chatModel().respondingWith("Yes.").build();
+
+ChatModel model = VcrStubs.chatModel()
+    .withToolCall("getWeather", "{\"city\":\"Ankara\"}")
+    .build(); // finish reason auto-defaults to "TOOL_CALLS", no need to say so separately
+
+ChatModel model = VcrStubs.chatModel().withFinishReason("length").build();
+
+ChatModel model = VcrStubs.chatModel().failingWith(new RuntimeException("timeout")).build();
+
+EmbeddingModel embeddingModel = VcrStubs.embeddingModel().respondingWith(new float[] { 0.1f, 0.2f }).build();
+```
+
+Every builder method is optional — `build()` with nothing configured still returns a
+valid, empty-text response, never `null`. Pass the built model straight to
+`ChatClient.builder(stub)`; no autoconfiguration, no `spring.ai.test.vcr.stub.*`
+property, no Spring context needed at all.
+
+### File-sourced responses
+
+Keep a longer or reused response out of a Java string literal — read it from a file you
+name and manage instead. `.respondingWithContentOf(...)` produces exactly what
+`.respondingWith(fileContent)` would; it's an alternate *source* for the same text, not a
+new response shape, envelope, or schema:
+
+```java
+ChatModel model = VcrStubs.chatModel()
+    .respondingWithContentOf("responses/refund-approved.json")
+    .withFinishReason("stop")
+    .build();
+```
+
+```
+src/test/resources/responses/refund-approved.json
+```
+```json
+{"status":"approved","refundId":"REF-9981","amount":42.50}
+```
+
+Resolves a **test classpath resource** (`src/test/resources/responses/refund-approved.json`,
+addressed as `"responses/refund-approved.json"`), not a filesystem path — a filesystem
+path is relative to whatever the current working directory happens to be when the JVM
+starts, different between an IDE run, `mvn test`, and CI, and a source of flakiness that
+has nothing to do with what the test is actually checking. A classpath resource has no
+such ambiguity.
+
+The file is read **exactly as written** — no trimming, no normalization. A trailing
+newline an editor added on save is part of the file's content and will be part of the
+returned response's text, exactly as it would be had you typed it into
+`.respondingWith(...)` yourself. A missing or unreadable resource fails immediately, at
+the `.respondingWithContentOf(...)` call site, naming the exact path that couldn't be
+found — not a mysterious failure later when the model is actually invoked.
+
+Composes with every other builder method exactly the way an inline response does, because
+it only ever sets the same `text` field:
+
+```java
+ChatModel model = VcrStubs.chatModel()
+    .respondingWithContentOf("responses/order-status.json")
+    .withToolCall("getOrderStatus", "{\"orderId\":\"ORD-4471\"}")
+    .build();
+```
+
+### Why this is deliberately narrower than a general-purpose mocking framework
+
+A stub always answers the same way, for any prompt — there is no request-matching or
+per-prompt routing table, on purpose. A test that needs two different answers builds two
+stub instances, exactly the pattern this project's own unit tests already use for a
+hand-rolled fake `ChatModel`. Streaming stubs (`Flux<ChatResponse>`) are not built yet: a
+stub's default `.stream()` behaves exactly like a real non-streaming `ChatModel` does — it
+throws `UnsupportedOperationException("streaming is not supported")` — which is a correct,
+self-consistent default, not a missing feature. See `docs/STUB-PRD.md` and
+`docs/STUB-FILE-SOURCE-PRD.md` for the full reasoning.
 
 ## Assertions
 
@@ -636,7 +715,7 @@ into the message text this library hashes, judging a *different* answer produces
 everything else here, by counting real HTTP requests and real fixture files, not by
 reading the prompt template and assuming.
 
-### Two modes, one evaluator
+### Two modes, one evaluator — and what "deterministic" actually means here
 
 Spring AI's own `Evaluator` has no concept of replay — every `evaluate()` call reaches
 the model, live, every time, by design. **This is the actual differentiator this
@@ -645,20 +724,27 @@ either of two modes, with zero new mechanism, purely by which mode its `ChatClie
 was built with:**
 
 - **Deterministic replay** (`REPLAY_ONLY`) — every CI run, every push/PR. No network, no
-  token spend, no flakiness. The judge's verdict for a known input is read from a
-  committed fixture.
+  token spend, no flakiness. **This is not a live evaluation running deterministically —
+  it is the *same, frozen* verdict from whenever the fixture was recorded, read back
+  unchanged.** It answers "does my code still produce the exact input this judge already
+  approved," a regression check, not "is this answer good, right now." If the code under
+  test changes what it sends the judge, the cache key changes and CI throws
+  (`REPLAY_ONLY` refuses to call the model on a miss) rather than silently reusing a
+  verdict for different content.
 - **Live drift/quality check** (`BYPASS`, or `RECORD_ALWAYS` to overwrite the fixture with
   a fresh verdict) — a deliberate, separate run: nightly, `workflow_dispatch`, or a
   developer checking before a release whether the model's judgment on a known case has
-  drifted. `BYPASS` reaches the real model on *every* call, confirmed even when a
-  matching fixture already sits on disk — the live path never replays, by construction
-  (`DeterministicVcrAdvisor`'s `BYPASS` branch returns before ever computing a hash or
-  touching the fixture store).
+  drifted. **This is the actual, real-time evaluation** — the judge model is asked again,
+  live, and its answer can differ from what's committed. `BYPASS` reaches the real model
+  on *every* call, confirmed even when a matching fixture already sits on disk — the live
+  path never replays, by construction (`DeterministicVcrAdvisor`'s `BYPASS` branch
+  returns before ever computing a hash or touching the fixture store).
 
 **Never run the live path in default CI** — it reintroduces every problem Recorder
 exists to eliminate. It belongs in a separate, opt-in job, exactly like this project's
 own nightly `e2e` workflow already runs its real-Ollama proofs. Spring AI gives you the
-evaluators; this project gives you the choice of which mode to run them in.
+evaluators; this project gives you the choice of which mode to run them in — but only
+`BYPASS`/`RECORD_ALWAYS` is ever actually judging something in real time.
 
 **Toxicity checks:** confirmed absent from Spring AI 2.0.0 — checked, not assumed, across
 every jar this project depends on. A toxicity judge would need a bespoke `Evaluator`
@@ -725,13 +811,17 @@ Prompt *content* is another matter: if your prompts carry PII, redact it with a
   will look perfectly stable in a replayed test forever. This is a property of testing
   against a cache, not a claim about the model. If a test's purpose is to catch
   output *variance* itself, VCR replay is the wrong tool for it — run that one in `BYPASS`.
+- **`INSIDE_TOOL_LOOP` re-runs real `@Tool` side effects on every replay.** See the
+  warning in [Tool calling](#tool-calling) above — this is not a bug, but it surprises
+  people who don't expect a "cached" test to still write to a real database.
 - **Stubs have no request-matching.** A stub always answers the same way, for any prompt
   — a test that needs two different answers builds two stub instances. Streaming stubs
   are not built yet.
 
 ## Requirements
 
-Java 21 · Spring Boot 4.0+ · Spring AI 2.0+ (Jackson 3, `tools.jackson.*`)
+Java 21 · Spring Boot 4.0+ · Spring AI 2.0+ (Jackson 3, `tools.jackson.*`) — see
+[Compatibility](#compatibility) above for exactly what's tested.
 
 ## Licence
 

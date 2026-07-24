@@ -2,7 +2,9 @@
 
 ## Requirements
 
-Java 21 · Spring Boot 4.0+ · Spring AI 2.0+ (Jackson 3, `tools.jackson.*`)
+Java 21 · Spring Boot 4.0+ · Spring AI 2.0+ (Jackson 3, `tools.jackson.*`) — see
+[Compatibility](configuration.md#compatibility) for exactly which versions this is tested
+against. Other versions are untested; compatibility is not guaranteed.
 
 ## Add the dependency
 

@@ -114,5 +114,7 @@ Prompt *content* is another matter: if your prompts carry PII, redact it — see
   that is the entire point — but it does not mean the underlying model call is
   deterministic in production. If a test's purpose is to catch output *variance* itself,
   VCR replay is the wrong tool for it — run that one in `BYPASS`.
+- **`INSIDE_TOOL_LOOP` re-runs real `@Tool` side effects on every replay**, not just the
+  first live call — see [⚠️ Tool side-effects on replay](tool-calling.md#tool-side-effects-on-replay).
 
 See [Configuration Reference](configuration.md) for every property this library exposes.

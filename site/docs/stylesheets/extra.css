@@ -159,7 +159,7 @@ body,
    column reads as a distinct panel against the page canvas, the way spring.io's own
    content area does, instead of running full-width/borderless edge to edge. --- */
 
-[data-md-color-scheme="default"] body {
+body[data-md-color-scheme="default"] {
 	background-color: #f6f8fa;
 }
 

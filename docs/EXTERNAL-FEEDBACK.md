@@ -58,6 +58,18 @@ would make that class of assertion impossible and would need its own fixture for
 isolation mode for the side-effecting-tool case the current warning tells users to avoid
 via `OUTSIDE_TOOL_LOOP` instead. Whether it's worth building as a third scope alongside
 `OUTSIDE_TOOL_LOOP`/`INSIDE_TOOL_LOOP` is a real design question, not a settled one.
+Gemini's own concrete design for this — proxy `ToolCallback`, not the advisor layer;
+`VcrToolMode.REPLAY_FROM_CASSETTE`/`EXECUTE_REAL`; keyed by tool name + argument hash —
+is captured in full in `docs/TOOL-ISOLATION-PROPOSAL.md`, including the open questions
+it doesn't yet answer (a `BeanPostProcessor` strategy doesn't obviously reach tool
+objects passed per-call via `.tools(...)` rather than registered as beans, and this
+proposal is in direct tension with what `INSIDE_TOOL_LOOP` is *for* today — see that
+document for both).
+
+**Confirmation from Gemini, worth recording:** told how `VcrTrack`/`RequestSnapshot`/
+`VcrTrackMapper` actually work — see finding (a) above and "Verification performed"
+below — Gemini confirmed this fully closes its own DTO-wall concern from round 1; no
+residual doubt on that point from Gemini's side.
 
 ### (c) Version realism — is Spring Boot 4 / Spring AI 2.0 really current?
 
@@ -86,9 +98,9 @@ README subsections, verified end-to-end against a real model
 ## Open actions
 
 1. **DTO wall: verified, not just re-asserted — see "Verification performed" below.**
-   Closed for now; re-check if `VcrTrackMapper`/`VcrTrack` (or their stream/embedding
-   siblings) ever grow a field that stores something Spring AI-typed rather than a
-   primitive/record projection of one.
+   Closed for now, and Gemini itself confirmed the finding closes its concern too; re-check
+   if `VcrTrackMapper`/`VcrTrack` (or their stream/embedding siblings) ever grow a field
+   that stores something Spring AI-typed rather than a primitive/record projection of one.
 2. **Tool-isolation mode for side-effecting tools — not built, deserves its own PRD.**
    A third scope (or a variant of `INSIDE_TOOL_LOOP`) that replays a tool's *recorded
    result* without invoking the real `@Tool` method, for tests that want tool-call-shape
@@ -96,7 +108,12 @@ README subsections, verified end-to-end against a real model
    fixture-shape design (today's per-model-turn fixtures don't have a slot for "tool
    result, not model output") and needs to be weighed against the existing, working
    `OUTSIDE_TOOL_LOOP` escape (which already fully avoids the side effect, at the cost of
-   the tool never running on replay at all). Not started.
+   the tool never running on replay at all). **Gemini's own concrete design for this is
+   fully captured in `docs/TOOL-ISOLATION-PROPOSAL.md`** — proxy every `ToolCallback`
+   (not the advisor layer), a `VcrToolMode` enum, and keying replayed results by tool
+   name + argument hash. **Not started, and whether this is a 0.1.0 blocker or v0.2.0+
+   work is explicitly undecided — the user has not made that call yet.** Under
+   evaluation, not committed.
 
 ## Verification performed (action 1, this session)
 

@@ -15,3 +15,9 @@ target/
 
 # Fixtures under src/test/resources/llm-cache are intentionally NOT ignored.
 # They are the point of the library and belong in version control.
+
+# mkdocs-material build output for site/ (docs/DOC-SITE-PROPOSAL.md) -- built by
+# .github/workflows/docs.yml and published to GitHub Pages, never committed.
+.site-build/
+site/.cache/
+

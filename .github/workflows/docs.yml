@@ -1,0 +1,62 @@
+name: Docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one Pages deployment at a time; a newer push should win rather than queue behind
+# an older one that's still deploying.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build site (mkdocs --strict)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Pinned, not "latest" -- this project pins every other dependency version
+      # deliberately (see pom.xml), and mkdocs-material itself warns of a coming
+      # backward-incompatible MkDocs 2.0; an unpinned install here would let that
+      # break this workflow with no warning on an otherwise unrelated push.
+      - name: Install mkdocs-material
+        run: pip install mkdocs-material==9.7.7
+
+      # --strict turns broken internal links, missing nav targets, and markdown
+      # warnings into a build failure instead of a silently broken published page.
+      - name: Build site
+        working-directory: site
+        run: mkdocs build --strict
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .site-build
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

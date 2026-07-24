@@ -1,16 +1,10 @@
-# spring-ai-test-tools
+# Spring AI Tests
 
 Test Spring AI `ChatClient`/`EmbeddingModel` code without hitting a real model every run.
 Pick, per test: a real model, an explicit stub you write inline or load from a file you
 name and manage — no hash, no lookup, WireMock-style — or record/replay if you'd rather
 capture a real answer once and let it replay automatically forever instead of
 hand-authoring one.
-
-!!! info "Not an official Spring project"
-    This is an independent, community-maintained project. It is not affiliated with,
-    endorsed by, or an official project of Broadcom, VMware, Spring, or Spring AI.
-    "Spring" and "Spring AI" are trademarks of their respective owners; this library
-    simply integrates with their public APIs.
 
 ## The problem
 

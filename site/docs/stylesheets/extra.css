@@ -58,18 +58,9 @@ body,
 	font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
 }
 
-/* Green nav-link/text-link highlights read fine against both a white and a dark
-   background, so these apply in both schemes. */
-.md-nav__link--active,
-.md-nav__link:focus,
-.md-nav__link:hover {
-	color: #6db33f;
-}
-
-.md-nav__item .md-nav__link--active {
-	font-weight: 600;
-}
-
+/* Text-link green reads fine against both a white and a dark background. Nav links get
+   their own, single-source-of-truth rule further down -- kept separate on purpose so
+   changing one never silently changes the other. */
 .md-typeset a {
 	color: #5a9636;
 }
@@ -130,29 +121,63 @@ body,
 	color: #1a1a1a;
 }
 
-/* --- Left-hand navigation: bigger, more legible links and a clearly distinct section
-   heading, per direct feedback that the previous 16px/400-weight nav read as small and
-   flat next to spring.io's own sidebar. --- */
+/* --- Left-hand navigation: one consistent size/weight for every link, and exactly one
+   unambiguous rule for "this is the current page" (green + bold). The nav used to also
+   color a separate "section group" label green with a different shade, which is what
+   read as messy/inconsistent -- two different greens meaning two different things in
+   the same list. Fixed at the structural level too: site/mkdocs.yml now uses
+   navigation.tabs, so each left-hand list is just the current top tab's own flat page
+   list -- no more nested "section" sub-headers competing with the active-page color at
+   all, not just a CSS patch over the old three-tier structure. --- */
 
 .md-nav__link {
 	font-size: 0.85rem; /* 17px, up from Material's 16px default */
-	line-height: 2; /* ~34px, up from 24px -- more breathing room between items */
+	line-height: 1.9;
+	padding: 0.15rem 0;
 }
 
-.md-nav__item--section > .md-nav__link {
-	font-size: 0.9rem; /* 18px */
+.md-nav__link--active {
+	color: #6db33f;
+	font-weight: 700;
+}
+
+.md-nav__link:hover,
+.md-nav__link:focus {
+	color: #5a9636;
+}
+
+.md-nav__title {
+	font-size: 0.8rem;
 	font-weight: 700;
 	text-transform: uppercase;
-	letter-spacing: 0.03em;
-	line-height: 2.2;
+	letter-spacing: 0.04em;
 }
 
-[data-md-color-scheme="default"] .md-nav__item--section > .md-nav__link {
-	color: #3f7a24;
+[data-md-color-scheme="default"] .md-nav__title {
+	color: rgba(0, 0, 0, 0.55);
 }
 
-[data-md-color-scheme="slate"] .md-nav__item--section > .md-nav__link {
-	color: #9ed36a;
+[data-md-color-scheme="slate"] .md-nav__title {
+	color: rgba(255, 255, 255, 0.55);
+}
+
+/* --- Top-level tabs (navigation.tabs): Overview / Guides / Reference, spring.io-style.
+   Light mode gets the same plain white bar the header uses, with the green accent only
+   on the active tab and on hover -- Material's own default already underlines the
+   active tab in the primary color, so no extra indicator styling is needed here. --- */
+
+[data-md-color-scheme="default"] .md-tabs {
+	background-color: #ffffff;
+	border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+[data-md-color-scheme="default"] .md-tabs__link {
+	color: rgba(0, 0, 0, 0.7);
+}
+
+.md-tabs__link--active,
+.md-tabs__link:hover {
+	color: #6db33f;
 }
 
 /* --- Centered, framed content card -- max-width plus a border/shadow so the reading

@@ -30,8 +30,8 @@ theme:
         icon: material/brightness-4
         name: Switch to light mode
   features:
-    - navigation.sections
-    - navigation.expand
+    - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.top
     - navigation.tracking
     - navigation.indexes
@@ -60,12 +60,12 @@ markdown_extensions:
       permalink: true
 
 nav:
-  - Home: index.md
-  - Quick Start: quick-start.md
-  - Choosing Your Approach:
+  - Overview:
+      - Home: index.md
+      - Quick Start: quick-start.md
       - Stubbing: stub.md
       - Record & Replay: record-replay.md
-  - Features:
+  - Guides:
       - Tool Calling: tool-calling.md
       - Structured Output: structured-output.md
       - Streaming: streaming.md

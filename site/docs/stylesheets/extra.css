@@ -218,14 +218,21 @@ body,
 
 /* --- Centered, framed content card -- max-width plus a border/shadow so the reading
    column reads as a distinct panel against the page canvas, the way spring.io's own
-   content area does, instead of running full-width/borderless edge to edge. --- */
+   content area does, instead of running full-width/borderless edge to edge.
+
+   1100px, not the original 860px: with toc.integrate removing the right-hand TOC
+   column entirely (see site/mkdocs.yml), the content column had ~1220px of available
+   width on a 1440px viewport but was only using 860px of it -- confirmed live, not
+   assumed, via the actual rendered rects before this change. Widened to use the space
+   the right rail's removal freed up, per direct feedback that the reading column
+   should be wider/more readable now that nothing else needs that space. --- */
 
 body[data-md-color-scheme="default"] {
 	background-color: #f6f8fa;
 }
 
 .md-content__inner {
-	max-width: 860px;
+	max-width: 1100px;
 	margin-left: auto;
 	margin-right: auto;
 	padding: 2rem 2.75rem 3rem;

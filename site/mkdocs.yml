@@ -1,10 +1,15 @@
-site_name: spring-ai-test-tools 0.1.0
+site_name: spring-ai-test-tools
 site_description: Test Spring AI ChatClient/EmbeddingModel code -- real model, explicit stub, or record/replay, chosen per test
 site_url: https://rifatcakir.github.io/spring-ai-test-tools/
 repo_url: https://github.com/rifatcakir/spring-ai-test-tools
 repo_name: rifatcakir/spring-ai-test-tools
 edit_uri: edit/main/site/docs/
-copyright: An independent, community-maintained project. Not affiliated with, endorsed by, or an official project of Broadcom, VMware, Spring, or Spring AI.
+# Version moved out of site_name (which repeated it in the header, the browser tab, and
+# the left nav's own top-level title -- direct feedback that it was showing up in too
+# many places, especially the left nav). A quiet mention in the footer is the
+# reference-docs-style placement instead: present for anyone who looks, not part of the
+# primary title anywhere.
+copyright: spring-ai-test-tools 0.1.0 &middot; An independent, community-maintained project. Not affiliated with, endorsed by, or an official project of Broadcom, VMware, Spring, or Spring AI.
 
 docs_dir: docs
 site_dir: ../.site-build

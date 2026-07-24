@@ -318,3 +318,21 @@ body[data-md-color-scheme="default"] {
 .md-typeset pre {
 	border-radius: 6px;
 }
+
+/* --- Footer (version + "not an official Spring project" line): always visible, not
+   just reachable by scrolling to the very end of a page. Fixed to the bottom of the
+   viewport rather than left in normal document flow, which is what "en altta görünen
+   hep görünsün" asked for. z-index 3 -- below the header (4, Material's own value) and
+   any dialog/consent overlay, above ordinary content. .md-main gets matching bottom
+   padding so the fixed bar never covers the last line of real content. --- */
+.md-footer-meta {
+	position: fixed;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	z-index: 3;
+}
+
+.md-main {
+	padding-bottom: 3.5rem;
+}

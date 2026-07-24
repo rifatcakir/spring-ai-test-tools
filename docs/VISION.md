@@ -19,11 +19,11 @@ io.github.rifatcakir.springai.testtools
                     file-sourced -- no hash, no lookup. See "Stub" below.
 ```
 
-Recorder and Stub are two, equally first-class ways to get a deterministic
-`ChatModel`/`EmbeddingModel` for a test, chosen per test: hand-author the response
-(Stub) or let the library capture a real one once and replay it automatically forever
-(Recorder). Neither is "the mechanism and the other's fallback" — see "Stub" below and
-`README.md`'s "Choosing per test" table for when each one is the right call.
+Recorder is the core mechanism and the library's reason to exist: capture a real answer
+once, replay it automatically forever, without hand-authoring one. Stub is the
+complementary path, chosen per test for what Recorder structurally can't capture — see
+"Stub" below and `README.md`'s "Choosing per test" table for when each one is the right
+call.
 
 Evaluator (Layer 3, below) deliberately has **no package here** — not an omission, a
 finding. Spring AI's own `Evaluator`/`RelevancyEvaluator`/`FactCheckingEvaluator` already
@@ -64,7 +64,7 @@ fixture) — it should work identically against a live `ChatClientResponse` and 
 one. Recorder's job ends at "produce the same response deterministically"; Assertions'
 job starts at "is this response actually correct."
 
-## Stub — first-class, chosen per test alongside Recorder
+## Stub — complementary, for what Recorder can't capture
 
 `io.github.rifatcakir.springai.testtools.stub` (`docs/STUB-PRD.md`,
 `docs/STUB-FILE-SOURCE-PRD.md`) is the explicit, WireMock-style path: a test writes the
@@ -77,21 +77,21 @@ no real provider will reliably reproduce on demand (a timeout, a refusal, `finis
 as importantly, a **deliberate, hand-authored** answer a test author wants full control
 over, not one that happened to come back from a real model when it was recorded.
 
-**Recorder and Stub are twin choices, not a mechanism and its fallback.** Both produce
+**Recorder is the headline; Stub is the complement, not a rival mechanism.** Both produce
 the same `ChatModel`/`EmbeddingModel`, so application code under test never changes
 regardless of which one a given test supplies — see `README.md`'s "Choosing per test"
-table. Reach for Stub when you want to say exactly what the model returns; reach for
-Recorder when you'd rather capture a realistic answer once, from a real model, and replay
-it automatically forever without hand-authoring one. Neither question is "the real
-feature" with the other bolted on.
+table. Default to Recorder when you'd rather capture a realistic answer once, from a real
+model, and replay it automatically forever without hand-authoring one; reach for Stub
+specifically for what Recorder can't give you — an edge case no real provider will
+reproduce on demand, or a pure unit test with zero I/O.
 
 This is also why Stub is scoped narrower than WireMock's own routing model on purpose: no
 request-matching/routing table, no per-prompt branching, no Spring autoconfiguration. A
 stub always answers the same way, for any input; a test that needs two different answers
 builds two stub instances. See "Positioning: not WireMock for AI" below — the same
 reasoning that keeps Evaluator's judge calls out of a WireMock-shaped design is what keeps
-Stub's *request-matching* narrow, even though Stub itself is now presented as a headline
-capability, not a secondary one.
+Stub's *request-matching* narrow, even as a secondary, complementary capability rather
+than the project's headline.
 
 ## Layer 3 — Evaluator (roadmap, reframed by a concrete finding)
 
@@ -209,8 +209,8 @@ abstraction level Spring AI itself works in — not a narrower "VCR clone that h
 target LLMs."
 
 This is also why Stub (above) deliberately does not grow a request-matching/routing
-table the way WireMock's own stubbing does, even though Stub itself is presented as a
-headline, first-class capability now, not a secondary one: the moment this project
+table the way WireMock's own stubbing does, even as a secondary, complementary
+capability rather than the project's headline: the moment this project
 builds "respond differently depending on what the prompt looks like," it has started
 building the exact general-purpose mocking framework this section argues against
 becoming. Being WireMock-*style* (explicit, hand-authored, no hash) is the point; being

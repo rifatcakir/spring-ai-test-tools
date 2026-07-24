@@ -47,9 +47,14 @@ theme:
     - search.suggest
     - search.highlight
     - toc.follow
-    # toc.integrate deliberately NOT set -- keeps the page-local "on this page" table of
-    # contents in its own right-hand rail, matching the reference-docs three-column
-    # layout (left nav / content / right TOC), rather than folding it into the left nav.
+    # toc.integrate folds the page-local "on this page" outline into the left nav
+    # (nested under the current page) instead of a separate right-hand rail -- direct
+    # feedback that the right TOC wasn't earning its column. This is the supported
+    # mechanism for removing it, not a CSS display:none hack: Material's own layout CSS
+    # keys the content column's width/margins off whether the secondary sidebar element
+    # exists at all, not just whether it's visible, so a CSS-only hide would have left an
+    # unused gap where that column used to be.
+    - toc.integrate
 
 extra_css:
   - stylesheets/extra.css

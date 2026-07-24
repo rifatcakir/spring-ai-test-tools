@@ -207,6 +207,21 @@ unproven" caveat already names for Recorder itself.
    now also in the main library's nightly `e2e` job, with chunk-for-chunk exact-match
    assertions, not aggregate-only ones.
 
+10. **Done** — Stub (programmatic canned responses, `docs/STUB-PRD.md`), a deliberate
+    complement to Recorder rather than a fourth layer: `VcrStubs.chatModel()`/
+    `VcrStubs.embeddingModel()` build a plain `ChatModel`/`EmbeddingModel` for the two
+    things Recorder structurally cannot give you — an error/edge scenario no real
+    provider will reliably reproduce on demand (a timeout, a refusal, `finishReason =
+    "length"`), and a pure unit test wanting zero I/O and zero Spring context. Partial
+    definition with sensible defaults throughout (only the field a test cares about
+    needs stating; adding a tool call auto-defaults the finish reason to `"TOOL_CALLS"`
+    unless overridden). No request-matching/routing table and no autoconfiguration, both
+    cut deliberately — see `docs/VISION.md`'s "Positioning: not WireMock for AI" for why
+    growing either would mean becoming the general-purpose mocking framework this
+    project explicitly isn't. Streaming stub deferred to v2: `ChatModel`'s own default
+    `.stream()` already throws `UnsupportedOperationException`, a real interface
+    contract already being honored correctly, not a gap.
+
 Items 7–8 (diagnostics) and item 9 (publishing follow-through) from the existing "Feature
 roadmap" tables below continue independently of this list — they're small and
 opportunistic, not sequenced against the layered plan.

@@ -13,7 +13,9 @@ layer is its own Java package under `io.github.rifatcakir.springai.testtools`:
 ```
 io.github.rifatcakir.springai.testtools
 ├── recorder     <- exists. Record/replay for ChatClient and EmbeddingModel calls.
-└── assertions   <- exists. Fluent, deterministic checks on a response.
+├── assertions   <- exists. Fluent, deterministic checks on a response.
+└── stub         <- exists. Programmatic canned responses -- a narrow complement to
+                    Recorder, not a fourth layer. See "Stub" below.
 ```
 
 Evaluator (Layer 3, below) deliberately has **no package here** — not an omission, a
@@ -54,6 +56,30 @@ assertion library doesn't need to know how a response was obtained (real call vs
 fixture) — it should work identically against a live `ChatClientResponse` and a replayed
 one. Recorder's job ends at "produce the same response deterministically"; Assertions'
 job starts at "is this response actually correct."
+
+## Stub — a narrow complement to Recorder, not a fourth layer
+
+`io.github.rifatcakir.springai.testtools.stub` (`docs/STUB-PRD.md`) exists for exactly one
+reason: **some things Recorder cannot give you, because Recorder's whole model is
+"capture what a real call actually produced."** A real provider will not reliably hand
+you a malformed response, a timeout, a refusal, or a specific `finishReason` like
+`"length"` on demand — there is nothing to record. `VcrStubs.chatModel()`/
+`VcrStubs.embeddingModel()` build a plain, canned `ChatModel`/`EmbeddingModel` for exactly
+that gap, plus for pure unit tests that want zero I/O and zero Spring context.
+
+**The headline stays record/replay.** Nothing about Stub changes that: it never touches a
+fixture, a hash, or a real model, and no existing Recorder-backed test was converted to
+use it. The two mechanisms answer two different questions — "does this prompt really get
+this answer from a real model" (Recorder) versus "does my code handle this specific,
+otherwise-unreproducible model behavior correctly" (Stub) — and a test should reach for
+whichever question it's actually asking, not default to Stub because it's less setup.
+
+This is also why Stub is scoped narrower than WireMock's own model on purpose: no
+request-matching/routing table, no per-prompt branching, no Spring autoconfiguration. A
+stub always answers the same way, for any input; a test that needs two different answers
+builds two stub instances. See "Positioning: not WireMock for AI" below — the same
+reasoning that keeps Evaluator's judge calls out of a WireMock-shaped design is what keeps
+Stub itself from growing into one.
 
 ## Layer 3 — Evaluator (roadmap, reframed by a concrete finding)
 
@@ -169,6 +195,12 @@ reason) is what makes an Evaluator layer buildable on top at all: it already spe
 So the intended positioning is: **a test-and-evaluation toolkit for Spring AI**, at the
 abstraction level Spring AI itself works in — not a narrower "VCR clone that happens to
 target LLMs."
+
+This is also why Stub (above) deliberately does not grow a request-matching/routing
+table the way WireMock's own stubbing does: the moment this project builds "respond
+differently depending on what the prompt looks like," it has started building the exact
+general-purpose mocking framework this section argues against becoming. Stub answers one
+question — "give me a canned model for a scenario I can't record" — and stops there.
 
 ## Honest caveat: provider independence is proven at the implementation level, not yet at the vendor level
 

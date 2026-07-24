@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-07-24 (R3 streaming) · Version `0.1.0`
+Last updated: 2026-07-24 (Stub) · Version `0.1.0`
 
 ## Rename: `spring-ai-test-vcr` → `spring-ai-test-tools`
 
@@ -25,7 +25,7 @@ exist first for anything built on top of it to be usable in CI at all.
 
 ## Current state
 
-Core architecture scaffolded and now proven end-to-end. **`mvn test` is green (179/179)**,
+Core architecture scaffolded and now proven end-to-end. **`mvn test` is green (198/198)**,
 plus sixteen real Testcontainers + Ollama integration tests (excluded from the default run,
 verified separately via `mvn test -Pintegration-test`) that prove the library's actual
 reason to exist: record on a real cache miss, replay on a hit, zero additional network
@@ -235,6 +235,30 @@ design deliberately needs no Docker/Ollama for its default run and has no schedu
 at all, gets an integration-tagged demonstration instead (`@Vcr(mode = VcrMode.BYPASS)`,
 its own existing escape hatch) rather than new scheduled CI infrastructure that would
 contradict that project's own stated identity.
+
+**Stub (programmatic canned responses) is built: `docs/STUB-PRD.md`.** A deliberate
+complement to Recorder, not a fourth layer and not a general-purpose mocking framework:
+`io.github.rifatcakir.springai.testtools.stub`'s `VcrStubs.chatModel()`/
+`VcrStubs.embeddingModel()` build a plain `ChatModel`/`EmbeddingModel` for the two things
+Recorder structurally cannot give you — an error/edge scenario no real provider will
+reliably reproduce on demand (a timeout, a refusal, `finishReason = "length"`), and a
+pure unit test wanting zero I/O and zero Spring context. Partial definition with sensible
+defaults throughout: an unconfigured stub still returns a valid, empty-text, `"STOP"`-
+finished response rather than `null`; adding a tool call auto-defaults the finish reason
+to `"TOOL_CALLS"` unless explicitly overridden — a real model's own behavior, not
+something a test has to spell out twice. `embed(Document)` deliberately diverges from R4's
+own `VcrEmbeddingModel`, which leaves it as an uncached pass-through to a real delegate —
+a stub has no delegate to fall back to, so it routes through the same canned vector
+instead, otherwise any RAG-shaped test handed this stub would silently break. No
+request-matching/routing table and no Spring autoconfiguration, both cut on purpose — see
+`docs/VISION.md`'s "Positioning: not WireMock for AI" for why growing either would mean
+becoming the thing this project explicitly isn't. Streaming stub deferred to v2:
+`ChatModel`'s own default `.stream()` already throws `UnsupportedOperationException`
+(confirmed via bytecode), a real interface contract already correctly honored, not a gap.
+19 new unit tests (11 chat, 8 embedding), deterministic, no model, no Spring context —
+every builder method verified field-by-field on the produced response, plus
+`failingWith(...)` proven to throw the exact configured exception instance from both
+`call(...)` and `embed(Document)`.
 
 **R3 (streaming record/replay) is built: `docs/R3-STREAMING-PRD.md`.** `.stream()` used
 to pass straight through live, uncached — now `DeterministicVcrAdvisor` implements

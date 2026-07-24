@@ -125,12 +125,21 @@ body,
    own reference site pattern, not the spring.io marketing landing page's top tab bar --
    navigation.tabs was tried and reverted; see site/mkdocs.yml). Exactly two rules govern
    every color a nav item can have, and they never overlap:
-     1. .md-nav__link--active -- green + bold. The ONE "you are here" signal, always.
+     1. .md-nav__link--active -- green. The ONE "you are here" signal, always.
      2. .md-nav__item--section > .md-nav__link -- a muted, uppercase, non-green label
         for a group heading (Getting Started, Guides, Reference). Never colored green,
         specifically so it can never be mistaken for the active-page indicator -- this
         exact ambiguity (a section label and the active page both rendering as
-        different shades of green) is what previously read as "messy, random green." */
+        different shades of green) is what previously read as "messy, random green."
+
+   Every color declaration below targets the nested .md-ellipsis span, not the outer
+   .md-nav__link/<label> itself -- confirmed live, not assumed, that Material renders a
+   nav link's visible text through that child span, and setting `color` on the outer
+   element (including with !important, and regardless of selector specificity) simply
+   does not reach it. font-weight/font-size/text-transform DO apply correctly on the
+   outer element -- only `color` needed this. Skipping this step is what silently broke
+   an earlier version of this fix (the muted section-label color it declared never
+   painted, leaving Material's own default text color in its place). */
 
 .md-nav__link {
 	font-size: 0.85rem; /* 17px, up from Material's 16px default */
@@ -138,14 +147,16 @@ body,
 	padding: 0.15rem 0;
 }
 
-.md-nav__link--active,
-.md-nav__item--section > .md-nav__link--active {
-	color: #6db33f;
+.md-nav__link--active {
 	font-weight: 700;
 }
 
-.md-nav__link:hover,
-.md-nav__link:focus {
+.md-nav__link--active .md-ellipsis {
+	color: #6db33f;
+}
+
+.md-nav__link:hover .md-ellipsis,
+.md-nav__link:focus .md-ellipsis {
 	color: #5a9636;
 }
 
@@ -156,12 +167,23 @@ body,
 	letter-spacing: 0.05em;
 }
 
-[data-md-color-scheme="default"] .md-nav__item--section > .md-nav__link {
+[data-md-color-scheme="default"] .md-nav__item--section > .md-nav__link .md-ellipsis {
 	color: rgba(0, 0, 0, 0.55);
 }
 
-[data-md-color-scheme="slate"] .md-nav__item--section > .md-nav__link {
+[data-md-color-scheme="slate"] .md-nav__item--section > .md-nav__link .md-ellipsis {
 	color: rgba(255, 255, 255, 0.55);
+}
+
+/* The one case a section label and the active-page indicator could coincide: a section
+   whose own group happens to be the ancestor of the current page (e.g. "Guides" while
+   reading a page under it). Matches the two muted rules' own specificity exactly
+   (attribute + three classes each) and is declared after them, so it wins on source
+   order without needing !important -- verified live, not assumed, the same way the
+   rest of this fix was. */
+[data-md-color-scheme="default"] .md-nav__item--section > .md-nav__link--active .md-ellipsis,
+[data-md-color-scheme="slate"] .md-nav__item--section > .md-nav__link--active .md-ellipsis {
+	color: #6db33f;
 }
 
 .md-nav__title {
@@ -179,25 +201,14 @@ body,
 	color: rgba(255, 255, 255, 0.55);
 }
 
-/* --- Breadcrumb (navigation.path): "Spring AI Test Tools > Guides > Tool Calling"-style
-   trail above the content, matching the reference-docs layout. Muted by default, green
-   on hover/current -- the same "one color means one thing" discipline as the nav. --- */
+/* --- Breadcrumb (navigation.path): "Overview > Guides > Tool Calling"-style trail
+   above the content, matching the reference-docs layout. No color override needed --
+   Material's own default already renders every breadcrumb link in --md-primary-fg-color,
+   which is this site's custom green, so the on-brand look comes for free. Confirmed live
+   (not assumed): every segment already renders as #6DB33F before any extra rule here. --- */
 
 .md-path__link {
 	font-size: 0.78rem;
-}
-
-[data-md-color-scheme="default"] .md-path__link {
-	color: rgba(0, 0, 0, 0.55);
-}
-
-[data-md-color-scheme="slate"] .md-path__link {
-	color: rgba(255, 255, 255, 0.55);
-}
-
-.md-path__link:hover,
-.md-path__link:last-child {
-	color: #6db33f;
 }
 
 /* "Edit this page" button (content.action.edit) -- on-brand green on hover. */

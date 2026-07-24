@@ -1,4 +1,4 @@
-site_name: spring-ai-test-tools
+site_name: spring-ai-test-tools 0.1.0
 site_description: Test Spring AI ChatClient/EmbeddingModel code -- real model, explicit stub, or record/replay, chosen per test
 site_url: https://rifatcakir.github.io/spring-ai-test-tools/
 repo_url: https://github.com/rifatcakir/spring-ai-test-tools
@@ -30,17 +30,26 @@ theme:
         icon: material/brightness-4
         name: Switch to light mode
   features:
-    - navigation.tabs
-    - navigation.tabs.sticky
+    # Reference-docs nav (modeled on docs.spring.io/spring-ai/reference, not the
+    # spring.io marketing landing page): a hierarchical, collapsible left tree with
+    # breadcrumbs, not a top tab bar. navigation.tabs was tried and reverted -- top
+    # tabs read as a marketing-site pattern, not a reference-docs one.
+    - navigation.sections
+    - navigation.expand
+    - navigation.indexes
+    - navigation.path
     - navigation.top
     - navigation.tracking
-    - navigation.indexes
     - navigation.instant
-    - search.suggest
-    - search.highlight
+    - content.action.edit
     - content.code.copy
     - content.tabs.link
+    - search.suggest
+    - search.highlight
     - toc.follow
+    # toc.integrate deliberately NOT set -- keeps the page-local "on this page" table of
+    # contents in its own right-hand rail, matching the reference-docs three-column
+    # layout (left nav / content / right TOC), rather than folding it into the left nav.
 
 extra_css:
   - stylesheets/extra.css
@@ -60,8 +69,8 @@ markdown_extensions:
       permalink: true
 
 nav:
-  - Overview:
-      - Home: index.md
+  - Overview: index.md
+  - Getting Started:
       - Quick Start: quick-start.md
       - Stubbing: stub.md
       - Record & Replay: record-replay.md

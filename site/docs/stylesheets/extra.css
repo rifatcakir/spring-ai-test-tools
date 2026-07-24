@@ -121,14 +121,16 @@ body,
 	color: #1a1a1a;
 }
 
-/* --- Left-hand navigation: one consistent size/weight for every link, and exactly one
-   unambiguous rule for "this is the current page" (green + bold). The nav used to also
-   color a separate "section group" label green with a different shade, which is what
-   read as messy/inconsistent -- two different greens meaning two different things in
-   the same list. Fixed at the structural level too: site/mkdocs.yml now uses
-   navigation.tabs, so each left-hand list is just the current top tab's own flat page
-   list -- no more nested "section" sub-headers competing with the active-page color at
-   all, not just a CSS patch over the old three-tier structure. --- */
+/* --- Left-hand navigation: a hierarchical, collapsible tree (docs.spring.io/spring-ai's
+   own reference site pattern, not the spring.io marketing landing page's top tab bar --
+   navigation.tabs was tried and reverted; see site/mkdocs.yml). Exactly two rules govern
+   every color a nav item can have, and they never overlap:
+     1. .md-nav__link--active -- green + bold. The ONE "you are here" signal, always.
+     2. .md-nav__item--section > .md-nav__link -- a muted, uppercase, non-green label
+        for a group heading (Getting Started, Guides, Reference). Never colored green,
+        specifically so it can never be mistaken for the active-page indicator -- this
+        exact ambiguity (a section label and the active page both rendering as
+        different shades of green) is what previously read as "messy, random green." */
 
 .md-nav__link {
 	font-size: 0.85rem; /* 17px, up from Material's 16px default */
@@ -136,7 +138,8 @@ body,
 	padding: 0.15rem 0;
 }
 
-.md-nav__link--active {
+.md-nav__link--active,
+.md-nav__item--section > .md-nav__link--active {
 	color: #6db33f;
 	font-weight: 700;
 }
@@ -144,6 +147,21 @@ body,
 .md-nav__link:hover,
 .md-nav__link:focus {
 	color: #5a9636;
+}
+
+.md-nav__item--section > .md-nav__link {
+	font-weight: 700;
+	font-size: 0.78rem;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+[data-md-color-scheme="default"] .md-nav__item--section > .md-nav__link {
+	color: rgba(0, 0, 0, 0.55);
+}
+
+[data-md-color-scheme="slate"] .md-nav__item--section > .md-nav__link {
+	color: rgba(255, 255, 255, 0.55);
 }
 
 .md-nav__title {
@@ -161,22 +179,29 @@ body,
 	color: rgba(255, 255, 255, 0.55);
 }
 
-/* --- Top-level tabs (navigation.tabs): Overview / Guides / Reference, spring.io-style.
-   Light mode gets the same plain white bar the header uses, with the green accent only
-   on the active tab and on hover -- Material's own default already underlines the
-   active tab in the primary color, so no extra indicator styling is needed here. --- */
+/* --- Breadcrumb (navigation.path): "Spring AI Test Tools > Guides > Tool Calling"-style
+   trail above the content, matching the reference-docs layout. Muted by default, green
+   on hover/current -- the same "one color means one thing" discipline as the nav. --- */
 
-[data-md-color-scheme="default"] .md-tabs {
-	background-color: #ffffff;
-	border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+.md-path__link {
+	font-size: 0.78rem;
 }
 
-[data-md-color-scheme="default"] .md-tabs__link {
-	color: rgba(0, 0, 0, 0.7);
+[data-md-color-scheme="default"] .md-path__link {
+	color: rgba(0, 0, 0, 0.55);
 }
 
-.md-tabs__link--active,
-.md-tabs__link:hover {
+[data-md-color-scheme="slate"] .md-path__link {
+	color: rgba(255, 255, 255, 0.55);
+}
+
+.md-path__link:hover,
+.md-path__link:last-child {
+	color: #6db33f;
+}
+
+/* "Edit this page" button (content.action.edit) -- on-brand green on hover. */
+.md-content__button:hover {
 	color: #6db33f;
 }
 

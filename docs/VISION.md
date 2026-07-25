@@ -1,14 +1,23 @@
 # Vision
 
-Last updated: 2026-07-24
+Last updated: 2026-07-25
 
 ## What this project is becoming
 
+**Spring AI Test Tools is a deterministic testing framework for Spring AI applications.**
+That framing — chosen deliberately over "a VCR library for Spring AI" — is the one that
+matches what the codebase actually is now: record/replay is the primary mechanism and the
+original reason the project exists, but it sits alongside stubbing, assertions, semantic
+assertions, tool isolation, embedding replay, evaluator testing, and streaming, each its
+own package with its own fixture family. The mental model to aim for is **"JUnit for
+Spring AI"**, not "WireMock alternative": a user should arrive looking for *a way to test
+their Spring AI application*, not for a cassette library specifically.
+
 `spring-ai-test-tools` (Maven artifactId; GitHub repo `rifatcakir/spring-ai-test-tools`,
-renamed to match) is not just a VCR library. It is meant to become a three-layer test-and-evaluation toolkit for
-Spring AI, at the same abstraction level Spring AI itself operates at (the `ChatClient`
-advisor chain), rather than at the HTTP socket layer WireMock and VCR.py work at. Each
-layer is its own Java package under `io.github.rifatcakir.springai.testtools`:
+renamed to match) operates at the same abstraction level Spring AI itself does (the
+`ChatClient` advisor chain), rather than at the HTTP socket layer WireMock and VCR.py work
+at. Each capability is its own Java package under
+`io.github.rifatcakir.springai.testtools`:
 
 ```
 io.github.rifatcakir.springai.testtools
@@ -210,9 +219,16 @@ the advisor layer (Recorder's existing design choice, made from day one for exac
 reason) is what makes an Evaluator layer buildable on top at all: it already speaks in
 `ChatClientRequest`/`ChatClientResponse`, not raw HTTP.
 
-So the intended positioning is: **a test-and-evaluation toolkit for Spring AI**, at the
-abstraction level Spring AI itself works in — not a narrower "VCR clone that happens to
-target LLMs."
+So the intended positioning is: **a deterministic testing framework for Spring AI
+applications**, at the abstraction level Spring AI itself works in — not a narrower "VCR
+clone that happens to target LLMs," and not "the WireMock of AI." The comparison table in
+`README.md` states this honestly in both directions: this project wins on abstraction
+level, provider independence, and coverage of streaming/tool/embedding/structured-output;
+WireMock and MockWebServer genuinely win whenever the *HTTP layer itself* is the thing
+under test (retry policy, timeouts, connection pooling, a 429 with `Retry-After`, a body
+that breaks mid-stream), because this library sits above that layer and structurally
+cannot see it. Claiming otherwise would be the kind of overclaim the "honest caveat"
+section below exists to prevent.
 
 This is also why Stub (above) deliberately does not grow a request-matching/routing
 table the way WireMock's own stubbing does, even as a secondary, complementary

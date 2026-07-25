@@ -1,12 +1,18 @@
-# Tool-isolation proposal (Gemini, round 2) — not a PRD yet
+# Tool-isolation proposal (Gemini, round 2) — superseded by docs/TOOL-ISOLATION-PRD.md
 
-Last updated: 2026-07-24
+Last updated: 2026-07-25
 
-Status: **design captured, not started, not decided.** This is Gemini's own concrete
-design for a fully side-effect-free tool-calling replay mode, written down while it's
-fresh so a future PRD (or a decision to reject it) doesn't have to reconstruct it from a
-chat transcript. No code has been written for this. See `docs/EXTERNAL-FEEDBACK.md`
-(open action 2) for how this fits into the external-feedback log this document is a
+Status: **superseded.** This was Gemini's own concrete design for a fully
+side-effect-free tool-calling replay mode, written down while it was fresh so a future
+PRD (or a decision to reject it) wouldn't have to reconstruct it from a chat transcript.
+That PRD now exists — `docs/TOOL-ISOLATION-PRD.md` — and checked this proposal's central
+claim (proxy `ToolCallback` via a `BeanPostProcessor`) against real Spring AI 2.0.0
+bytecode rather than accepting it as written: the intercept point turned out to be wrong
+(most `ToolCallback` instances are never Spring beans), though the underlying isolation
+*idea*, the `VcrToolMode` enum shape, and the name+argument keying insight were all
+correct and did ship. Kept here unmodified as the historical record of the original
+proposal; see the PRD for what was actually built. See `docs/EXTERNAL-FEEDBACK.md` (open
+action 2) for how this fits into the external-feedback log this document is a
 detail-level companion to.
 
 ## Where this comes from

@@ -177,6 +177,26 @@
             <version>${testcontainers.version}</version>
             <scope>test</scope>
         </dependency>
+
+        <!-- Spring AI's own autoconfiguration for tool-calling and ChatClient, needed only
+             by OllamaToolIsolationEndToEndTests (docs/TOOL-ISOLATION-PRD.md): this
+             library's own ChatClientBuilderCustomizer mechanism does not by itself load
+             Spring AI's ToolCallingManager bean; a consuming Spring Boot application pulls
+             these in transitively via a starter (confirmed via `mvn dependency:tree` on
+             spring-ai-test-tools-example: spring-ai-starter-model-ollama already depends
+             on both). Declared here, test-scope only, so this one test can prove
+             VcrToolCallingManagerBeanPostProcessor survives the real autoconfiguration
+             graph a consumer actually uses; never a dependency of the library itself. -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-autoconfigure-model-tool</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-autoconfigure-model-chat-client</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>junit-jupiter</artifactId>

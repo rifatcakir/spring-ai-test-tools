@@ -101,19 +101,20 @@ README subsections, verified end-to-end against a real model
    Closed for now, and Gemini itself confirmed the finding closes its concern too; re-check
    if `VcrTrackMapper`/`VcrTrack` (or their stream/embedding siblings) ever grow a field
    that stores something Spring AI-typed rather than a primitive/record projection of one.
-2. **Tool-isolation mode for side-effecting tools — not built, deserves its own PRD.**
-   A third scope (or a variant of `INSIDE_TOOL_LOOP`) that replays a tool's *recorded
-   result* without invoking the real `@Tool` method, for tests that want tool-call-shape
-   assertions without re-triggering a real side effect on every run. Needs its own
-   fixture-shape design (today's per-model-turn fixtures don't have a slot for "tool
-   result, not model output") and needs to be weighed against the existing, working
-   `OUTSIDE_TOOL_LOOP` escape (which already fully avoids the side effect, at the cost of
-   the tool never running on replay at all). **Gemini's own concrete design for this is
-   fully captured in `docs/TOOL-ISOLATION-PROPOSAL.md`** — proxy every `ToolCallback`
-   (not the advisor layer), a `VcrToolMode` enum, and keying replayed results by tool
-   name + argument hash. **Not started, and whether this is a 0.1.0 blocker or v0.2.0+
-   work is explicitly undecided — the user has not made that call yet.** Under
-   evaluation, not committed.
+2. **Tool-isolation mode for side-effecting tools — done.** Built before this project's
+   first publish, as approved. Gemini's own concrete proposal
+   (`docs/TOOL-ISOLATION-PROPOSAL.md` — proxy `ToolCallback` via a `BeanPostProcessor`)
+   was checked against real Spring AI 2.0.0 bytecode rather than accepted as-is, and the
+   intercept point turned out to be wrong: most `ToolCallback` instances (everything
+   `.tools(someObject)` produces) are never Spring beans, so a `ToolCallback`-level
+   `BeanPostProcessor` would have silently missed the dominant usage pattern. The actual,
+   bytecode-confirmed choke point is `ToolCallingManager` itself — see
+   `docs/TOOL-ISOLATION-PRD.md` for the full diagnosis. `VcrToolCallingManager` now wraps
+   it, a new independent `VcrToolExecutionTrack` fixture keys each invocation by tool name
+   + exact argument string, and a new `VcrToolMode` axis defaults to
+   `REPLAY_FROM_CASSETTE` (full isolation) with `EXECUTE_REAL` as the `@VcrTool` opt-in.
+   Verified against a real model end to end (`OllamaToolIsolationEndToEndTests`) and with
+   a full unit-test suite. See `docs/ROADMAP.md`'s `T1` row for the summary.
 
 ## Verification performed (action 1, this session)
 

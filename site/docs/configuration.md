@@ -29,6 +29,16 @@ Every property is under the `spring.ai.test.vcr` prefix:
 | `cache-directory` | `String` | `src/test/resources/llm-cache` | Where fixtures are read from and written to. Meant to be committed to version control. |
 | `order` | `Integer` | derived from `scope` | Explicit advisor order. Only needed to interleave with other custom advisors at a specific position. |
 
+## Tool calling isolation
+
+Under `spring.ai.test.vcr.tool`, governed by the same top-level `enabled` flag as chat —
+see [Tool Calling](tool-calling.md):
+
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `mode` | `VcrToolMode` | `REPLAY_FROM_CASSETTE` | Whether a cassette hit isolates a tool invocation from the real `@Tool` method (default — full isolation) or lets it run for real (`EXECUTE_REAL`). |
+| `cache-directory` | `String` | `src/test/resources/llm-cache-tool` | A separate directory from the chat cache, by default. |
+
 ## Embeddings (`EmbeddingModel`)
 
 Under `spring.ai.test.vcr.embedding`, independent of the chat properties above — see

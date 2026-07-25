@@ -1,9 +1,21 @@
 # Tool Isolation — PRD
 
-Last updated: 2026-07-24
+Last updated: 2026-07-25
 
-Status: **diagnosis complete, design proposed, three forks below need your sign-off.
-No code written.** This supersedes `docs/TOOL-ISOLATION-PROPOSAL.md` (Gemini's original
+Status: **implemented.** All three forks below were resolved as recommended and signed
+off, and the design is built: `VcrToolCallingManager`/`VcrToolCallingManagerBeanPostProcessor`,
+`VcrToolExecutionTrack` + its store, `VcrToolMode`, and the `@VcrTool` per-test override
+all exist in `io.github.rifatcakir.springai.testtools.recorder.tool` (and `...recorder.junit`
+for the annotation). Verified against a real model end to end
+(`OllamaToolIsolationEndToEndTests`, through Spring AI's own autoconfiguration graph) and
+with a full unit-test suite (`VcrToolCallingManagerTests`) proving isolation, real
+execution, per-test override, and multi-argument keying. See `docs/ROADMAP.md`'s `T1` row
+for the summary and `docs/EXTERNAL-FEEDBACK.md` for how this closes the gap an external
+review raised. This document is kept as the historical diagnosis and design record — the
+"what's mechanical" section below is no longer forward-looking, it describes what was
+actually built.
+
+This supersedes `docs/TOOL-ISOLATION-PROPOSAL.md` (Gemini's original
 proposal, kept as-is for the record) wherever the two disagree — every disagreement below
 is backed by bytecode inspection and a working diagnostic probe, not by re-reading
 Gemini's design more carefully. Same discipline as `docs/A1-ASSERTIONS-PRD.md`,
@@ -255,7 +267,7 @@ actually need updating are internal:
 - The sibling `spring-ai-test-tools-example` project's `ToolCallingRecordReplayTest` (and
   any committed fixtures it produced) needs the same review.
 
-**Sign-off needed:** confirm `EXECUTE_REAL` mapping to today's `INSIDE_TOOL_LOOP`
+**Signed off:** `EXECUTE_REAL` mapping to today's `INSIDE_TOOL_LOOP`
 contract, named per-test the same way `@Vcr(mode = ...)` already overrides `VcrMode`
 today (e.g. `@VcrTest(toolMode = VcrToolMode.EXECUTE_REAL)`, or folded into the existing
 `@Vcr` annotation as a second attribute rather than a new annotation — your call, not
@@ -286,7 +298,7 @@ Considered both options you asked about:
   toxicity-checking, `docs/VISION.md`: "a documented, buildable pattern... not built
   speculatively ahead of a real need").
 
-**Sign-off needed:** confirm name + exact argument string as the sole key, and confirm
+**Signed off:** name + exact argument string as the sole key, and
 the non-idempotent-tool case is out of scope (documented as a limitation) rather than
 something to design around now.
 

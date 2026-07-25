@@ -2,6 +2,7 @@ package io.github.rifatcakir.springai.testtools.recorder.autoconfigure;
 
 import io.github.rifatcakir.springai.testtools.recorder.VcrMode;
 import io.github.rifatcakir.springai.testtools.recorder.VcrScope;
+import io.github.rifatcakir.springai.testtools.recorder.tool.VcrToolMode;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -51,6 +52,15 @@ public class VcrProperties {
 	 */
 	private Embedding embedding = new Embedding();
 
+	/**
+	 * Tool-call isolation — deliberately governed by the same top-level {@link #enabled}
+	 * flag as chat caching, unlike {@link #embedding}: a tool invocation only ever
+	 * happens as part of the same {@code ChatClient}/{@code ToolCallingAdvisor} flow chat
+	 * caching already wraps, so there is no scenario where a project would want one
+	 * without the other the way it might want embedding caching independently of chat.
+	 */
+	private Tool tool = new Tool();
+
 	public boolean isEnabled() {
 		return this.enabled;
 	}
@@ -99,6 +109,14 @@ public class VcrProperties {
 		this.embedding = embedding;
 	}
 
+	public Tool getTool() {
+		return this.tool;
+	}
+
+	public void setTool(Tool tool) {
+		this.tool = tool;
+	}
+
 	/**
 	 * Configuration for {@code EmbeddingModel} interception, bound from
 	 * {@code spring.ai.test.vcr.embedding.*}.
@@ -135,6 +153,42 @@ public class VcrProperties {
 		}
 
 		public void setMode(VcrMode mode) {
+			this.mode = mode;
+		}
+
+		public String getCacheDirectory() {
+			return this.cacheDirectory;
+		}
+
+		public void setCacheDirectory(String cacheDirectory) {
+			this.cacheDirectory = cacheDirectory;
+		}
+
+	}
+
+	/**
+	 * Configuration for tool-call isolation, bound from {@code spring.ai.test.vcr.tool.*}.
+	 * See {@code docs/TOOL-ISOLATION-PRD.md}.
+	 */
+	public static class Tool {
+
+		/**
+		 * Whether a cassette hit isolates a tool invocation from the real {@code @Tool}
+		 * method ({@link VcrToolMode#REPLAY_FROM_CASSETTE}, the default — full isolation)
+		 * or lets it always run for real ({@link VcrToolMode#EXECUTE_REAL}).
+		 */
+		private VcrToolMode mode = VcrToolMode.REPLAY_FROM_CASSETTE;
+
+		/**
+		 * Directory holding the tool-execution JSON fixtures, relative to the module root.
+		 */
+		private String cacheDirectory = "src/test/resources/llm-cache-tool";
+
+		public VcrToolMode getMode() {
+			return this.mode;
+		}
+
+		public void setMode(VcrToolMode mode) {
 			this.mode = mode;
 		}
 

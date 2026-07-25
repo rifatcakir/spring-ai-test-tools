@@ -225,6 +225,8 @@ Every property is under the `spring.ai.test.vcr` prefix:
 | `scope` | `VcrScope` | `OUTSIDE_TOOL_LOOP` | Where the advisor sits relative to tool calling — see "Tool calling" below. |
 | `cache-directory` | `String` | `src/test/resources/llm-cache` | Where fixtures are read from and written to. Meant to be committed to version control. |
 | `order` | `Integer` | derived from `scope` | Explicit advisor order. Only needed to interleave with other custom advisors at a specific position. |
+| `tool.mode` | `VcrToolMode` | `REPLAY_FROM_CASSETTE` | Whether a tool invocation is isolated from replay or allowed to run for real — see "Tool calling" below. |
+| `tool.cache-directory` | `String` | `src/test/resources/llm-cache-tool` | Where tool-invocation fixtures are read from and written to — a separate directory from the chat cache. |
 
 ### Modes
 
@@ -368,44 +370,55 @@ spring.ai.test.vcr.scope: OUTSIDE_TOOL_LOOP   # default
 ```
 
 - **`OUTSIDE_TOOL_LOOP`** — one fixture per interaction, holding the final answer. Fastest.
-  On a hit the loop never runs, so your `@Tool` methods are never invoked. A test asserting a
-  tool's side effect will fail on replay.
+  On a hit the loop never runs at all, so a `@Tool` method never runs either.
 - **`INSIDE_TOOL_LOOP`** — one fixture per model turn. Tool-call requests replay from disk
-  while real `@Tool` methods still execute each iteration. Use this for side-effect assertions.
+  turn by turn. What happens to the tool invocation *itself* on a hit is governed by a
+  second, independent setting — see below.
 
 Verified against a real model, not just designed: a two-turn tool-calling round trip
 (the model calls a tool, the real `@Tool` method runs, the result goes back, the model
-answers) records two fixtures under `INSIDE_TOOL_LOOP`, replays both with zero further
-network calls, and still re-invokes the real `@Tool` method on replay, exactly as
-documented above — see `OllamaToolCallingEndToEndTests` in the test suite.
+answers) records two fixtures under `INSIDE_TOOL_LOOP` and replays both with zero further
+network calls — see `OllamaToolCallingEndToEndTests` in the test suite.
 
-#### ⚠️ Tool side-effects on replay
+#### ✅ Tool side-effects are isolated from replay by default
 
-**Under `INSIDE_TOOL_LOOP`, your real `@Tool` method runs on every replay, not just the
-first live call.** This is by design (it's what makes side-effect assertions possible at
-all), but it means exactly what it says: if the tool writes to a database, calls an
-external API, sends an email, or does anything else with a real-world effect, **that
-effect happens again, every single time the test runs** — on your machine, on a
-teammate's, in CI, forever, not just once at recording time. A fixture only replaces the
-*model call*; it has no opinion about what your own tool code does when Spring AI's tool
-loop invokes it.
+Earlier versions of this library (and this section) warned that a real `@Tool` method
+with a side effect — a database write, an outbound API call, an email — would re-run on
+*every* replay under `INSIDE_TOOL_LOOP`, forever. **That is no longer the default.** A
+second, independent axis, `VcrToolMode`, now governs whether an individual tool
+invocation is isolated from replay or allowed to run for real:
 
-Concretely:
+```yaml
+spring.ai.test.vcr.tool.mode: REPLAY_FROM_CASSETTE   # default -- full isolation
+```
 
-- A `@Tool` method that only computes and returns a value (a lookup, a calculation) is
-  fine under `INSIDE_TOOL_LOOP` — re-running it on every replay is exactly the point.
-- A `@Tool` method with a real side effect (writes a row, POSTs to a third-party API,
-  sends a notification) will perform that side effect on **every test run**, not once.
-  If that's not what you want, either:
-  - use `OUTSIDE_TOOL_LOOP` (the default) — the tool never runs on a replay at all, only
-    on the first live call that produces the fixture — or
-  - make the tool itself idempotent/safe to re-run (write to a test double, guard against
-    duplicate side effects, point it at a sandboxed target), the same discipline you'd
-    already need for any test that re-runs against a real dependency.
+- **`REPLAY_FROM_CASSETTE`** (default) — on a cassette hit, the tool's recorded
+  arguments/result pair is returned directly. The real `@Tool` method's body **never
+  executes**, not even once, not even under `INSIDE_TOOL_LOOP` re-running the surrounding
+  model turns. A side-effecting tool fires at most once per distinct (tool name,
+  arguments) pair, no matter how many times the suite re-runs.
+- **`EXECUTE_REAL`** — the real tool runs on every call, exactly like this library's old
+  default. Use this for a test that specifically wants to assert the real `@Tool` method
+  was actually invoked, with the right arguments, the right number of times — the same
+  role `INSIDE_TOOL_LOOP` used to play on its own. Reach for it with `@VcrTool(mode =
+  VcrToolMode.EXECUTE_REAL)` on the one test that needs it, without weakening isolation
+  for every other test in the same run — the same escape-hatch shape as `@Vcr` and
+  `VcrMode`.
 
-This is not a bug — it's the literal, documented contract of `INSIDE_TOOL_LOOP` — but it's
-exactly the kind of thing that reads as a bug report if it's discovered by surprise
-instead of read here first.
+Verified against a real model, not just designed: `OllamaToolIsolationEndToEndTests`
+records a two-turn tool-calling round trip and confirms the real `@Tool` method runs
+exactly once on the live call and **exactly zero times** on an identical replay — full
+isolation, not just a replayed model answer — with zero additional HTTP requests either
+way.
+
+**The one thing isolation cannot reach:** it works by wrapping the `ToolCallingManager`
+Spring bean that Spring AI's own autoconfiguration registers — the same bean this
+library's own advisor mechanism already depends on a Spring context for. A test that
+builds `ChatClient.builder(model)` directly, outside a Spring context (the same pattern
+[Stubbing](#stubbing)'s "fastest path" uses on purpose), never creates that bean, so
+there is nothing to wrap — the real tool runs there exactly as it always has, regardless
+of `VcrToolMode`. This is not a new limitation; it is the same Spring-context-only scope
+every other Recorder mechanism in this library already has.
 
 ### Streaming
 
@@ -811,9 +824,12 @@ Prompt *content* is another matter: if your prompts carry PII, redact it with a
   will look perfectly stable in a replayed test forever. This is a property of testing
   against a cache, not a claim about the model. If a test's purpose is to catch
   output *variance* itself, VCR replay is the wrong tool for it — run that one in `BYPASS`.
-- **`INSIDE_TOOL_LOOP` re-runs real `@Tool` side effects on every replay.** See the
-  warning in [Tool calling](#tool-calling) above — this is not a bug, but it surprises
-  people who don't expect a "cached" test to still write to a real database.
+- **Tool isolation only reaches a Spring-managed `ToolCallingManager` bean.** A
+  `ChatClient.builder(model)` built outside a Spring context never creates that bean, so
+  `VcrToolMode` has nothing to wrap and a real `@Tool` method runs exactly as it always
+  has there — see [Tool calling](#tool-calling) above.
+- **`EXECUTE_REAL` re-runs real `@Tool` side effects on every replay, by design** — the
+  explicit opt-in for asserting a tool actually ran; not the default.
 - **Stubs have no request-matching.** A stub always answers the same way, for any prompt
   — a test that needs two different answers builds two stub instances. Streaming stubs
   are not built yet.

@@ -56,6 +56,21 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  * {@code ToolResponseMessage.getText()} is always empty. A different tool call, or a
  * different tool result, would have collided on the same hash.
  *
+ * <p><strong>What this test does and does not cover now that tool isolation
+ * (docs/TOOL-ISOLATION-PRD.md) exists:</strong> it builds its {@code ChatClient} via the
+ * plain {@code ChatClient.builder(chatModel)} static factory, manually applying this
+ * library's {@code ChatClientBuilderCustomizer} beans rather than going through Spring
+ * AI's own {@code ToolCallingAutoConfiguration}/{@code ChatClientAutoConfiguration}. That
+ * construction path never touches a Spring {@code ToolCallingManager} bean at all — see
+ * {@code docs/TOOL-ISOLATION-PRD.md} section 1.5 — so {@code
+ * VcrToolCallingManagerBeanPostProcessor} never gets the chance to wrap anything here,
+ * and the real {@code @Tool} method genuinely does keep running on every replay in
+ * <em>this specific test</em>, exactly as it always has. That is a fact about how this
+ * test constructs its {@code ChatClient}, not a claim that isolation doesn't apply by
+ * default — see {@link OllamaToolIsolationEndToEndTests} for the counterpart test that
+ * proves the new default (full isolation) through Spring AI's real autoconfiguration
+ * graph, the same one a consuming {@code @SpringBootTest} actually uses.
+ *
  * <p>Tagged {@code integration} and excluded from the default {@code mvn test} run — see
  * {@link OllamaEndToEndTests} for why and how to run it explicitly.
  *
@@ -213,8 +228,11 @@ class OllamaToolCallingEndToEndTests {
 					.as("both replayed turns together must make zero additional HTTP requests to Ollama")
 					.isEqualTo(requestsAfterFirstCall);
 				assertThat(weatherTool.invocations)
-					.as("INSIDE_TOOL_LOOP's documented promise: the real @Tool method runs again on replay, "
-							+ "even though the model turns around it did not reach the network")
+					.as("this construction path (ChatClient.builder(model), no ToolCallingManager bean) is "
+							+ "outside tool isolation's reach -- the real @Tool method runs again on replay here, "
+							+ "even though the model turns around it did not reach the network. See "
+							+ "OllamaToolIsolationEndToEndTests for the same scenario through Spring AI's real "
+							+ "autoconfiguration, where the default is now full isolation instead.")
 					.hasValue(2);
 			});
 	}

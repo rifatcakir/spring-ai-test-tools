@@ -14,6 +14,10 @@ import io.github.rifatcakir.springai.testtools.recorder.key.VcrCacheKey;
 import io.github.rifatcakir.springai.testtools.recorder.key.VcrCacheKeyGenerator;
 import io.github.rifatcakir.springai.testtools.recorder.stream.VcrStreamTrackMapper;
 import io.github.rifatcakir.springai.testtools.recorder.stream.VcrStreamTrackStore;
+import io.github.rifatcakir.springai.testtools.recorder.tool.VcrToolCallingManager;
+import io.github.rifatcakir.springai.testtools.recorder.tool.VcrToolCallingManagerBeanPostProcessor;
+import io.github.rifatcakir.springai.testtools.recorder.tool.VcrToolExecutionCacheKeyGenerator;
+import io.github.rifatcakir.springai.testtools.recorder.tool.VcrToolExecutionTrackStore;
 import io.github.rifatcakir.springai.testtools.recorder.track.VcrTrack;
 import io.github.rifatcakir.springai.testtools.recorder.track.VcrTrackMapper;
 import io.github.rifatcakir.springai.testtools.recorder.track.VcrTrackStore;
@@ -34,6 +38,7 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.model.tool.ToolCallingManager;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
@@ -80,6 +85,9 @@ class SpringAiVcrAutoConfigurationTests {
 			assertThat(context).doesNotHaveBean(VcrStreamTrackStore.class);
 			assertThat(context).doesNotHaveBean(VcrStreamTrackMapper.class);
 			assertThat(context).doesNotHaveBean(ChatClientBuilderCustomizer.class);
+			assertThat(context).doesNotHaveBean(VcrToolExecutionCacheKeyGenerator.class);
+			assertThat(context).doesNotHaveBean(VcrToolExecutionTrackStore.class);
+			assertThat(context).doesNotHaveBean(VcrToolCallingManagerBeanPostProcessor.class);
 		});
 	}
 
@@ -89,6 +97,7 @@ class SpringAiVcrAutoConfigurationTests {
 		this.contextRunner.withPropertyValues("spring.ai.test.vcr.enabled=false").run(context -> {
 			assertThat(context).doesNotHaveBean(DeterministicVcrAdvisor.class);
 			assertThat(context).doesNotHaveBean(ChatClientBuilderCustomizer.class);
+			assertThat(context).doesNotHaveBean(VcrToolCallingManagerBeanPostProcessor.class);
 		});
 	}
 
@@ -104,7 +113,31 @@ class SpringAiVcrAutoConfigurationTests {
 				assertThat(context).hasSingleBean(VcrStreamTrackStore.class);
 				assertThat(context).hasSingleBean(DeterministicVcrAdvisor.class);
 				assertThat(context).hasSingleBean(ChatClientBuilderCustomizer.class);
+				assertThat(context).hasSingleBean(VcrToolExecutionCacheKeyGenerator.class);
+				assertThat(context).hasSingleBean(VcrToolExecutionTrackStore.class);
+				assertThat(context).hasSingleBean(VcrToolCallingManagerBeanPostProcessor.class);
 			});
+	}
+
+	@Test
+	@DisplayName("tool isolation (docs/TOOL-ISOLATION-PRD.md): the BeanPostProcessor wraps a ToolCallingManager bean already in the context")
+	void toolCallingManagerBeanIsWrapped() {
+		this.contextRunner.withUserConfiguration(FakeToolCallingManagerConfiguration.class)
+			.withPropertyValues("spring.ai.test.vcr.enabled=true", cacheDirectoryProperty())
+			.run(context -> {
+				ToolCallingManager wrapped = context.getBean(ToolCallingManager.class);
+				assertThat(wrapped).as("the bean seen by the rest of the context must be our wrapper")
+					.isInstanceOf(VcrToolCallingManager.class);
+			});
+	}
+
+	@Test
+	@DisplayName("tool mode binds from properties (EXECUTE_REAL)")
+	void toolModeIsBoundFromProperties() {
+		this.contextRunner.withUserConfiguration(FakeToolCallingManagerConfiguration.class)
+			.withPropertyValues("spring.ai.test.vcr.enabled=true", cacheDirectoryProperty(),
+					"spring.ai.test.vcr.tool.mode=EXECUTE_REAL")
+			.run(context -> assertThat(context).hasSingleBean(VcrToolCallingManagerBeanPostProcessor.class));
 	}
 
 	@Test
@@ -312,6 +345,16 @@ class SpringAiVcrAutoConfigurationTests {
 								.toList(),
 							track.request().tools(), track.request().structuredOutput()),
 					track.response());
+		}
+
+	}
+
+	@Configuration(proxyBeanMethods = false)
+	static class FakeToolCallingManagerConfiguration {
+
+		@Bean
+		ToolCallingManager toolCallingManager() {
+			return mock(ToolCallingManager.class);
 		}
 
 	}

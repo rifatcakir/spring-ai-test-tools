@@ -37,7 +37,13 @@ gap ever needs a bespoke Evaluator this project has to build and own.
 Deterministic, file-based record-and-replay for `ChatClient` calls. This is the entire
 codebase as of this writing: `VcrMode`, `VcrScope`, `DeterministicVcrAdvisor`, `VcrTrack`
 and its fixture format, `VcrPromptNormalizer`, `VcrFixtureRedactor`, the `@Vcr` escape
-hatch. See `README.md` and `docs/STATUS.md` for what it actually does today.
+hatch, and — a distinct concern from replaying a model's own answer —
+`io.github.rifatcakir.springai.testtools.recorder.tool`'s tool-call isolation:
+`VcrToolCallingManager` wraps Spring AI's `ToolCallingManager` bean so that, by default, a
+real `@Tool` method's side effects never happen twice on replay, with `VcrToolMode`
+(`REPLAY_FROM_CASSETTE` default / `EXECUTE_REAL` opt-in via `@VcrTool`) as its own axis
+independent of `VcrScope`. See `README.md` and `docs/STATUS.md` for what it actually does
+today, and `docs/TOOL-ISOLATION-PRD.md` for the tool-isolation diagnosis and design.
 
 Its job, stated narrowly: given the same canonical request, always return the same
 recorded response, with no network call, no container, no token spend, and no flakiness —

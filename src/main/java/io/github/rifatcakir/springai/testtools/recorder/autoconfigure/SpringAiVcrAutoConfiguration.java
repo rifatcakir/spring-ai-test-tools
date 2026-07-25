@@ -10,12 +10,17 @@ import io.github.rifatcakir.springai.testtools.recorder.advisor.DeterministicVcr
 import io.github.rifatcakir.springai.testtools.recorder.key.VcrCacheKeyGenerator;
 import io.github.rifatcakir.springai.testtools.recorder.stream.VcrStreamTrackMapper;
 import io.github.rifatcakir.springai.testtools.recorder.stream.VcrStreamTrackStore;
+import io.github.rifatcakir.springai.testtools.recorder.tool.VcrToolCallingManagerBeanPostProcessor;
+import io.github.rifatcakir.springai.testtools.recorder.tool.VcrToolExecutionCacheKeyGenerator;
+import io.github.rifatcakir.springai.testtools.recorder.tool.VcrToolExecutionTrackStore;
+import io.github.rifatcakir.springai.testtools.recorder.tool.VcrToolMode;
 import io.github.rifatcakir.springai.testtools.recorder.track.VcrTrackMapper;
 import io.github.rifatcakir.springai.testtools.recorder.track.VcrTrackStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.springframework.ai.chat.client.ChatClientBuilderCustomizer;
+import org.springframework.ai.model.tool.ToolCallingManager;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -115,6 +120,47 @@ public class SpringAiVcrAutoConfiguration {
 	@Bean
 	public ChatClientBuilderCustomizer vcrChatClientBuilderCustomizer(DeterministicVcrAdvisor advisor) {
 		return builder -> builder.defaultAdvisors(advisor);
+	}
+
+	/**
+	 * Tool-call isolation (see {@code docs/TOOL-ISOLATION-PRD.md}). Gated on {@code
+	 * ToolCallingManager} being on the classpath — always true when this library itself
+	 * is present, since {@code spring-ai-model} (which declares it) is already a
+	 * transitive compile dependency of {@code spring-ai-client-chat} — but checked
+	 * explicitly rather than assumed, the same defensive style {@code
+	 * SpringAiVcrEmbeddingAutoConfiguration} already uses for {@code EmbeddingModel}.
+	 */
+	@Bean
+	@ConditionalOnClass(ToolCallingManager.class)
+	@ConditionalOnMissingBean
+	public VcrToolExecutionCacheKeyGenerator vcrToolExecutionCacheKeyGenerator() {
+		return new VcrToolExecutionCacheKeyGenerator();
+	}
+
+	@Bean
+	@ConditionalOnClass(ToolCallingManager.class)
+	@ConditionalOnMissingBean
+	public VcrToolExecutionTrackStore vcrToolExecutionTrackStore(VcrProperties properties) {
+		Path directory = Path.of(properties.getTool().getCacheDirectory());
+		logger.info("VCR TOOL cache directory: {}", directory.toAbsolutePath().normalize());
+		return new VcrToolExecutionTrackStore(directory);
+	}
+
+	/**
+	 * {@code static}, deliberately — same reason {@code
+	 * vcrEmbeddingModelBeanPostProcessor} is static in {@code
+	 * SpringAiVcrEmbeddingAutoConfiguration}: a {@code BeanPostProcessor} {@code @Bean}
+	 * method must be static so Spring can register it without eagerly instantiating this
+	 * configuration class itself.
+	 */
+	@Bean
+	@ConditionalOnClass(ToolCallingManager.class)
+	public static VcrToolCallingManagerBeanPostProcessor vcrToolCallingManagerBeanPostProcessor(
+			VcrToolExecutionCacheKeyGenerator keyGenerator, VcrToolExecutionTrackStore store,
+			VcrProperties properties) {
+		VcrToolMode toolMode = properties.getTool().getMode();
+		logger.info("VCR TOOL isolation enabled — mode={}", toolMode);
+		return new VcrToolCallingManagerBeanPostProcessor(keyGenerator, store, toolMode);
 	}
 
 }

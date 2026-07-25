@@ -16,6 +16,10 @@ site_dir: ../.site-build
 
 theme:
   name: material
+  # Custom templates live in site/overrides. Only the landing page opts in, via
+  # `template: home.html` front matter in docs/index.md -- every documentation page
+  # keeps the stock Material layout.
+  custom_dir: overrides
   font: false
   icon:
     repo: fontawesome/brands/github
@@ -63,6 +67,10 @@ theme:
 
 extra_css:
   - stylesheets/extra.css
+  # Landing-only styles. Every rule is scoped under `.stt-landing`, so loading this
+  # globally cannot affect documentation pages -- and global loading is what keeps it
+  # working under `navigation.instant`, which swaps documents client side.
+  - stylesheets/landing.css
 
 markdown_extensions:
   - admonition

@@ -1,0 +1,460 @@
+{#-
+  Custom product landing page for the site root only.
+
+  Every other page keeps the stock mkdocs-material layout: this template is opted into
+  per page via `template: home.html` front matter (see docs/index.md), not applied
+  globally. It overrides `site_nav` (no left sidebar on a landing) and `container` (the
+  whole content area), so the markdown body of index.md is deliberately NOT rendered --
+  the landing lives here, in markup, and index.md keeps only its front matter plus a
+  pointer comment.
+
+  All styling lives in docs/stylesheets/landing.css, scoped under `.stt-landing` so it
+  cannot leak into documentation pages. No external CDN, no webfont, no image files:
+  the diagram is inline SVG animated with CSS, so it stays offline-buildable and
+  maintainable in one place.
+-#}
+{% extends "base.html" %}
+
+{#- A landing page has its own navigation (hero CTAs, capability cards); the doc tree
+    sidebar belongs on documentation pages, not here. -#}
+{% block site_nav %}{% endblock %}
+
+{% block container %}
+<div class="md-content stt-landing" data-md-component="content">
+
+  <!-- ============================= 1. HERO ============================= -->
+  <section class="stt-hero">
+    <div class="stt-wrap stt-hero__inner">
+      <div class="stt-hero__copy">
+        <p class="stt-eyebrow">Spring AI Test Tools</p>
+        <h1 class="stt-hero__title">Deterministic testing<br>for Spring AI</h1>
+        <p class="stt-hero__sub">
+          Golden AI responses. Zero-token replays.<br class="stt-br">
+          Your test code never changes.
+        </p>
+        <div class="stt-cta">
+          <a class="stt-btn stt-btn--primary" href="{{ 'quick-start/' | url }}">
+            Get started
+            <svg class="stt-btn__arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M12 5l7 7-7 7"/></svg>
+          </a>
+          <a class="stt-btn stt-btn--ghost" href="{{ config.repo_url }}">
+            <svg class="stt-btn__gh" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+            GitHub
+          </a>
+        </div>
+        <p class="stt-hero__meta">Java 21 · Spring Boot 4.0 · Spring AI 2.0 · Apache-2.0</p>
+      </div>
+
+      <div class="stt-hero__art" aria-hidden="true">
+        <div class="stt-terminal">
+          <div class="stt-terminal__bar">
+            <span class="stt-dot stt-dot--r"></span><span class="stt-dot stt-dot--y"></span><span class="stt-dot stt-dot--g"></span>
+            <span class="stt-terminal__title">mvn test</span>
+          </div>
+          <pre class="stt-terminal__body"><span class="l"><span class="t-dim">$</span> mvn test</span>
+<span class="l"><span class="t-grn">VCR CACHE HIT</span>  [3a3c5135cf32] replaying</span>
+<span class="l"><span class="t-grn">VCR TOOL REPLAY</span> isolating 1 call(s)</span>
+<span class="l"><span class="t-dim">                real tool not invoked</span></span>
+<span class="l"><span class="t-grn">VCR CACHE HIT</span>  [f6dd449e3e28] replaying</span>
+<span class="l">&nbsp;</span>
+<span class="l"><span class="t-grn">Tests run: 21, Failures: 0, Errors: 0</span></span>
+<span class="l"><span class="t-grn">BUILD SUCCESS</span>   <span class="t-dim">Total time: 11.5 s</span></span>
+<span class="l"><span class="t-dim">0 network calls · 0 tokens · offline</span></span></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================== 2. ANIMATED RECORD → REPLAY ==================== -->
+  <section class="stt-section stt-section--tint">
+    <div class="stt-wrap">
+      <h2 class="stt-h2">Record once. Replay forever.</h2>
+      <p class="stt-lede">
+        The first run calls a real model and writes the exchange to a JSON cassette you
+        commit. Every run after that reads the file — same assertions, same responses, no
+        network.
+      </p>
+
+      <div class="stt-diagram">
+        <svg viewBox="0 0 940 330" class="stt-svg" role="img"
+             aria-label="First run: test to ChatClient to a real LLM, which writes a cassette file. Every run after: test to ChatClient reads the cassette directly.">
+          <defs>
+            <marker id="sttArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0 0 L10 5 L0 10 z" class="stt-svg__arrowhead"/>
+            </marker>
+          </defs>
+
+          <!-- ---------- Lane A: first run ---------- -->
+          <text x="0" y="26" class="stt-svg__lane">FIRST RUN</text>
+          <text x="0" y="46" class="stt-svg__lanesub">slow · costs tokens · needs network</text>
+
+          <line x1="150" y1="100" x2="236" y2="100" class="stt-svg__line" marker-end="url(#sttArrow)"/>
+          <line x1="366" y1="100" x2="452" y2="100" class="stt-svg__line" marker-end="url(#sttArrow)"/>
+
+          <g class="stt-node">
+            <rect x="20" y="72" width="130" height="56" rx="12"/>
+            <text x="85" y="105" class="stt-svg__node">Your test</text>
+          </g>
+          <g class="stt-node">
+            <rect x="236" y="72" width="130" height="56" rx="12"/>
+            <text x="301" y="105" class="stt-svg__node">ChatClient</text>
+          </g>
+          <g class="stt-node stt-node--live">
+            <rect x="452" y="72" width="150" height="56" rx="12"/>
+            <text x="527" y="98" class="stt-svg__node">Real LLM</text>
+            <text x="527" y="116" class="stt-svg__nodesub">~2.9 – 46.7 s</text>
+          </g>
+
+          <!-- write to cassette -->
+          <path d="M602 100 C 690 100, 700 130, 742 156" class="stt-svg__line stt-svg__line--dash stt-write" marker-end="url(#sttArrow)"/>
+          <text x="666" y="122" class="stt-svg__edge">writes</text>
+
+          <circle r="7" class="stt-pulse stt-pulse--a" cx="0" cy="100"/>
+
+          <!-- ---------- Cassette ---------- -->
+          <g class="stt-node stt-node--cassette">
+            <rect x="742" y="128" width="178" height="74" rx="14"/>
+            <text x="831" y="158" class="stt-svg__node">cassette.json</text>
+            <text x="831" y="180" class="stt-svg__nodesub">committed to git</text>
+          </g>
+
+          <!-- ---------- Lane B: every run after ----------
+               Label sits above the row (y=196/214) and the nodes start at y=226: the
+               two must not overlap, which they did at the first attempt. -->
+          <text x="0" y="196" class="stt-svg__lane">EVERY RUN AFTER</text>
+          <text x="0" y="214" class="stt-svg__lanesub">instant · $0 · fully offline</text>
+
+          <line x1="150" y1="254" x2="236" y2="254" class="stt-svg__line" marker-end="url(#sttArrow)"/>
+
+          <g class="stt-node">
+            <rect x="20" y="226" width="130" height="56" rx="12"/>
+            <text x="85" y="259" class="stt-svg__node">Your test</text>
+          </g>
+          <g class="stt-node">
+            <rect x="236" y="226" width="130" height="56" rx="12"/>
+            <text x="301" y="259" class="stt-svg__node">ChatClient</text>
+          </g>
+
+          <!-- read from cassette -->
+          <path d="M366 254 C 560 254, 650 220, 742 192" class="stt-svg__line stt-svg__line--solid stt-read" marker-end="url(#sttArrow)"/>
+          <text x="546" y="232" class="stt-svg__edge">reads</text>
+
+          <g class="stt-badge stt-badge--fast">
+            <rect x="610" y="262" width="112" height="30" rx="15"/>
+            <text x="666" y="282" class="stt-svg__badge">0.8 ms</text>
+          </g>
+
+          <circle r="7" class="stt-pulse stt-pulse--b" cx="0" cy="254"/>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= 3. STAT ROW ============================= -->
+  <section class="stt-section">
+    <div class="stt-wrap">
+      <div class="stt-stats">
+        <div class="stt-stat">
+          <div class="stt-stat__num">0.8<span class="stt-stat__unit">ms</span></div>
+          <div class="stt-stat__label">Median replayed call<br><span class="stt-stat__was">was 2.9 – 4.1 s live</span></div>
+        </div>
+        <div class="stt-stat">
+          <div class="stt-stat__num">3,500<span class="stt-stat__unit">×</span></div>
+          <div class="stt-stat__label">Faster than a warm<br><span class="stt-stat__was">real model call</span></div>
+        </div>
+        <div class="stt-stat">
+          <div class="stt-stat__num"><span class="stt-stat__unit stt-stat__unit--pre">$</span>0</div>
+          <div class="stt-stat__label">Tokens per run<br><span class="stt-stat__was">on every replay, forever</span></div>
+        </div>
+        <div class="stt-stat">
+          <div class="stt-stat__num">0</div>
+          <div class="stt-stat__label">Network requests<br><span class="stt-stat__was">asserted by a counter</span></div>
+        </div>
+      </div>
+      <p class="stt-note">
+        Measured, not estimated: 200 timed iterations of a real
+        <code>chatClient…call().content()</code> against a committed fixture (median
+        0.819 ms), and <code>OllamaToolIsolationEndToEndTests</code> against
+        Testcontainers-managed <code>llama3.2:1b</code> — cold turn 46.65 s, warm turn
+        0.40 s, both turns replaying in ~30 ms. CPU inference on Windows 11; hosted
+        providers were not measured.
+        <a href="{{ 'configuration/' | url }}">Full method &amp; compatibility →</a>
+      </p>
+    </div>
+  </section>
+
+  <!-- ==================== 4. ZERO CODE CHANGES ======================== -->
+  <section class="stt-section stt-section--tint">
+    <div class="stt-wrap">
+      <h2 class="stt-h2">The same test, zero code changes</h2>
+      <p class="stt-lede">
+        Interception happens at Spring AI's advisor layer, attached through
+        <code>ChatClientBuilderCustomizer</code>. Nothing under test — and nothing in
+        production — knows the cache exists.
+      </p>
+
+      <div class="stt-codegrid">
+        <div class="stt-code">
+          <div class="stt-code__head"><span class="stt-code__file">application-test.yml</span><span class="stt-code__tag">the entire integration</span></div>
+          <pre class="stt-code__body"><span class="c-key">spring</span>:
+  <span class="c-key">ai</span>:
+    <span class="c-key">test</span>:
+      <span class="c-key">vcr</span>:
+        <span class="c-key">enabled</span>: <span class="c-val">true</span>
+        <span class="c-key">mode</span>: <span class="c-val">RECORD_OR_REPLAY</span>   <span class="c-cmt"># REPLAY_ONLY in CI</span></pre>
+        </div>
+
+        <div class="stt-code">
+          <div class="stt-code__head"><span class="stt-code__file">OrderStatusTest.java</span><span class="stt-code__tag">unchanged</span></div>
+          <pre class="stt-code__body"><span class="c-ann">@SpringBootTest</span>
+<span class="c-key">class</span> <span class="c-typ">OrderStatusTest</span> {
+
+    <span class="c-ann">@Autowired</span>
+    <span class="c-key">private</span> <span class="c-typ">ChatClient</span>.<span class="c-typ">Builder</span> chatClientBuilder;
+
+    <span class="c-ann">@Test</span>
+    <span class="c-key">void</span> <span class="c-fn">answersAboutTheOrder</span>() {
+        <span class="c-typ">String</span> answer = chatClientBuilder.build()
+            .prompt()
+            .user(<span class="c-str">"Status of order ORD-4471?"</span>)
+            .call()
+            .content();
+
+        assertThat(answer).contains(<span class="c-str">"shipped"</span>);
+    }
+}</pre>
+        </div>
+      </div>
+      <p class="stt-note stt-note--center">
+        First run records against a real model. Every run after replays from disk — same
+        test, same assertion, no edits.
+      </p>
+    </div>
+  </section>
+
+  <!-- ==================== 5. CAPABILITY CARDS ========================= -->
+  <section class="stt-section">
+    <div class="stt-wrap">
+      <h2 class="stt-h2">Everything it does</h2>
+      <p class="stt-lede">
+        Each capability is its own package, with its own fixture family and its own cache
+        directory — nothing is a special case of anything else.
+      </p>
+
+      <div class="stt-cards">
+        <a class="stt-card" href="{{ 'record-replay/' | url }}">
+          <span class="stt-card__ico">⏺</span>
+          <span class="stt-card__title">Record &amp; Replay</span>
+          <span class="stt-card__body">Capture a real model's answer once; replay it forever, offline, byte-for-byte.</span>
+        </a>
+        <a class="stt-card" href="{{ 'stub/' | url }}">
+          <span class="stt-card__ico">✎</span>
+          <span class="stt-card__title">Stubbing</span>
+          <span class="stt-card__body">Hand-author a response — inline or from a file — for timeouts, refusals and edge cases you can't record.</span>
+        </a>
+        <a class="stt-card" href="{{ 'assertions/' | url }}">
+          <span class="stt-card__ico">✓</span>
+          <span class="stt-card__title">Assertions</span>
+          <span class="stt-card__body">Fluent AssertJ checks on tool calls, finish reasons and JSON fields — no model call to assert.</span>
+        </a>
+        <a class="stt-card" href="{{ 'assertions/#semantic-assertions' | url }}">
+          <span class="stt-card__ico">≈</span>
+          <span class="stt-card__title">Semantic Assertions</span>
+          <span class="stt-card__body">Compare answers by meaning via embeddings — deterministic, because the embedding replays too.</span>
+        </a>
+        <a class="stt-card" href="{{ 'tool-calling/#tool-side-effects-are-isolated-from-replay-by-default' | url }}">
+          <span class="stt-card__ico">⛨</span>
+          <span class="stt-card__title">Tool Isolation</span>
+          <span class="stt-card__body">Replay a <code>@Tool</code> call's result without re-running its side effects. Safe by default.</span>
+        </a>
+        <a class="stt-card" href="{{ 'embeddings/' | url }}">
+          <span class="stt-card__ico">⋮⋮</span>
+          <span class="stt-card__title">Embedding Replay</span>
+          <span class="stt-card__body"><code>EmbeddingModel</code> calls cached independently of chat — a replayed vector is exact, not approximate.</span>
+        </a>
+        <a class="stt-card" href="{{ 'evaluator/' | url }}">
+          <span class="stt-card__ico">⚖</span>
+          <span class="stt-card__title">Evaluator Testing</span>
+          <span class="stt-card__body">Spring AI's own evaluators, deterministic in CI or live on demand — the choice it doesn't offer.</span>
+        </a>
+        <a class="stt-card" href="{{ 'streaming/' | url }}">
+          <span class="stt-card__ico">⇉</span>
+          <span class="stt-card__title">Streaming</span>
+          <span class="stt-card__body"><code>Flux</code> responses replayed chunk-for-chunk, tool calls included. No single-chunk fake.</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================== 6. WHY =============================== -->
+  <section class="stt-section stt-section--tint">
+    <div class="stt-wrap">
+      <h2 class="stt-h2">Why this exists</h2>
+      <p class="stt-lede">
+        Testing an LLM-backed application is slow, expensive and unrepeatable by default.
+      </p>
+      <div class="stt-why">
+        <div class="stt-why__item">
+          <h3>Slow</h3>
+          <p>Testcontainers + Ollama re-runs full inference every <code>mvn test</code>. One cold call: <strong>~47 s</strong>.</p>
+        </div>
+        <div class="stt-why__item">
+          <h3>Expensive</h3>
+          <p>Against a hosted provider, every test on every branch is billable tokens — times every developer, times every CI job.</p>
+        </div>
+        <div class="stt-why__item">
+          <h3>Unrepeatable</h3>
+          <p>The same prompt can answer differently tomorrow. A test asserting on model output is flaky by construction.</p>
+        </div>
+        <div class="stt-why__item">
+          <h3>Untestable in CI</h3>
+          <p>No GPU, no model container — and a provider API key in a pipeline is a security problem, not a test strategy.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= 7. COMPARISON ============================ -->
+  <section class="stt-section">
+    <div class="stt-wrap">
+      <h2 class="stt-h2">How it compares</h2>
+      <p class="stt-lede">
+        The difference is the layer. This works at Spring AI's own abstractions; HTTP mocks
+        work at the wire.
+      </p>
+
+      <div class="stt-tablewrap">
+        <table class="stt-table">
+          <thead>
+            <tr>
+              <th></th>
+              <th class="stt-table__us">spring-ai-test-tools</th>
+              <th>WireMock / MockWebServer</th>
+              <th>Mockito</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th>Level it works at</th>
+              <td class="stt-table__us">Spring AI abstractions</td>
+              <td>Raw HTTP</td>
+              <td>Java objects</td>
+            </tr>
+            <tr>
+              <th>Getting a response</th>
+              <td class="stt-table__us">Recorded from a real model</td>
+              <td>Hand-authored provider JSON</td>
+              <td>Hand-built <code>ChatResponse</code></td>
+            </tr>
+            <tr>
+              <th>Provider coupling</th>
+              <td class="stt-table__us"><span class="stt-yes">None</span></td>
+              <td><span class="stt-no">Total</span></td>
+              <td>None, but rebuilt by hand</td>
+            </tr>
+            <tr>
+              <th>Switching providers</th>
+              <td class="stt-table__us"><span class="stt-yes">Same fixture replays</span></td>
+              <td><span class="stt-no">Rewrite every stub</span></td>
+              <td><span class="stt-no">Rewrite every mock</span></td>
+            </tr>
+            <tr>
+              <th>Streaming</th>
+              <td class="stt-table__us"><span class="stt-yes">Chunk-for-chunk</span></td>
+              <td>Hand-craft SSE frames</td>
+              <td>Hand-build a <code>Flux</code></td>
+            </tr>
+            <tr>
+              <th>Tool calling</th>
+              <td class="stt-table__us"><span class="stt-yes">Replayed + isolated</span></td>
+              <td>Model the loop yourself</td>
+              <td>Hand-build tool calls</td>
+            </tr>
+            <tr>
+              <th>Structured output</th>
+              <td class="stt-table__us"><span class="stt-yes">Schema in the cache key</span></td>
+              <td>Invisible at HTTP level</td>
+              <td>Schema never exercised</td>
+            </tr>
+            <tr>
+              <th>Catches real integration bugs</th>
+              <td class="stt-table__us"><span class="stt-yes">Yes</span></td>
+              <td>Partly — right bytes, wrong layer</td>
+              <td><span class="stt-no">No</span></td>
+            </tr>
+            <tr>
+              <th>Setup</th>
+              <td class="stt-table__us"><span class="stt-yes">One property</span></td>
+              <td>Server, ports, matchers</td>
+              <td>Per-scenario builder code</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="stt-fair">
+        <h3>Where the alternatives are genuinely better</h3>
+        <p>
+          <strong>WireMock and MockWebServer</strong> are the right tool when the HTTP layer
+          itself is what you're testing — retry and backoff policy, timeouts, connection
+          pooling, a proxy, a 429 with <code>Retry-After</code>, or a body that breaks
+          mid-stream. This library deliberately sits above that layer and cannot see any of
+          it. <strong>Mockito</strong> remains right for everything that isn't a model call,
+          and for a pure unit test wanting zero I/O — which is exactly why
+          <a href="{{ 'stub/' | url }}">Stubbing</a> exists rather than pretending
+          record/replay covers it. And nothing here replaces a real integration test before
+          you ship; it replaces running one on <em>every</em> commit.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 8. ARCHITECTURE ============================= -->
+  <section class="stt-section stt-section--tint">
+    <div class="stt-wrap">
+      <h2 class="stt-h2">How it's put together</h2>
+      <p class="stt-lede">One dependency, one property — and four independent fixture families that evolve separately.</p>
+      <div class="stt-tree">
+<pre>io.github.rifatcakir.springai.testtools
+├── recorder/
+│   ├── advisor/       <span class="t-dim">DeterministicVcrAdvisor — CallAdvisor + StreamAdvisor</span>
+│   ├── key/           <span class="t-dim">VcrCacheKeyGenerator — hand-assembled SHA-256 canonical form</span>
+│   ├── track/         <span class="t-dim">VcrTrack — the .call() fixture format</span>
+│   ├── stream/        <span class="t-dim">VcrStreamTrack — raw chunk sequence</span>
+│   ├── embedding/     <span class="t-dim">VcrEmbeddingModel — no advisor chain exists here</span>
+│   ├── tool/          <span class="t-dim">VcrToolCallingManager — tool-call isolation</span>
+│   ├── junit/         <span class="t-dim">@Vcr, @VcrTool — per-test escape hatches</span>
+│   └── autoconfigure/ <span class="t-dim">Spring Boot wiring, off unless enabled</span>
+├── assertions/        <span class="t-dim">VcrAssertions — fluent, deterministic checks</span>
+└── stub/              <span class="t-dim">VcrStubs — hand-authored ChatModel/EmbeddingModel</span></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= 9. FOOTER CTA ============================ -->
+  <section class="stt-final">
+    <div class="stt-wrap stt-final__inner">
+      <h2 class="stt-final__title">Make your Spring AI tests boring</h2>
+      <p class="stt-final__sub">Fast, free, offline and identical every single run.</p>
+      <div class="stt-cta stt-cta--center">
+        <a class="stt-btn stt-btn--primary" href="{{ 'quick-start/' | url }}">
+          Get started
+          <svg class="stt-btn__arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M12 5l7 7-7 7"/></svg>
+        </a>
+        <a class="stt-btn stt-btn--ghost" href="https://github.com/rifatcakir/spring-ai-test-tools-example">
+          Worked examples
+        </a>
+      </div>
+
+      <div class="stt-disclaimer">
+        <strong>Not an official Spring project.</strong>
+        This is an independent, community-maintained project. It is not affiliated with,
+        endorsed by, or an official project of Broadcom, VMware, Spring, or Spring AI.
+        “Spring” and “Spring AI” are trademarks of their respective owners; this library
+        simply integrates with their public APIs.
+      </div>
+    </div>
+  </section>
+
+</div>
+{% endblock %}

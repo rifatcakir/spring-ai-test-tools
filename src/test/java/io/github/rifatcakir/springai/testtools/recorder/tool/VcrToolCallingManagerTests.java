@@ -225,6 +225,43 @@ class VcrToolCallingManagerTests {
 	}
 
 	@Test
+	@DisplayName("EXECUTE_REAL leaves an unchanged fixture byte-identical on disk, but overwrites a genuinely changed result")
+	void executeRealDoesNotChurnAnUnchangedFixture() throws Exception {
+		Map<String, String> results = new java.util.HashMap<>();
+		results.put("getWeather|{\"city\":\"Istanbul\"}", "Sunny, 28C");
+		ToolCallingManager delegate = realDelegate(results);
+		AssistantMessage.ToolCall call = toolCall("call-1", "getWeather", "{\"city\":\"Istanbul\"}");
+		VcrToolCallingManager vcrManager = manager(delegate, VcrToolMode.EXECUTE_REAL);
+
+		vcrManager.executeToolCalls(promptWithUserMessage("weather?"),
+				chatResponseWithToolCalls(assistantMessageWithToolCalls(call)));
+		java.nio.file.Path fixture = this.cacheDirectory.toFile().listFiles()[0].toPath();
+		String afterFirstRun = java.nio.file.Files.readString(fixture);
+
+		// A second EXECUTE_REAL run producing the identical result must not rewrite the
+		// file -- otherwise every test run dirties a committed fixture with a fresh
+		// recordedAt, which the example project's CI guard rejects outright.
+		vcrManager.executeToolCalls(promptWithUserMessage("weather?"),
+				chatResponseWithToolCalls(assistantMessageWithToolCalls(call)));
+
+		assertThat(java.nio.file.Files.readString(fixture))
+			.as("an unchanged result must leave the committed fixture byte-identical, recordedAt included")
+			.isEqualTo(afterFirstRun);
+		assertThat(this.delegateInvocations).as("the real tool still ran both times -- only the write was skipped")
+			.hasValue(2);
+
+		// A genuinely changed tool result is real signal and must still be written.
+		results.put("getWeather|{\"city\":\"Istanbul\"}", "Rainy, 12C");
+		vcrManager.executeToolCalls(promptWithUserMessage("weather?"),
+				chatResponseWithToolCalls(assistantMessageWithToolCalls(call)));
+
+		assertThat(java.nio.file.Files.readString(fixture))
+			.as("a changed tool result must overwrite the fixture, so a reviewer sees it in the diff")
+			.isNotEqualTo(afterFirstRun)
+			.contains("Rainy, 12C");
+	}
+
+	@Test
 	@DisplayName("@VcrTool(mode = EXECUTE_REAL) override wins over the configured default")
 	void threadLocalOverrideWinsOverConfiguredMode() {
 		ToolCallingManager delegate = realDelegate(Map.of("getWeather|{\"city\":\"Istanbul\"}", "Sunny, 28C"));

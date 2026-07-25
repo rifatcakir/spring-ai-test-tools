@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 import org.slf4j.Logger;
@@ -185,10 +186,17 @@ public class VcrToolCallingManager implements ToolCallingManager {
 	}
 
 	/**
-	 * Records every tool call in the turn against the real result that was just produced
-	 * — always, even for calls that already had a fixture (they are simply overwritten
-	 * with the freshly observed result), so {@link VcrToolMode#EXECUTE_REAL} keeps a
-	 * cassette current for a later switch back to {@link VcrToolMode#REPLAY_FROM_CASSETTE}.
+	 * Records every tool call in the turn against the real result that was just produced,
+	 * so {@link VcrToolMode#EXECUTE_REAL} keeps a cassette current for a later switch back
+	 * to {@link VcrToolMode#REPLAY_FROM_CASSETTE}.
+	 *
+	 * <p><strong>An existing fixture whose recorded result is unchanged is deliberately
+	 * left alone</strong> rather than rewritten with a fresh {@code recordedAt}. Under
+	 * {@code EXECUTE_REAL} the real tool runs on every call, so rewriting unconditionally
+	 * would dirty a committed fixture on every single test run — caught for real by the
+	 * sibling example project's CI guard ("mvn test modified this project's own working
+	 * tree"), not predicted. A genuinely changed tool result still overwrites, since that
+	 * is real signal a reviewer should see in the diff.
 	 */
 	private void record(List<AssistantMessage.ToolCall> toolCalls, ToolExecutionResult result) {
 		List<Message> history = result.conversationHistory();
@@ -212,11 +220,22 @@ public class VcrToolCallingManager implements ToolCallingManager {
 				continue;
 			}
 			VcrToolExecutionCacheKey key = this.keyGenerator.generate(call.name(), call.arguments());
+			if (isUnchanged(key, response.responseData(), result.returnDirect())) {
+				logger.debug("VCR TOOL fixture [{}] already records this exact result — leaving it untouched",
+						VcrToolExecutionTrackStore.shortHash(key.hash()));
+				continue;
+			}
 			VcrToolExecutionTrack track = new VcrToolExecutionTrack(VcrToolExecutionTrack.CURRENT_SCHEMA_VERSION,
 					key.hash(), recordedAt, key.canonicalRequest(), call.name(), call.arguments(),
 					response.responseData(), result.returnDirect());
 			this.store.write(track);
 		}
+	}
+
+	private boolean isUnchanged(VcrToolExecutionCacheKey key, String result, boolean returnDirect) {
+		return this.store.read(key.hash())
+			.filter(existing -> Objects.equals(existing.result(), result) && existing.returnDirect() == returnDirect)
+			.isPresent();
 	}
 
 }

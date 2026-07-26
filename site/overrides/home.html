@@ -51,15 +51,11 @@
             <span class="stt-dot stt-dot--r"></span><span class="stt-dot stt-dot--y"></span><span class="stt-dot stt-dot--g"></span>
             <span class="stt-terminal__title">mvn test</span>
           </div>
-          <pre class="stt-terminal__body"><span class="l"><span class="t-dim">$</span> mvn test</span>
-<span class="l"><span class="t-grn">VCR CACHE HIT</span>  [3a3c5135cf32] replaying</span>
-<span class="l"><span class="t-grn">VCR TOOL REPLAY</span> isolating 1 call(s)</span>
-<span class="l"><span class="t-dim">                real tool not invoked</span></span>
-<span class="l"><span class="t-grn">VCR CACHE HIT</span>  [f6dd449e3e28] replaying</span>
-<span class="l">&nbsp;</span>
-<span class="l"><span class="t-grn">Tests run: 21, Failures: 0, Errors: 0</span></span>
-<span class="l"><span class="t-grn">BUILD SUCCESS</span>   <span class="t-dim">Total time: 11.5 s</span></span>
-<span class="l"><span class="t-dim">0 network calls · 0 tokens · offline</span></span></pre>
+          <pre class="stt-terminal__body"><span class="t-dim">$</span> mvn test
+
+<span class="t-grn">✔ Tests run: 21, Failures: 0, Errors: 0</span>
+<span class="t-grn">BUILD SUCCESS</span>   <span class="t-dim">Total time: 11.5 s</span>
+<span class="t-dim">0 network calls · 0 tokens · fully offline</span></pre>
         </div>
       </div>
     </div>
@@ -182,6 +178,31 @@
                 <circle r="7" class="stt-pulse stt-pulse--b" cx="0" cy="254"/>
               </svg>
             </div>
+            <div class="stt-demo-terminal">
+              <div class="stt-demo-terminal__bar">
+                <span class="stt-dot stt-dot--r"></span><span class="stt-dot stt-dot--y"></span><span class="stt-dot stt-dot--g"></span>
+                <span class="stt-terminal__title">mvn test</span>
+              </div>
+              <div class="stt-demo-terminal__body">
+                <div class="stt-demo-terminal__group">
+                  <p class="stt-demo-terminal__label">RECORD <span>— one time only</span></p>
+                  <p class="stt-demo-terminal__line stt-demo-terminal__line--dim">reached a real model … ~46.7 s (cold call, model load included)</p>
+                  <p class="stt-demo-terminal__line stt-demo-terminal__line--dim">wrote 1 fixture to <code>src/test/resources/llm-cache/</code></p>
+                </div>
+                <div class="stt-demo-terminal__group">
+                  <p class="stt-demo-terminal__label stt-demo-terminal__label--replay">REPLAY <span>— every run after</span></p>
+                  <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ read fixture from disk … 0.8 ms</p>
+                  <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ same assertion, same answer, zero network</p>
+                </div>
+                <div class="stt-demo-terminal__summary">
+                  <p class="stt-demo-terminal__summary-title">✔ Summary Report</p>
+                  <p class="stt-demo-terminal__summary-row"><span>AI execution</span><span class="stt-demo-terminal__summary-val">0.8 ms (replayed)</span></p>
+                  <p class="stt-demo-terminal__summary-row"><span>Tokens used</span><span class="stt-demo-terminal__summary-val">0</span></p>
+                  <p class="stt-demo-terminal__summary-row"><span>Network</span><span class="stt-demo-terminal__summary-val">offline</span></p>
+                  <p class="stt-demo-terminal__summary-row stt-demo-terminal__summary-row--feature">⏱ Saved ~46.7 s vs. the first run</p>
+                </div>
+              </div>
+            </div>
             <p class="stt-demo__proves">
               <strong>What this proves:</strong> a real cache miss records a fixture, and a
               real cache hit replays it with zero additional HTTP requests —
@@ -228,6 +249,26 @@
 
                 <circle r="7" class="stt-pulse stt-pulse--stub" cx="0" cy="106"/>
               </svg>
+            </div>
+            <div class="stt-demo-terminal">
+              <div class="stt-demo-terminal__bar">
+                <span class="stt-dot stt-dot--r"></span><span class="stt-dot stt-dot--y"></span><span class="stt-dot stt-dot--g"></span>
+                <span class="stt-terminal__title">mvn test</span>
+              </div>
+              <div class="stt-demo-terminal__body">
+                <div class="stt-demo-terminal__group">
+                  <p class="stt-demo-terminal__label">YOUR TEST</p>
+                  <p class="stt-demo-terminal__line stt-demo-terminal__line--dim"><code>VcrStubs.chatModel().respondingWith("Yes, shipped yesterday.")</code></p>
+                  <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ ChatModel returns exactly that — no cassette, no lookup, no network</p>
+                </div>
+                <div class="stt-demo-terminal__summary">
+                  <p class="stt-demo-terminal__summary-title">✔ Summary Report</p>
+                  <p class="stt-demo-terminal__summary-row"><span>AI execution</span><span class="stt-demo-terminal__summary-val">none — nothing to replay</span></p>
+                  <p class="stt-demo-terminal__summary-row"><span>Tokens used</span><span class="stt-demo-terminal__summary-val">0</span></p>
+                  <p class="stt-demo-terminal__summary-row"><span>Network</span><span class="stt-demo-terminal__summary-val">offline</span></p>
+                  <p class="stt-demo-terminal__summary-row stt-demo-terminal__summary-row--feature">✎ You authored this response yourself</p>
+                </div>
+              </div>
             </div>
             <p class="stt-demo__proves">
               <strong>What this proves:</strong> a stub never touches the network or a
@@ -308,6 +349,32 @@
                 <circle r="7" class="stt-pulse stt-pulse--b" cx="0" cy="254"/>
               </svg>
             </div>
+            <div class="stt-demo-terminal">
+              <div class="stt-demo-terminal__bar">
+                <span class="stt-dot stt-dot--r"></span><span class="stt-dot stt-dot--y"></span><span class="stt-dot stt-dot--g"></span>
+                <span class="stt-terminal__title">mvn test</span>
+              </div>
+              <div class="stt-demo-terminal__body">
+                <div class="stt-demo-terminal__group">
+                  <p class="stt-demo-terminal__label">MODEL TURN</p>
+                  <p class="stt-demo-terminal__line stt-demo-terminal__line--dim">ChatClient asks about order <code>ORD-4471</code></p>
+                  <p class="stt-demo-terminal__line stt-demo-terminal__line--dim">model requests: <code>getOrderStatus("ORD-4471")</code></p>
+                </div>
+                <div class="stt-demo-terminal__group">
+                  <p class="stt-demo-terminal__label stt-demo-terminal__label--replay">REPLAY</p>
+                  <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">🛡 intercepted — recorded result injected</p>
+                  <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ real <code>@Tool</code> method NOT invoked</p>
+                  <p class="stt-demo-terminal__line stt-demo-terminal__line--dim">→ "shipped, arriving in 2 days"</p>
+                </div>
+                <div class="stt-demo-terminal__summary">
+                  <p class="stt-demo-terminal__summary-title">✔ Summary Report</p>
+                  <p class="stt-demo-terminal__summary-row"><span>AI execution</span><span class="stt-demo-terminal__summary-val">~30 ms (both turns replayed, was 54.2 s live)</span></p>
+                  <p class="stt-demo-terminal__summary-row"><span>Tokens used</span><span class="stt-demo-terminal__summary-val">0</span></p>
+                  <p class="stt-demo-terminal__summary-row"><span>Network</span><span class="stt-demo-terminal__summary-val">offline</span></p>
+                  <p class="stt-demo-terminal__summary-row stt-demo-terminal__summary-row--feature">🔒 Side-effects prevented: 1 (real @Tool NOT invoked)</p>
+                </div>
+              </div>
+            </div>
             <p class="stt-demo__proves">
               <strong>What this proves:</strong> the real <code>@Tool</code> method runs
               exactly once — on the call that records it — and zero times on an identical
@@ -382,6 +449,31 @@
                 <circle r="7" class="stt-pulse stt-pulse--b" cx="0" cy="254"/>
               </svg>
             </div>
+            <div class="stt-demo-terminal">
+              <div class="stt-demo-terminal__bar">
+                <span class="stt-dot stt-dot--r"></span><span class="stt-dot stt-dot--y"></span><span class="stt-dot stt-dot--g"></span>
+                <span class="stt-terminal__title">mvn test</span>
+              </div>
+              <div class="stt-demo-terminal__body">
+                <div class="stt-demo-terminal__group">
+                  <p class="stt-demo-terminal__label">RECORD <span>— one time only</span></p>
+                  <p class="stt-demo-terminal__line stt-demo-terminal__line--dim"><code>embeddingModel.embed("Istanbul is the largest city…")</code></p>
+                  <p class="stt-demo-terminal__line stt-demo-terminal__line--dim">real embedding call → 2048-dim vector → written to fixture</p>
+                </div>
+                <div class="stt-demo-terminal__group">
+                  <p class="stt-demo-terminal__label stt-demo-terminal__label--replay">REPLAY <span>— every run after</span></p>
+                  <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ identical vector read from disk … 1.0 ms</p>
+                  <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ <code>assertThat(replayed).isEqualTo(recorded)</code></p>
+                </div>
+                <div class="stt-demo-terminal__summary">
+                  <p class="stt-demo-terminal__summary-title">✔ Summary Report</p>
+                  <p class="stt-demo-terminal__summary-row"><span>AI execution</span><span class="stt-demo-terminal__summary-val">1.0 ms (replayed)</span></p>
+                  <p class="stt-demo-terminal__summary-row"><span>Tokens used</span><span class="stt-demo-terminal__summary-val">0</span></p>
+                  <p class="stt-demo-terminal__summary-row"><span>Network</span><span class="stt-demo-terminal__summary-val">offline</span></p>
+                  <p class="stt-demo-terminal__summary-row stt-demo-terminal__summary-row--feature">🧬 Vector match: 2048/2048 dims, exact</p>
+                </div>
+              </div>
+            </div>
             <p class="stt-demo__proves">
               <strong>What this proves:</strong> a replayed embedding is
               <code>assertThat(replayed).isEqualTo(recorded)</code> exact, not
@@ -451,12 +543,37 @@
                 <text x="546" y="232" class="stt-svg__edge">reads</text>
 
                 <g class="stt-badge stt-badge--fast">
-                  <rect x="590" y="262" width="150" height="30" rx="15"/>
-                  <text x="665" y="282" class="stt-svg__badge">pass, every time</text>
+                  <rect x="565" y="262" width="175" height="30" rx="15"/>
+                  <text x="652" y="282" class="stt-svg__badge">same verdict, every time</text>
                 </g>
 
                 <circle r="7" class="stt-pulse stt-pulse--b" cx="0" cy="254"/>
               </svg>
+            </div>
+            <div class="stt-demo-terminal">
+              <div class="stt-demo-terminal__bar">
+                <span class="stt-dot stt-dot--r"></span><span class="stt-dot stt-dot--y"></span><span class="stt-dot stt-dot--g"></span>
+                <span class="stt-terminal__title">mvn test</span>
+              </div>
+              <div class="stt-demo-terminal__body">
+                <div class="stt-demo-terminal__group">
+                  <p class="stt-demo-terminal__label">JUDGE CALL <span>— record once</span></p>
+                  <p class="stt-demo-terminal__line stt-demo-terminal__line--dim">RelevancyEvaluator asks a judge model to score the response</p>
+                  <p class="stt-demo-terminal__line stt-demo-terminal__line--dim">real judge call → verdict written to fixture</p>
+                </div>
+                <div class="stt-demo-terminal__group">
+                  <p class="stt-demo-terminal__label stt-demo-terminal__label--replay">REPLAY <span>— every CI run</span></p>
+                  <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ same verdict read from disk … 1.3 ms</p>
+                  <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ deterministic — not a live judgment</p>
+                </div>
+                <div class="stt-demo-terminal__summary">
+                  <p class="stt-demo-terminal__summary-title">✔ Summary Report</p>
+                  <p class="stt-demo-terminal__summary-row"><span>AI execution</span><span class="stt-demo-terminal__summary-val">1.3 ms (replayed)</span></p>
+                  <p class="stt-demo-terminal__summary-row"><span>Tokens used</span><span class="stt-demo-terminal__summary-val">0</span></p>
+                  <p class="stt-demo-terminal__summary-row"><span>Network</span><span class="stt-demo-terminal__summary-val">offline</span></p>
+                  <p class="stt-demo-terminal__summary-row stt-demo-terminal__summary-row--feature">🧠 Verdict replayed, deterministic in CI</p>
+                </div>
+              </div>
             </div>
             <p class="stt-demo__proves">
               <strong>What this proves:</strong> the same judge verdict replays
@@ -532,6 +649,31 @@
                 <circle r="7" class="stt-pulse stt-pulse--b" cx="0" cy="254"/>
               </svg>
             </div>
+            <div class="stt-demo-terminal">
+              <div class="stt-demo-terminal__bar">
+                <span class="stt-dot stt-dot--r"></span><span class="stt-dot stt-dot--y"></span><span class="stt-dot stt-dot--g"></span>
+                <span class="stt-terminal__title">mvn test</span>
+              </div>
+              <div class="stt-demo-terminal__body">
+                <div class="stt-demo-terminal__group">
+                  <p class="stt-demo-terminal__label">RECORD <span>— one time only</span></p>
+                  <p class="stt-demo-terminal__line stt-demo-terminal__line--dim"><code>chatClient…stream()</code> → chunks arrive one by one: "Yes" · "."</p>
+                  <p class="stt-demo-terminal__line stt-demo-terminal__line--dim">raw chunk sequence written to fixture</p>
+                </div>
+                <div class="stt-demo-terminal__group">
+                  <p class="stt-demo-terminal__label stt-demo-terminal__label--replay">REPLAY <span>— every run after</span></p>
+                  <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ same 2 chunks emitted, same order … 0.8 ms total</p>
+                  <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ no artificial delay between chunks</p>
+                </div>
+                <div class="stt-demo-terminal__summary">
+                  <p class="stt-demo-terminal__summary-title">✔ Summary Report</p>
+                  <p class="stt-demo-terminal__summary-row"><span>AI execution</span><span class="stt-demo-terminal__summary-val">0.8 ms (replayed)</span></p>
+                  <p class="stt-demo-terminal__summary-row"><span>Tokens used</span><span class="stt-demo-terminal__summary-val">0</span></p>
+                  <p class="stt-demo-terminal__summary-row"><span>Network</span><span class="stt-demo-terminal__summary-val">offline</span></p>
+                  <p class="stt-demo-terminal__summary-row stt-demo-terminal__summary-row--feature">🧩 2 chunks replayed in identical order</p>
+                </div>
+              </div>
+            </div>
             <p class="stt-demo__proves">
               <strong>What this proves:</strong> a replayed stream emits the exact same
               chunk-for-chunk sequence — tool calls included — asserted chunk-by-chunk, not
@@ -541,6 +683,16 @@
           </div>
 
         </div>
+
+        <p class="stt-note stt-note--center">
+          Every replay time in these terminals is measured, not estimated: 100 timed
+          iterations per mechanism against this project's own committed fixtures under
+          <code>REPLAY_ONLY</code> (embedding 1.02 ms, evaluator 1.34 ms, streaming
+          0.80 ms median) plus the same 200-iteration chat-replay measurement
+          (0.82 ms) already in the benchmark row below. Record-side numbers reuse the
+          same cold/warm call timings from that row too — nothing here is a new,
+          separately-invented figure, and none of it includes Spring context startup.
+        </p>
       </div>
     </div>
   </section>

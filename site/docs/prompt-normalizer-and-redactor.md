@@ -1,7 +1,10 @@
 # Prompt Normalizer & Redactor
 
-`VcrPromptNormalizer` and `VcrFixtureRedactor` sound similar and solve adjacent problems,
-but they change different things, and confusing them has a real cost.
+The fix for the most common gotcha in [Record & Replay](record-replay.md#the-most-common-gotcha-dynamic-values-in-your-prompt):
+a prompt that embeds a timestamp, a UUID, or anything else that changes on every run
+produces a different hash every run, which means a permanent cache miss instead of a
+replay. `VcrPromptNormalizer` and `VcrFixtureRedactor` sound similar and solve adjacent
+problems, but they change different things, and confusing them has a real cost.
 
 | | Affects the hash? | Affects what a hit returns? | Affects what's written to disk? |
 |---|---|---|---|

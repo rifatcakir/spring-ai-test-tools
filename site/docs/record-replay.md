@@ -18,6 +18,57 @@ request — a fixture diff is a prompt regression check. See
 [What busts the cache](#what-busts-the-cache) below for exactly what participates in that
 hash.
 
+## ⚠️ The most common gotcha: dynamic values in your prompt
+
+Exact-match hashing has one sharp edge, and it's the thing most people trip over first:
+if your prompt embeds anything that's different on every run — the current timestamp, a
+freshly generated UUID, a random request ID — the hash is different every run too. That
+means a permanent cache miss, not a replay: the fixture directory fills up with one file
+per run instead of settling on one.
+
+```java
+.user("Today is " + LocalDate.now() + ". Summarise the backlog.")
+```
+
+The fix is a `VcrPromptNormalizer`, applied before hashing, which collapses that noise
+into a stable placeholder instead of eliminating it — the model still sees the real,
+unmodified value:
+
+```java
+@Bean
+VcrPromptNormalizer ignoreVolatileValues() {
+    return RegexPromptNormalizer.ISO_DATE
+        .andThen(RegexPromptNormalizer.UUID);
+}
+```
+
+Built in: `ISO_DATE`, `ISO_DATE_TIME`, `UUID`, `EPOCH_MILLIS`. See
+[Prompt Normalizer & Redactor](prompt-normalizer-and-redactor.md) for the full mechanism,
+including why this is a genuinely different tool from a fixture redactor even though the
+two sound similar.
+
+## One test, many fixtures
+
+The cache key is per **request**, not per test method or test class. A single test that
+makes several distinct `ChatClient` calls records — and later replays — one fixture per
+distinct prompt, each independently:
+
+```java
+@Test
+void handlesTwoDifferentQuestions() {
+    String weather = chatClient.prompt().user("What's the weather in Ankara?").call().content();
+    String status  = chatClient.prompt().user("What's the status of order ORD-4471?").call().content();
+
+    assertThat(weather).contains("sunny");
+    assertThat(status).contains("shipped");
+}
+```
+
+First run: two cache misses, two real model calls, two fixtures written — one hash per
+prompt. Every run after: two cache hits, each replaying its own recorded answer, never the
+other one's. There is no grouping by test method or test class anywhere in this design;
+the hash only ever depends on what is actually being asked.
+
 ## Modes
 
 | Mode | Behaviour |
@@ -120,5 +171,17 @@ Prompt *content* is another matter: if your prompts carry PII, redact it — see
   `VcrToolMode` — see [Tool calling](tool-calling.md).
 - **`EXECUTE_REAL` re-runs real `@Tool` side effects on every replay, by design** — the
   explicit opt-in for asserting a tool actually ran; not the default.
+- **Committed fixtures can bloat the repo for large-context prompts.** A RAG pipeline
+  embedding a large retrieved document, or any prompt carrying a big payload, gets
+  committed to git verbatim inside its fixture. That is the direct cost of design rule #5
+  (fixtures are pretty-printed and reviewed in a pull request, not compressed or stored
+  externally) — a deliberate trade-off, not an oversight, but a real one for large-context
+  use cases. See `docs/ROADMAP.md`'s v0.2 section for what a future large-fixture mode
+  might look like.
+- **Re-recording is manual, and orphaned fixtures are not cleaned up automatically.**
+  `RECORD_ALWAYS` overwrites every fixture a test run actually touches, but if a prompt
+  changes enough that its old hash is never looked up again, that file is simply left on
+  disk — nothing today detects or prunes it. There is no bulk re-record or
+  orphaned-fixture-pruning CLI/Maven task yet; see `docs/ROADMAP.md`'s v0.2 section.
 
 See [Configuration Reference](configuration.md) for every property this library exposes.

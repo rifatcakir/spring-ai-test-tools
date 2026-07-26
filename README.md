@@ -53,6 +53,11 @@ EVERY RUN AFTER     instant · $0 · fully offline
 The first run reaches a real model and commits the exchange as a fixture. Every run
 after that never leaves the file system — same test, same assertion, no edits.
 
+> ⚠️ **Common early gotcha.** If your prompt embeds anything that changes on every run —
+> the current timestamp, a freshly generated UUID — the hash changes every run too, and
+> you get a permanent cache miss instead of a replay. See
+> [Volatile prompts](#volatile-prompts) for the one-`VcrPromptNormalizer`-bean fix.
+
 ## What it can do
 
 | Capability | What it gives you |
@@ -328,6 +333,28 @@ you hit anything this library controls.
 The first call reaches a real model and writes the exchange to
 `src/test/resources/llm-cache/{sha256}.json`; every call after that — in this run, and in
 every run after this one, forever — replays it instead.
+
+### One test, many fixtures
+
+The cache key is per **request**, not per test method or test class. A single test that
+makes several distinct `ChatClient` calls records — and later replays — one fixture per
+distinct prompt, each independently:
+
+```java
+@Test
+void handlesTwoDifferentQuestions() {
+    String weather = chatClient.prompt().user("What's the weather in Ankara?").call().content();
+    String status  = chatClient.prompt().user("What's the status of order ORD-4471?").call().content();
+
+    assertThat(weather).contains("sunny");
+    assertThat(status).contains("shipped");
+}
+```
+
+First run: two cache misses, two real model calls, two fixtures written — one hash per
+prompt. Every run after: two cache hits, each replaying its own recorded answer, never the
+other one's. There is no grouping by test method or test class anywhere in this design;
+the hash only ever depends on what is actually being asked.
 
 ### Configuration reference
 
@@ -945,6 +972,19 @@ Prompt *content* is another matter: if your prompts carry PII, redact it with a
   has there — see [Tool calling](#tool-calling) above.
 - **`EXECUTE_REAL` re-runs real `@Tool` side effects on every replay, by design** — the
   explicit opt-in for asserting a tool actually ran; not the default.
+- **Committed fixtures can bloat the repo for large-context prompts.** A RAG pipeline
+  embedding a large retrieved document, or any prompt carrying a big payload, gets
+  committed to git verbatim inside its fixture. That is the direct cost of design rule #5
+  (fixtures are pretty-printed and reviewed in a pull request, not compressed or stored
+  externally) — a deliberate trade-off, not an oversight, but a real one for large-context
+  use cases. See [`docs/ROADMAP.md`](docs/ROADMAP.md)'s v0.2 section for what a future
+  large-fixture mode might look like.
+- **Re-recording is manual, and orphaned fixtures are not cleaned up automatically.**
+  `RECORD_ALWAYS` overwrites every fixture a test run actually touches, but if a prompt
+  changes enough that its old hash is never looked up again, that file is simply left on
+  disk — nothing today detects or prunes it. There is no bulk re-record or
+  orphaned-fixture-pruning CLI/Maven task yet; see
+  [`docs/ROADMAP.md`](docs/ROADMAP.md)'s v0.2 section.
 - **Stubs have no request-matching.** A stub always answers the same way, for any prompt
   — a test that needs two different answers builds two stub instances. Streaming stubs
   are not built yet.

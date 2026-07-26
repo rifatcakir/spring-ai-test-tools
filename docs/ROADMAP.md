@@ -330,6 +330,26 @@ new example code and documentation, and building them speculatively ahead of a c
 need would be exactly the kind of premature investment `docs/VISION.md` already argues
 against elsewhere in this project.
 
+### v0.2 — fixture lifecycle tooling (not started, raised by external review)
+
+Two honest gaps in today's fixture lifecycle, documented as accepted limitations in
+`README.md`/`record-replay.md` and tracked here as future work, not built now:
+
+- **Cassette bloat for large-context prompts.** A RAG pipeline embedding a large
+  retrieved document — or any prompt carrying a big payload — gets committed to git
+  verbatim inside its fixture, with no compression or external-storage option today. A
+  future large-fixture mode would need its own design note (what gets compressed, whether
+  a fixture diff stays reviewable afterward — design rule #5's whole reason to exist) before
+  any code, the same diagnosis-first discipline every other item in this roadmap already
+  followed.
+- **No bulk re-record or orphaned-fixture pruning.** `RECORD_ALWAYS` re-records whatever a
+  test run actually touches, but a fixture whose prompt changed enough that its old hash
+  is never looked up again is simply left on disk forever — nothing detects or removes it.
+  A CLI or Maven task that re-records a whole suite in one pass and reports (or deletes)
+  fixtures no longer referenced by any hash a test run produced would close this, but
+  needs its own scoping — e.g. how it tells "genuinely orphaned" apart from "not exercised
+  by this particular test selection" — before it's sized.
+
 ---
 
 ## What prior art gets right (and what doesn't transfer)

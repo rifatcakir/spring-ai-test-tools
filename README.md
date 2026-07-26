@@ -1,22 +1,19 @@
 # spring-ai-test-tools
 
 **Spring AI Test Tools is a deterministic testing framework for Spring AI applications.**
+Think **JUnit for Spring AI** — a full testing toolkit built at Spring AI's own
+abstraction level — not a WireMock alternative bolted onto HTTP underneath it. Golden AI
+responses, snapshot-tested the same way any other regression suite works: capture a real
+model's answer once, and every run after that replays the identical response,
+deterministically, forever.
 
 > **This is an independent, community-maintained project.** It is not affiliated with,
 > endorsed by, or an official project of Broadcom, VMware, Spring, or Spring AI. "Spring"
 > and "Spring AI" are trademarks of their respective owners; this library simply
 > integrates with their public APIs.
 
-| Capability | What it gives you |
-|---|---|
-| **[Record & Replay](#record--replay)** | Capture a real model's answer once; replay it forever, offline |
-| **[Stubbing](#stubbing)** | Hand-author a response — inline or from a file — for what you can't record |
-| **[Assertions](#assertions)** | Fluent AssertJ checks on tool calls, finish reasons, JSON fields |
-| **[Semantic Assertions](#semantic-assertions)** | Compare answers by *meaning*, deterministically, via embeddings |
-| **[Tool Isolation](#-tool-side-effects-are-isolated-from-replay-by-default)** | Replay a `@Tool` call's result without re-running its side effects |
-| **[Embedding Replay](#embeddings)** | `EmbeddingModel` calls cached independently of chat, vectors exact |
-| **[Evaluator Testing](#evaluator)** | Spring AI's own evaluators, deterministic in CI or live on demand |
-| **[Streaming](#streaming)** | `Flux` responses replayed chunk-for-chunk, tool calls included |
+Java 21 · Spring Boot 4.0.0 · Spring AI 2.0.0 · Apache-2.0 — the exact combination this is
+tested against, see [Compatibility](#compatibility).
 
 ## Why this exists
 
@@ -42,6 +39,32 @@ responses, offline, forever.
 Spring AI's own production semantic cache doesn't solve this: it matches on similarity
 thresholds — exactly backwards for a test, where a prompt that changed by one character
 must produce a new fixture or a loud failure, never a "close enough" hit.
+
+### Record once. Replay forever.
+
+```
+FIRST RUN          slow · costs tokens · needs network
+  Your test ──▶ ChatClient ──▶ Real LLM (~2.9–46.7 s) ──writes──▶ cassette.json
+
+EVERY RUN AFTER     instant · $0 · fully offline
+  Your test ──▶ ChatClient ◀──reads── cassette.json                  (0.8 ms)
+```
+
+The first run reaches a real model and commits the exchange as a fixture. Every run
+after that never leaves the file system — same test, same assertion, no edits.
+
+## What it can do
+
+| Capability | What it gives you |
+|---|---|
+| **[Record & Replay](#record--replay)** | Capture a real model's answer once; replay it forever, offline |
+| **[Stubbing](#stubbing)** | Hand-author a response — inline or from a file — for what you can't record |
+| **[Assertions](#assertions)** | Fluent AssertJ checks on tool calls, finish reasons, JSON fields |
+| **[Semantic Assertions](#semantic-assertions)** | Compare answers by *meaning*, deterministically, via embeddings |
+| **[Tool Isolation](#-tool-side-effects-are-isolated-from-replay-by-default)** | Replay a `@Tool` call's result without re-running its side effects |
+| **[Embedding Replay](#embeddings)** | `EmbeddingModel` calls cached independently of chat, vectors exact |
+| **[Evaluator Testing](#evaluator)** | Spring AI's own evaluators, deterministic in CI or live on demand |
+| **[Streaming](#streaming)** | `Flux` responses replayed chunk-for-chunk, tool calls included |
 
 ## What it costs to run a test
 
@@ -75,6 +98,11 @@ hosted-provider latency and cost were <b>not</b> measured here (no credentials, 
 design).</sub>
 
 ## How it compares
+
+**The difference is the layer.** This works at Spring AI's own abstractions —
+`ChatClient`, the advisor chain, tool calls, structured output — not at the HTTP wire
+underneath them. That's why switching providers, adding streaming, or asserting on a tool
+call doesn't mean rebuilding your test harness from scratch.
 
 | | **spring-ai-test-tools** | WireMock / MockWebServer | Mockito |
 |---|---|---|---|
@@ -929,3 +957,4 @@ Java 21 · Spring Boot 4.0+ · Spring AI 2.0+ (Jackson 3, `tools.jackson.*`) —
 ## Licence
 
 Apache-2.0
+

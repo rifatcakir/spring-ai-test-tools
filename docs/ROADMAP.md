@@ -308,6 +308,30 @@ fixed to get here.
 
 ---
 
+## v0.2 — more real-world example scenarios (not started)
+
+Raised by an external review: the sibling `spring-ai-test-tools-example` project's
+current showcases are useful but narrow (order-status lookups, shipping notifications) —
+enough to prove each mechanism works, not enough to dispel a "niche VCR library" first
+impression. Not a code or library change; a documentation/examples investment for
+whichever comes first, v0.2 or the first real external adopter asking for it:
+
+- **RAG agent test** — record/replay across a retrieval step *and* the generation step in
+  one flow, showing this framework covers an agent's full turn, not just a bare chat call.
+- **Tool-calling agent test** — a multi-tool agent (not a single `@Tool` method) making
+  several distinct tool calls across a longer conversation, exercising `INSIDE_TOOL_LOOP`
+  and tool-call isolation together at a realistic scale.
+- **Prompt regression test** — a worked example of the "fixture diff in a PR catches an
+  unintended prompt change" story this project's design already tells (design rule #5),
+  demonstrated end to end rather than only described in prose.
+
+Explicitly deferred rather than built now: none of these need new library mechanism, only
+new example code and documentation, and building them speculatively ahead of a concrete
+need would be exactly the kind of premature investment `docs/VISION.md` already argues
+against elsewhere in this project.
+
+---
+
 ## What prior art gets right (and what doesn't transfer)
 
 | Tool | Model | Ideas worth stealing | Ideas that don't fit here |

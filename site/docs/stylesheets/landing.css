@@ -463,16 +463,179 @@
 	to { stroke-dashoffset: -26; }
 }
 
+/* Single-lane crawl for the Stubbing panel, which has no record/replay split to
+   contrast -- one continuous, looping pass end to end. */
+.stt-pulse--stub {
+	fill: var(--stt-green);
+	animation: stt-lane-stub 4.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes stt-lane-stub {
+	0%        { transform: translateX(150px); opacity: 0; }
+	4%        { opacity: 1; }
+	92%       { transform: translateX(900px); opacity: 1; }
+	97%, 100% { transform: translateX(900px); opacity: 0; }
+}
+
+/* Tool Isolation panel: the skipped real-method node reads as visibly inert --
+   muted fill, dashed outline, struck-through label -- next to the normal nodes
+   around it. */
+.stt-node--authored rect {
+	fill: rgba(93, 143, 214, 0.09);
+	stroke: rgba(93, 143, 214, 0.55);
+}
+
+.stt-node--bypassed rect {
+	fill: rgba(120, 130, 140, 0.08);
+	stroke: var(--stt-muted);
+	stroke-dasharray: 5 4;
+}
+
+.stt-svg__node--strike {
+	text-decoration: line-through;
+	fill: var(--stt-muted);
+}
+
 @media (prefers-reduced-motion: reduce) {
 	.stt-pulse--a,
 	.stt-pulse--b,
+	.stt-pulse--stub,
 	.stt-write,
 	.stt-terminal__body .l {
 		animation: none;
 	}
 
 	.stt-terminal__body .l { opacity: 1; }
-	.stt-pulse--a, .stt-pulse--b { opacity: 0; }
+	.stt-pulse--a, .stt-pulse--b, .stt-pulse--stub { opacity: 0; }
+}
+
+/* ------------------------ 2c. Interactive demo tabs ----------------------- */
+
+/* CSS-only tabs: the radios are visually hidden but keyboard-focusable; each
+   label is a `for`-bound trigger, and every stateful rule below reaches its
+   target through a `:checked ~ ...` general-sibling selector. No JavaScript,
+   so this works unmodified on a static GitHub Pages build. */
+.stt-demo__input {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+.stt-demo__bar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin-top: clamp(24px, 3.5vw, 36px);
+	justify-content: center;
+}
+
+.stt-demo__tab {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	padding: 11px 18px;
+	border-radius: 12px;
+	border: 1px solid var(--stt-line);
+	background: var(--stt-surface);
+	cursor: pointer;
+	transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+	min-width: 148px;
+}
+
+.stt-demo__tab:hover {
+	border-color: var(--stt-green);
+	transform: translateY(-1px);
+}
+
+.stt-demo__name {
+	font-size: 13.5px;
+	font-weight: 700;
+	color: var(--stt-ink);
+}
+
+.stt-demo__benefit {
+	font-size: 12px;
+	color: var(--stt-muted);
+	line-height: 1.4;
+}
+
+/* Active-tab styling and panel visibility, one pair of rules per tab. */
+#stt-demo-1:checked ~ .stt-demo__bar .stt-demo__tab[data-n="1"],
+#stt-demo-2:checked ~ .stt-demo__bar .stt-demo__tab[data-n="2"],
+#stt-demo-3:checked ~ .stt-demo__bar .stt-demo__tab[data-n="3"],
+#stt-demo-4:checked ~ .stt-demo__bar .stt-demo__tab[data-n="4"],
+#stt-demo-5:checked ~ .stt-demo__bar .stt-demo__tab[data-n="5"],
+#stt-demo-6:checked ~ .stt-demo__bar .stt-demo__tab[data-n="6"] {
+	border-color: var(--stt-green);
+	background: var(--stt-green-soft);
+}
+
+#stt-demo-1:checked ~ .stt-demo__bar .stt-demo__tab[data-n="1"] .stt-demo__name,
+#stt-demo-2:checked ~ .stt-demo__bar .stt-demo__tab[data-n="2"] .stt-demo__name,
+#stt-demo-3:checked ~ .stt-demo__bar .stt-demo__tab[data-n="3"] .stt-demo__name,
+#stt-demo-4:checked ~ .stt-demo__bar .stt-demo__tab[data-n="4"] .stt-demo__name,
+#stt-demo-5:checked ~ .stt-demo__bar .stt-demo__tab[data-n="5"] .stt-demo__name,
+#stt-demo-6:checked ~ .stt-demo__bar .stt-demo__tab[data-n="6"] .stt-demo__name {
+	color: var(--stt-green-dark);
+}
+
+.stt-demo__panels {
+	position: relative;
+}
+
+.stt-demo__panel {
+	display: none;
+}
+
+#stt-demo-1:checked ~ .stt-demo__panels .stt-demo__panel[data-panel="1"],
+#stt-demo-2:checked ~ .stt-demo__panels .stt-demo__panel[data-panel="2"],
+#stt-demo-3:checked ~ .stt-demo__panels .stt-demo__panel[data-panel="3"],
+#stt-demo-4:checked ~ .stt-demo__panels .stt-demo__panel[data-panel="4"],
+#stt-demo-5:checked ~ .stt-demo__panels .stt-demo__panel[data-panel="5"],
+#stt-demo-6:checked ~ .stt-demo__panels .stt-demo__panel[data-panel="6"] {
+	display: block;
+	animation: stt-fade-in 0.25s ease;
+}
+
+@keyframes stt-fade-in {
+	from { opacity: 0; }
+	to   { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.stt-demo__panel {
+		animation: none !important;
+	}
+}
+
+.stt-demo__proves {
+	max-width: 760px;
+	margin: 18px auto 0 !important;
+	text-align: center;
+	font-size: 14px;
+	line-height: 1.6;
+	color: var(--stt-body);
+}
+
+.stt-demo__proves code {
+	font-size: 0.92em;
+}
+
+@media screen and (max-width: 700px) {
+	.stt-demo__bar {
+		justify-content: stretch;
+	}
+
+	.stt-demo__tab {
+		flex: 1 1 calc(50% - 10px);
+		min-width: 0;
+	}
 }
 
 /* ----------------------------- 3. Stats --------------------------------- */

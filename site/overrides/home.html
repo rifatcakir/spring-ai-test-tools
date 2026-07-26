@@ -65,87 +65,482 @@
     </div>
   </section>
 
-  <!-- ================== 2. ANIMATED RECORD → REPLAY ==================== -->
+  <!-- ================== 2. INTERACTIVE CAPABILITY DEMO ==================== -->
   <section class="stt-section stt-section--tint">
     <div class="stt-wrap">
-      <h2 class="stt-h2">Record once. Replay forever.</h2>
+      <h2 class="stt-h2">See each capability, not just read about it</h2>
       <p class="stt-lede">
-        The first run calls a real model and writes the exchange to a JSON cassette you
-        commit. Every run after that reads the file — same assertions, same responses, no
-        network.
+        Six mechanisms, six independent fixture families. Pick one — every diagram below
+        is annotated from this project's own verified end-to-end tests, not illustrative
+        guesswork.
       </p>
 
-      <div class="stt-diagram">
-        <svg viewBox="0 0 940 330" class="stt-svg" role="img"
-             aria-label="First run: test to ChatClient to a real LLM, which writes a cassette file. Every run after: test to ChatClient reads the cassette directly.">
-          <defs>
-            <marker id="sttArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-              <path d="M0 0 L10 5 L0 10 z" class="stt-svg__arrowhead"/>
-            </marker>
-          </defs>
+      {#- CSS-only tabs: hidden radios + labels + a general-sibling selector reaching the
+          matching panel. No JavaScript, so this works unmodified on static GitHub Pages.
+          Radios must precede both the tab bar and the panel list in document order for
+          the ~ combinator below to reach them. -#}
+      <div class="stt-demo">
+        <input type="radio" name="stt-demo-tab" id="stt-demo-1" class="stt-demo__input" checked>
+        <input type="radio" name="stt-demo-tab" id="stt-demo-2" class="stt-demo__input">
+        <input type="radio" name="stt-demo-tab" id="stt-demo-3" class="stt-demo__input">
+        <input type="radio" name="stt-demo-tab" id="stt-demo-4" class="stt-demo__input">
+        <input type="radio" name="stt-demo-tab" id="stt-demo-5" class="stt-demo__input">
+        <input type="radio" name="stt-demo-tab" id="stt-demo-6" class="stt-demo__input">
 
-          <!-- ---------- Lane A: first run ---------- -->
-          <text x="0" y="26" class="stt-svg__lane">FIRST RUN</text>
-          <text x="0" y="46" class="stt-svg__lanesub">slow · costs tokens · needs network</text>
+        <div class="stt-demo__bar" role="tablist" aria-label="Capability demos">
+          <label for="stt-demo-1" class="stt-demo__tab" data-n="1">
+            <span class="stt-demo__name">Record &amp; Replay</span>
+            <span class="stt-demo__benefit">Capture once, replay offline</span>
+          </label>
+          <label for="stt-demo-2" class="stt-demo__tab" data-n="2">
+            <span class="stt-demo__name">Stubbing</span>
+            <span class="stt-demo__benefit">Author edge cases by hand</span>
+          </label>
+          <label for="stt-demo-3" class="stt-demo__tab" data-n="3">
+            <span class="stt-demo__name">Tool Isolation</span>
+            <span class="stt-demo__benefit">Hide side effects on replay</span>
+          </label>
+          <label for="stt-demo-4" class="stt-demo__tab" data-n="4">
+            <span class="stt-demo__name">Embedding Replay</span>
+            <span class="stt-demo__benefit">Freeze vector calls</span>
+          </label>
+          <label for="stt-demo-5" class="stt-demo__tab" data-n="5">
+            <span class="stt-demo__name">Evaluator Testing</span>
+            <span class="stt-demo__benefit">Assert semantic quality</span>
+          </label>
+          <label for="stt-demo-6" class="stt-demo__tab" data-n="6">
+            <span class="stt-demo__name">Streaming</span>
+            <span class="stt-demo__benefit">Replay token by token</span>
+          </label>
+        </div>
 
-          <line x1="150" y1="100" x2="236" y2="100" class="stt-svg__line" marker-end="url(#sttArrow)"/>
-          <line x1="366" y1="100" x2="452" y2="100" class="stt-svg__line" marker-end="url(#sttArrow)"/>
+        <div class="stt-demo__panels">
 
-          <g class="stt-node">
-            <rect x="20" y="72" width="130" height="56" rx="12"/>
-            <text x="85" y="105" class="stt-svg__node">Your test</text>
-          </g>
-          <g class="stt-node">
-            <rect x="236" y="72" width="130" height="56" rx="12"/>
-            <text x="301" y="105" class="stt-svg__node">ChatClient</text>
-          </g>
-          <g class="stt-node stt-node--live">
-            <rect x="452" y="72" width="150" height="56" rx="12"/>
-            <text x="527" y="98" class="stt-svg__node">Real LLM</text>
-            <text x="527" y="116" class="stt-svg__nodesub">~2.9 – 46.7 s</text>
-          </g>
+          <!-- ============ Panel 1: Record & Replay ============ -->
+          <div class="stt-demo__panel" data-panel="1">
+            <div class="stt-diagram">
+              <svg viewBox="0 0 940 330" class="stt-svg" role="img"
+                   aria-label="First run: test to ChatClient to a real LLM, which writes a cassette file. Every run after: test to ChatClient reads the cassette directly.">
+                <defs>
+                  <marker id="sttArrow1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M0 0 L10 5 L0 10 z" class="stt-svg__arrowhead"/>
+                  </marker>
+                </defs>
 
-          <!-- write to cassette -->
-          <path d="M602 100 C 690 100, 700 130, 742 156" class="stt-svg__line stt-svg__line--dash stt-write" marker-end="url(#sttArrow)"/>
-          <text x="666" y="122" class="stt-svg__edge">writes</text>
+                <text x="0" y="26" class="stt-svg__lane">FIRST RUN</text>
+                <text x="0" y="46" class="stt-svg__lanesub">slow · costs tokens · needs network</text>
 
-          <circle r="7" class="stt-pulse stt-pulse--a" cx="0" cy="100"/>
+                <line x1="150" y1="100" x2="236" y2="100" class="stt-svg__line" marker-end="url(#sttArrow1)"/>
+                <line x1="366" y1="100" x2="452" y2="100" class="stt-svg__line" marker-end="url(#sttArrow1)"/>
 
-          <!-- ---------- Cassette ---------- -->
-          <g class="stt-node stt-node--cassette">
-            <rect x="742" y="128" width="178" height="74" rx="14"/>
-            <text x="831" y="158" class="stt-svg__node">cassette.json</text>
-            <text x="831" y="180" class="stt-svg__nodesub">committed to git</text>
-          </g>
+                <g class="stt-node">
+                  <rect x="20" y="72" width="130" height="56" rx="12"/>
+                  <text x="85" y="105" class="stt-svg__node">Your test</text>
+                </g>
+                <g class="stt-node">
+                  <rect x="236" y="72" width="130" height="56" rx="12"/>
+                  <text x="301" y="105" class="stt-svg__node">ChatClient</text>
+                </g>
+                <g class="stt-node stt-node--live">
+                  <rect x="452" y="72" width="150" height="56" rx="12"/>
+                  <text x="527" y="98" class="stt-svg__node">Real LLM</text>
+                  <text x="527" y="116" class="stt-svg__nodesub">~2.9 – 46.7 s</text>
+                </g>
 
-          <!-- ---------- Lane B: every run after ----------
-               Label sits above the row (y=196/214) and the nodes start at y=226: the
-               two must not overlap, which they did at the first attempt. -->
-          <text x="0" y="196" class="stt-svg__lane">EVERY RUN AFTER</text>
-          <text x="0" y="214" class="stt-svg__lanesub">instant · $0 · fully offline</text>
+                <path d="M602 100 C 690 100, 700 130, 742 156" class="stt-svg__line stt-svg__line--dash stt-write" marker-end="url(#sttArrow1)"/>
+                <text x="666" y="122" class="stt-svg__edge">writes</text>
+                <circle r="7" class="stt-pulse stt-pulse--a" cx="0" cy="100"/>
 
-          <line x1="150" y1="254" x2="236" y2="254" class="stt-svg__line" marker-end="url(#sttArrow)"/>
+                <g class="stt-node stt-node--cassette">
+                  <rect x="742" y="128" width="178" height="74" rx="14"/>
+                  <text x="831" y="158" class="stt-svg__node">cassette.json</text>
+                  <text x="831" y="180" class="stt-svg__nodesub">committed to git</text>
+                </g>
 
-          <g class="stt-node">
-            <rect x="20" y="226" width="130" height="56" rx="12"/>
-            <text x="85" y="259" class="stt-svg__node">Your test</text>
-          </g>
-          <g class="stt-node">
-            <rect x="236" y="226" width="130" height="56" rx="12"/>
-            <text x="301" y="259" class="stt-svg__node">ChatClient</text>
-          </g>
+                <text x="0" y="196" class="stt-svg__lane">EVERY RUN AFTER</text>
+                <text x="0" y="214" class="stt-svg__lanesub">instant · $0 · fully offline</text>
 
-          <!-- read from cassette -->
-          <path d="M366 254 C 560 254, 650 220, 742 192" class="stt-svg__line stt-svg__line--solid stt-read" marker-end="url(#sttArrow)"/>
-          <text x="546" y="232" class="stt-svg__edge">reads</text>
+                <line x1="150" y1="254" x2="236" y2="254" class="stt-svg__line" marker-end="url(#sttArrow1)"/>
 
-          <g class="stt-badge stt-badge--fast">
-            <rect x="610" y="262" width="112" height="30" rx="15"/>
-            <text x="666" y="282" class="stt-svg__badge">0.8 ms</text>
-          </g>
+                <g class="stt-node">
+                  <rect x="20" y="226" width="130" height="56" rx="12"/>
+                  <text x="85" y="259" class="stt-svg__node">Your test</text>
+                </g>
+                <g class="stt-node">
+                  <rect x="236" y="226" width="130" height="56" rx="12"/>
+                  <text x="301" y="259" class="stt-svg__node">ChatClient</text>
+                </g>
 
-          <circle r="7" class="stt-pulse stt-pulse--b" cx="0" cy="254"/>
-        </svg>
+                <path d="M366 254 C 560 254, 650 220, 742 192" class="stt-svg__line stt-svg__line--solid stt-read" marker-end="url(#sttArrow1)"/>
+                <text x="546" y="232" class="stt-svg__edge">reads</text>
+
+                <g class="stt-badge stt-badge--fast">
+                  <rect x="610" y="262" width="112" height="30" rx="15"/>
+                  <text x="666" y="282" class="stt-svg__badge">0.8 ms</text>
+                </g>
+
+                <circle r="7" class="stt-pulse stt-pulse--b" cx="0" cy="254"/>
+              </svg>
+            </div>
+            <p class="stt-demo__proves">
+              <strong>What this proves:</strong> a real cache miss records a fixture, and a
+              real cache hit replays it with zero additional HTTP requests —
+              <a href="https://github.com/rifatcakir/spring-ai-test-tools/blob/main/src/test/java/io/github/rifatcakir/springai/testtools/recorder/e2e/OllamaEndToEndTests.java" target="_blank" rel="noopener"><code>OllamaEndToEndTests</code></a>.
+            </p>
+          </div>
+
+          <!-- ============ Panel 2: Stubbing ============ -->
+          <div class="stt-demo__panel" data-panel="2">
+            <div class="stt-diagram">
+              <svg viewBox="0 0 940 190" class="stt-svg" role="img"
+                   aria-label="Your test hands VcrStubs a hand-authored response; the stub ChatModel returns exactly that, with no network call at all.">
+                <defs>
+                  <marker id="sttArrow2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M0 0 L10 5 L0 10 z" class="stt-svg__arrowhead"/>
+                  </marker>
+                </defs>
+
+                <text x="0" y="26" class="stt-svg__lane">EVERY RUN, FROM THE FIRST ONE</text>
+                <text x="0" y="44" class="stt-svg__lanesub">no fixture, no hash, no Spring context needed</text>
+
+                <line x1="150" y1="106" x2="222" y2="106" class="stt-svg__line" marker-end="url(#sttArrow2)"/>
+                <line x1="424" y1="106" x2="496" y2="106" class="stt-svg__line" marker-end="url(#sttArrow2)"/>
+                <line x1="646" y1="106" x2="718" y2="106" class="stt-svg__line" marker-end="url(#sttArrow2)"/>
+
+                <g class="stt-node">
+                  <rect x="20" y="78" width="130" height="56" rx="12"/>
+                  <text x="85" y="111" class="stt-svg__node">Your test</text>
+                </g>
+                <g class="stt-node stt-node--authored">
+                  <rect x="222" y="70" width="202" height="72" rx="12"/>
+                  <text x="323" y="98" class="stt-svg__node">.respondingWith(…)</text>
+                  <text x="323" y="118" class="stt-svg__nodesub">hand-authored, inline or file</text>
+                </g>
+                <g class="stt-node">
+                  <rect x="496" y="78" width="150" height="56" rx="12"/>
+                  <text x="571" y="111" class="stt-svg__node">ChatModel (stub)</text>
+                </g>
+
+                <g class="stt-badge stt-badge--fast">
+                  <rect x="718" y="84" width="182" height="44" rx="18"/>
+                  <text x="809" y="112" class="stt-svg__badge">0 network calls</text>
+                </g>
+
+                <circle r="7" class="stt-pulse stt-pulse--stub" cx="0" cy="106"/>
+              </svg>
+            </div>
+            <p class="stt-demo__proves">
+              <strong>What this proves:</strong> a stub never touches the network or a
+              fixture file — the exact scenario you wrote is what comes back, every time —
+              <a href="https://github.com/rifatcakir/spring-ai-test-tools-example/blob/main/src/test/java/com/example/vcrdemo/StubbingErrorScenariosTest.java" target="_blank" rel="noopener"><code>StubbingErrorScenariosTest</code></a>.
+            </p>
+          </div>
+
+          <!-- ============ Panel 3: Tool Isolation ============ -->
+          <div class="stt-demo__panel" data-panel="3">
+            <div class="stt-diagram">
+              <svg viewBox="0 0 940 330" class="stt-svg" role="img"
+                   aria-label="On record, the model calls a tool and the real Tool method runs. On replay, the model calls the same tool but the real method is bypassed -- the recorded result is injected instead, so side effects never happen twice.">
+                <defs>
+                  <marker id="sttArrow3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M0 0 L10 5 L0 10 z" class="stt-svg__arrowhead"/>
+                  </marker>
+                </defs>
+
+                <text x="0" y="26" class="stt-svg__lane">RECORD</text>
+                <text x="0" y="46" class="stt-svg__lanesub">real @Tool method runs once</text>
+
+                <line x1="150" y1="100" x2="236" y2="100" class="stt-svg__line" marker-end="url(#sttArrow3)"/>
+                <line x1="366" y1="100" x2="452" y2="100" class="stt-svg__line" marker-end="url(#sttArrow3)"/>
+
+                <g class="stt-node">
+                  <rect x="20" y="72" width="130" height="56" rx="12"/>
+                  <text x="85" y="105" class="stt-svg__node">Your test</text>
+                </g>
+                <g class="stt-node">
+                  <rect x="236" y="72" width="130" height="56" rx="12"/>
+                  <text x="301" y="105" class="stt-svg__node">ChatClient</text>
+                </g>
+                <g class="stt-node stt-node--live">
+                  <rect x="452" y="72" width="150" height="56" rx="12"/>
+                  <text x="527" y="98" class="stt-svg__node">Real @Tool</text>
+                  <text x="527" y="116" class="stt-svg__nodesub">side effect fires</text>
+                </g>
+
+                <path d="M602 100 C 690 100, 700 130, 742 156" class="stt-svg__line stt-svg__line--dash stt-write" marker-end="url(#sttArrow3)"/>
+                <text x="666" y="122" class="stt-svg__edge">writes</text>
+                <circle r="7" class="stt-pulse stt-pulse--a" cx="0" cy="100"/>
+
+                <g class="stt-node stt-node--cassette">
+                  <rect x="742" y="128" width="178" height="74" rx="14"/>
+                  <text x="831" y="158" class="stt-svg__node">tool-cassette.json</text>
+                  <text x="831" y="180" class="stt-svg__nodesub">name + arguments keyed</text>
+                </g>
+
+                <text x="0" y="196" class="stt-svg__lane">REPLAY</text>
+                <text x="0" y="214" class="stt-svg__lanesub">real method never runs</text>
+
+                <line x1="150" y1="254" x2="236" y2="254" class="stt-svg__line" marker-end="url(#sttArrow3)"/>
+                <line x1="366" y1="254" x2="440" y2="254" class="stt-svg__line stt-svg__line--dash" marker-end="url(#sttArrow3)"/>
+
+                <g class="stt-node">
+                  <rect x="20" y="226" width="130" height="56" rx="12"/>
+                  <text x="85" y="259" class="stt-svg__node">Your test</text>
+                </g>
+                <g class="stt-node">
+                  <rect x="236" y="226" width="130" height="56" rx="12"/>
+                  <text x="301" y="259" class="stt-svg__node">ChatClient</text>
+                </g>
+                <g class="stt-node stt-node--bypassed">
+                  <rect x="440" y="226" width="150" height="56" rx="12"/>
+                  <text x="515" y="253" class="stt-svg__node stt-svg__node--strike">@Tool</text>
+                  <text x="515" y="271" class="stt-svg__nodesub">bypassed</text>
+                </g>
+
+                <path d="M742 165 C 700 200, 660 224, 600 240" class="stt-svg__line stt-svg__line--solid stt-read" marker-end="url(#sttArrow3)"/>
+                <text x="700" y="205" class="stt-svg__edge">injects result</text>
+
+                <g class="stt-badge stt-badge--fast">
+                  <rect x="610" y="262" width="150" height="30" rx="15"/>
+                  <text x="685" y="282" class="stt-svg__badge">0 side effects</text>
+                </g>
+
+                <circle r="7" class="stt-pulse stt-pulse--b" cx="0" cy="254"/>
+              </svg>
+            </div>
+            <p class="stt-demo__proves">
+              <strong>What this proves:</strong> the real <code>@Tool</code> method runs
+              exactly once — on the call that records it — and zero times on an identical
+              replay, full isolation, by default —
+              <a href="https://github.com/rifatcakir/spring-ai-test-tools/blob/main/src/test/java/io/github/rifatcakir/springai/testtools/recorder/e2e/OllamaToolIsolationEndToEndTests.java" target="_blank" rel="noopener"><code>OllamaToolIsolationEndToEndTests</code></a>.
+            </p>
+          </div>
+
+          <!-- ============ Panel 4: Embedding Replay ============ -->
+          <div class="stt-demo__panel" data-panel="4">
+            <div class="stt-diagram">
+              <svg viewBox="0 0 940 330" class="stt-svg" role="img"
+                   aria-label="On record, EmbeddingModel calls a real embedding model and the vector is written to its own cassette. On replay, the exact same vector is returned with no network call.">
+                <defs>
+                  <marker id="sttArrow4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M0 0 L10 5 L0 10 z" class="stt-svg__arrowhead"/>
+                  </marker>
+                </defs>
+
+                <text x="0" y="26" class="stt-svg__lane">FIRST RUN</text>
+                <text x="0" y="46" class="stt-svg__lanesub">real embedding call</text>
+
+                <line x1="150" y1="100" x2="236" y2="100" class="stt-svg__line" marker-end="url(#sttArrow4)"/>
+                <line x1="366" y1="100" x2="452" y2="100" class="stt-svg__line" marker-end="url(#sttArrow4)"/>
+
+                <g class="stt-node">
+                  <rect x="20" y="72" width="130" height="56" rx="12"/>
+                  <text x="85" y="105" class="stt-svg__node">Your test</text>
+                </g>
+                <g class="stt-node">
+                  <rect x="236" y="72" width="130" height="56" rx="12"/>
+                  <text x="301" y="105" class="stt-svg__node">EmbeddingModel</text>
+                </g>
+                <g class="stt-node stt-node--live">
+                  <rect x="452" y="72" width="150" height="56" rx="12"/>
+                  <text x="527" y="98" class="stt-svg__node">Real model</text>
+                  <text x="527" y="116" class="stt-svg__nodesub">float[2048]</text>
+                </g>
+
+                <path d="M602 100 C 690 100, 700 130, 742 156" class="stt-svg__line stt-svg__line--dash stt-write" marker-end="url(#sttArrow4)"/>
+                <text x="666" y="122" class="stt-svg__edge">writes</text>
+                <circle r="7" class="stt-pulse stt-pulse--a" cx="0" cy="100"/>
+
+                <g class="stt-node stt-node--cassette">
+                  <rect x="742" y="128" width="178" height="74" rx="14"/>
+                  <text x="831" y="158" class="stt-svg__node">embedding-cassette</text>
+                  <text x="831" y="180" class="stt-svg__nodesub">full vector, not a hash</text>
+                </g>
+
+                <text x="0" y="196" class="stt-svg__lane">EVERY RUN AFTER</text>
+                <text x="0" y="214" class="stt-svg__lanesub">byte-for-byte identical vector</text>
+
+                <line x1="150" y1="254" x2="236" y2="254" class="stt-svg__line" marker-end="url(#sttArrow4)"/>
+
+                <g class="stt-node">
+                  <rect x="20" y="226" width="130" height="56" rx="12"/>
+                  <text x="85" y="259" class="stt-svg__node">Your test</text>
+                </g>
+                <g class="stt-node">
+                  <rect x="236" y="226" width="130" height="56" rx="12"/>
+                  <text x="301" y="259" class="stt-svg__node">EmbeddingModel</text>
+                </g>
+
+                <path d="M366 254 C 560 254, 650 220, 742 192" class="stt-svg__line stt-svg__line--solid stt-read" marker-end="url(#sttArrow4)"/>
+                <text x="546" y="232" class="stt-svg__edge">reads</text>
+
+                <g class="stt-badge stt-badge--fast">
+                  <rect x="590" y="262" width="150" height="30" rx="15"/>
+                  <text x="665" y="282" class="stt-svg__badge">exact vector</text>
+                </g>
+
+                <circle r="7" class="stt-pulse stt-pulse--b" cx="0" cy="254"/>
+              </svg>
+            </div>
+            <p class="stt-demo__proves">
+              <strong>What this proves:</strong> a replayed embedding is
+              <code>assertThat(replayed).isEqualTo(recorded)</code> exact, not
+              "same length" or "close enough" —
+              <a href="https://github.com/rifatcakir/spring-ai-test-tools/blob/main/src/test/java/io/github/rifatcakir/springai/testtools/recorder/e2e/OllamaEmbeddingEndToEndTests.java" target="_blank" rel="noopener"><code>OllamaEmbeddingEndToEndTests</code></a>.
+            </p>
+          </div>
+
+          <!-- ============ Panel 5: Evaluator Testing ============ -->
+          <div class="stt-demo__panel" data-panel="5">
+            <div class="stt-diagram">
+              <svg viewBox="0 0 940 330" class="stt-svg" role="img"
+                   aria-label="RelevancyEvaluator makes an ordinary ChatClient judge call, which records to a cassette exactly like any other call. On replay, the same verdict comes back deterministically.">
+                <defs>
+                  <marker id="sttArrow5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M0 0 L10 5 L0 10 z" class="stt-svg__arrowhead"/>
+                  </marker>
+                </defs>
+
+                <text x="0" y="26" class="stt-svg__lane">FIRST RUN</text>
+                <text x="0" y="46" class="stt-svg__lanesub">real judge model call</text>
+
+                <line x1="150" y1="100" x2="236" y2="100" class="stt-svg__line" marker-end="url(#sttArrow5)"/>
+                <line x1="366" y1="100" x2="452" y2="100" class="stt-svg__line" marker-end="url(#sttArrow5)"/>
+
+                <g class="stt-node">
+                  <rect x="20" y="72" width="130" height="56" rx="12"/>
+                  <text x="85" y="105" class="stt-svg__node">Your test</text>
+                </g>
+                <g class="stt-node">
+                  <rect x="236" y="72" width="130" height="56" rx="12"/>
+                  <text x="301" y="98" class="stt-svg__node">Relevancy-</text>
+                  <text x="301" y="114" class="stt-svg__node">Evaluator</text>
+                </g>
+                <g class="stt-node stt-node--live">
+                  <rect x="452" y="72" width="150" height="56" rx="12"/>
+                  <text x="527" y="98" class="stt-svg__node">Real judge</text>
+                  <text x="527" y="116" class="stt-svg__nodesub">same ChatClient path</text>
+                </g>
+
+                <path d="M602 100 C 690 100, 700 130, 742 156" class="stt-svg__line stt-svg__line--dash stt-write" marker-end="url(#sttArrow5)"/>
+                <text x="666" y="122" class="stt-svg__edge">writes</text>
+                <circle r="7" class="stt-pulse stt-pulse--a" cx="0" cy="100"/>
+
+                <g class="stt-node stt-node--cassette">
+                  <rect x="742" y="128" width="178" height="74" rx="14"/>
+                  <text x="831" y="158" class="stt-svg__node">cassette.json</text>
+                  <text x="831" y="180" class="stt-svg__nodesub">no new fixture type</text>
+                </g>
+
+                <text x="0" y="196" class="stt-svg__lane">EVERY CI RUN</text>
+                <text x="0" y="214" class="stt-svg__lanesub">deterministic verdict, not live</text>
+
+                <line x1="150" y1="254" x2="236" y2="254" class="stt-svg__line" marker-end="url(#sttArrow5)"/>
+
+                <g class="stt-node">
+                  <rect x="20" y="226" width="130" height="56" rx="12"/>
+                  <text x="85" y="259" class="stt-svg__node">Your test</text>
+                </g>
+                <g class="stt-node">
+                  <rect x="236" y="226" width="130" height="56" rx="12"/>
+                  <text x="301" y="251" class="stt-svg__node">Relevancy-</text>
+                  <text x="301" y="267" class="stt-svg__node">Evaluator</text>
+                </g>
+
+                <path d="M366 254 C 560 254, 650 220, 742 192" class="stt-svg__line stt-svg__line--solid stt-read" marker-end="url(#sttArrow5)"/>
+                <text x="546" y="232" class="stt-svg__edge">reads</text>
+
+                <g class="stt-badge stt-badge--fast">
+                  <rect x="590" y="262" width="150" height="30" rx="15"/>
+                  <text x="665" y="282" class="stt-svg__badge">pass, every time</text>
+                </g>
+
+                <circle r="7" class="stt-pulse stt-pulse--b" cx="0" cy="254"/>
+              </svg>
+            </div>
+            <p class="stt-demo__proves">
+              <strong>What this proves:</strong> the same judge verdict replays
+              deterministically in CI — a frozen regression check, not a live evaluation —
+              and a genuinely different judged answer still reaches the judge model again —
+              <a href="https://github.com/rifatcakir/spring-ai-test-tools/blob/main/src/test/java/io/github/rifatcakir/springai/testtools/recorder/e2e/OllamaEvaluatorEndToEndTests.java" target="_blank" rel="noopener"><code>OllamaEvaluatorEndToEndTests</code></a>.
+            </p>
+          </div>
+
+          <!-- ============ Panel 6: Streaming ============ -->
+          <div class="stt-demo__panel" data-panel="6">
+            <div class="stt-diagram">
+              <svg viewBox="0 0 940 330" class="stt-svg" role="img"
+                   aria-label="On record, a real streamed response is captured chunk by chunk. On replay, the exact same chunk sequence is emitted, in order, with no artificial delay.">
+                <defs>
+                  <marker id="sttArrow6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M0 0 L10 5 L0 10 z" class="stt-svg__arrowhead"/>
+                  </marker>
+                </defs>
+
+                <text x="0" y="26" class="stt-svg__lane">FIRST RUN</text>
+                <text x="0" y="46" class="stt-svg__lanesub">chunks arrive one by one</text>
+
+                <line x1="150" y1="100" x2="236" y2="100" class="stt-svg__line" marker-end="url(#sttArrow6)"/>
+                <line x1="366" y1="100" x2="452" y2="100" class="stt-svg__line" marker-end="url(#sttArrow6)"/>
+
+                <g class="stt-node">
+                  <rect x="20" y="72" width="130" height="56" rx="12"/>
+                  <text x="85" y="105" class="stt-svg__node">Your test</text>
+                </g>
+                <g class="stt-node">
+                  <rect x="236" y="72" width="130" height="56" rx="12"/>
+                  <text x="301" y="105" class="stt-svg__node">.stream()</text>
+                </g>
+                <g class="stt-node stt-node--live">
+                  <rect x="452" y="72" width="150" height="56" rx="12"/>
+                  <text x="527" y="98" class="stt-svg__node">Real LLM</text>
+                  <text x="527" y="116" class="stt-svg__nodesub">Hel · lo · !</text>
+                </g>
+
+                <path d="M602 100 C 690 100, 700 130, 742 156" class="stt-svg__line stt-svg__line--dash stt-write" marker-end="url(#sttArrow6)"/>
+                <text x="666" y="122" class="stt-svg__edge">writes</text>
+                <circle r="7" class="stt-pulse stt-pulse--a" cx="0" cy="100"/>
+
+                <g class="stt-node stt-node--cassette">
+                  <rect x="742" y="128" width="178" height="74" rx="14"/>
+                  <text x="831" y="158" class="stt-svg__node">cassette.json</text>
+                  <text x="831" y="180" class="stt-svg__nodesub">raw chunk sequence</text>
+                </g>
+
+                <text x="0" y="196" class="stt-svg__lane">EVERY RUN AFTER</text>
+                <text x="0" y="214" class="stt-svg__lanesub">same chunks, same order, no delay</text>
+
+                <line x1="150" y1="254" x2="236" y2="254" class="stt-svg__line" marker-end="url(#sttArrow6)"/>
+
+                <g class="stt-node">
+                  <rect x="20" y="226" width="130" height="56" rx="12"/>
+                  <text x="85" y="259" class="stt-svg__node">Your test</text>
+                </g>
+                <g class="stt-node">
+                  <rect x="236" y="226" width="130" height="56" rx="12"/>
+                  <text x="301" y="259" class="stt-svg__node">.stream()</text>
+                </g>
+
+                <path d="M366 254 C 560 254, 650 220, 742 192" class="stt-svg__line stt-svg__line--solid stt-read" marker-end="url(#sttArrow6)"/>
+                <text x="546" y="232" class="stt-svg__edge">reads</text>
+
+                <g class="stt-badge stt-badge--fast">
+                  <rect x="590" y="262" width="150" height="30" rx="15"/>
+                  <text x="665" y="282" class="stt-svg__badge">same chunks</text>
+                </g>
+
+                <circle r="7" class="stt-pulse stt-pulse--b" cx="0" cy="254"/>
+              </svg>
+            </div>
+            <p class="stt-demo__proves">
+              <strong>What this proves:</strong> a replayed stream emits the exact same
+              chunk-for-chunk sequence — tool calls included — asserted chunk-by-chunk, not
+              just on the aggregated text —
+              <a href="https://github.com/rifatcakir/spring-ai-test-tools/blob/main/src/test/java/io/github/rifatcakir/springai/testtools/recorder/e2e/OllamaStreamingEndToEndTests.java" target="_blank" rel="noopener"><code>OllamaStreamingEndToEndTests</code></a>.
+            </p>
+          </div>
+
+        </div>
       </div>
     </div>
   </section>

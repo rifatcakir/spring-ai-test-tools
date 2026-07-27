@@ -576,6 +576,19 @@
 	.stt-demo__panel {
 		animation: none !important;
 	}
+
+	/* landing.js already refuses to run under reduced motion; these rules are
+	   a CSS-only backstop so the terminal is fully static even if script runs
+	   anyway (or a future edit forgets the matchMedia guard). */
+	.stt-demo-terminal__cursor {
+		animation: none;
+		opacity: 0;
+	}
+
+	.stt-demo-terminal__result {
+		transition: none;
+		opacity: 1 !important;
+	}
 }
 
 .stt-demo__proves {
@@ -592,9 +605,12 @@
 }
 
 /* Per-tab terminal panel: a static, already-rendered readout of that tab's own
-   real test scenario -- no per-line typing. The whole panel (diagram +
-   terminal) already gets one shared, subtle fade-in from .stt-demo__panel
-   when a tab is selected; that's the only motion here. */
+   real test scenario. This is also the complete no-JS/no-motion experience --
+   the command line already holds its full text and the result is already
+   visible, so nothing above this comment depends on script. landing.js (see
+   the inline script at the end of this template) progressively enhances it:
+   typing the command, revealing the result, and auto-advancing between tabs,
+   skipping all of that under prefers-reduced-motion. */
 .stt-demo-terminal {
 	margin-top: clamp(18px, 2.4vw, 26px);
 	border-radius: var(--stt-radius);
@@ -619,6 +635,31 @@
 	font-size: 13.5px;
 	line-height: 1.65;
 	color: #c9d6e2;
+}
+
+.stt-demo-terminal__cmdline {
+	margin: 0 0 10px;
+	color: #c9d6e2;
+}
+
+.stt-demo-terminal__cursor {
+	display: inline-block;
+	margin-left: 1px;
+	color: #7ee08a;
+	animation: stt-cursor-blink 1s steps(1) infinite;
+}
+
+.stt-demo-terminal.is-typing .stt-demo-terminal__cursor {
+	animation: stt-cursor-blink 0.85s steps(1) infinite;
+}
+
+@keyframes stt-cursor-blink {
+	0%, 49%  { opacity: 1; }
+	50%, 100% { opacity: 0; }
+}
+
+.stt-demo-terminal__result {
+	transition: opacity 0.2s ease;
 }
 
 .stt-demo-terminal__label {

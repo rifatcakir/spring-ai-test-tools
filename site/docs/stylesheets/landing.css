@@ -254,20 +254,6 @@
 	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
-.stt-terminal__body {
-	margin: 0;
-	padding: 18px 18px 20px;
-	font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-	font-size: 13px;
-	line-height: 1.62;
-	color: #c9d6e2;
-	white-space: pre;
-	overflow-x: auto;
-}
-
-.stt-terminal__body .t-grn { color: #7ee08a; }
-.stt-terminal__body .t-dim { color: #7b8b9c; }
-
 /* --------------------------- 2. Sections -------------------------------- */
 
 .stt-section {
@@ -605,9 +591,10 @@
 	font-size: 0.92em;
 }
 
-/* Per-tab terminal panel: a small, static "what actually happened" readout that
-   sits between the animated diagram and the proof line. No typing animation --
-   the diagram already carries the motion; this just needs to be read. */
+/* Per-tab terminal panel: a static, already-rendered readout of that tab's own
+   real test scenario -- no per-line typing. The whole panel (diagram +
+   terminal) already gets one shared, subtle fade-in from .stt-demo__panel
+   when a tab is selected; that's the only motion here. */
 .stt-demo-terminal {
 	margin-top: clamp(18px, 2.4vw, 26px);
 	border-radius: var(--stt-radius);
@@ -634,16 +621,8 @@
 	color: #c9d6e2;
 }
 
-.stt-demo-terminal__group {
-	margin-bottom: 16px;
-}
-
-.stt-demo-terminal__group:last-of-type {
-	margin-bottom: 18px;
-}
-
 .stt-demo-terminal__label {
-	margin: 0 0 6px;
+	margin: 0 0 2px;
 	font-weight: 760;
 	letter-spacing: 0.06em;
 	font-size: 11.5px;
@@ -663,7 +642,7 @@
 }
 
 .stt-demo-terminal__line {
-	margin: 0 0 4px;
+	margin: 0;
 	color: #7b8b9c;
 }
 
@@ -681,8 +660,16 @@
 	color: #7ee08a;
 }
 
+.stt-demo-terminal__line--vcr {
+	color: #f0a91e;
+	font-weight: 620;
+}
+
+.stt-demo-terminal__body .t-grn { color: #7ee08a; }
+.stt-demo-terminal__body .t-dim { color: #7b8b9c; }
+
 .stt-demo-terminal__summary {
-	margin-top: 4px;
+	margin-top: 8px;
 	padding: 14px 16px;
 	border-radius: 10px;
 	background: rgba(109, 179, 63, 0.12);

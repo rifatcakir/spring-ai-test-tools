@@ -51,11 +51,18 @@
             <span class="stt-dot stt-dot--r"></span><span class="stt-dot stt-dot--y"></span><span class="stt-dot stt-dot--g"></span>
             <span class="stt-terminal__title">mvn test</span>
           </div>
-          <pre class="stt-terminal__body"><span class="t-dim">$</span> mvn test
-
-<span class="t-grn">✔ Tests run: 21, Failures: 0, Errors: 0</span>
-<span class="t-grn">BUILD SUCCESS</span>   <span class="t-dim">Total time: 11.5 s</span>
-<span class="t-dim">0 network calls · 0 tokens · fully offline</span></pre>
+          <div class="stt-demo-terminal__body">
+            <div class="stt-demo-terminal__group">
+              <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ 21 tests passed</p>
+              <p class="stt-demo-terminal__line stt-demo-terminal__line--dim">record once → replay every run after</p>
+            </div>
+            <div class="stt-demo-terminal__summary">
+              <p class="stt-demo-terminal__summary-title">✔ Summary Report</p>
+              <p class="stt-demo-terminal__summary-row"><span>AI execution</span><span class="stt-demo-terminal__summary-val">~1 ms per call (replayed)</span></p>
+              <p class="stt-demo-terminal__summary-row"><span>Tokens used</span><span class="stt-demo-terminal__summary-val">0</span></p>
+              <p class="stt-demo-terminal__summary-row"><span>Network</span><span class="stt-demo-terminal__summary-val">offline</span></p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -181,19 +188,19 @@
             <div class="stt-demo-terminal">
               <div class="stt-demo-terminal__bar">
                 <span class="stt-dot stt-dot--r"></span><span class="stt-dot stt-dot--y"></span><span class="stt-dot stt-dot--g"></span>
-                <span class="stt-terminal__title">mvn test</span>
+                <span class="stt-terminal__title">OllamaEndToEndTests</span>
               </div>
               <div class="stt-demo-terminal__body">
-                <div class="stt-demo-terminal__group">
-                  <p class="stt-demo-terminal__label">RECORD <span>— one time only</span></p>
-                  <p class="stt-demo-terminal__line stt-demo-terminal__line--dim">reached a real model … ~46.7 s (cold call, model load included)</p>
-                  <p class="stt-demo-terminal__line stt-demo-terminal__line--dim">wrote 1 fixture to <code>src/test/resources/llm-cache/</code></p>
-                </div>
-                <div class="stt-demo-terminal__group">
-                  <p class="stt-demo-terminal__label stt-demo-terminal__label--replay">REPLAY <span>— every run after</span></p>
-                  <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ read fixture from disk … 0.8 ms</p>
-                  <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ same assertion, same answer, zero network</p>
-                </div>
+                <p class="stt-demo-terminal__line"><span class="t-dim">$</span> mvn test -Dtest=OllamaEndToEndTests</p>
+                <p class="stt-demo-terminal__label">RECORD <span>— one time only</span></p>
+                <p class="stt-demo-terminal__line stt-demo-terminal__line--dim">reached a real model … ~46.7 s (cold call, model load included)</p>
+                <p class="stt-demo-terminal__line stt-demo-terminal__line--dim">wrote 1 fixture to <code>src/test/resources/llm-cache/</code></p>
+                <p class="stt-demo-terminal__line stt-demo-terminal__line--vcr">[VCR] ▸ REPLAY_ONLY: fixture found on disk</p>
+                <p class="stt-demo-terminal__label stt-demo-terminal__label--replay">REPLAY <span>— every run after</span></p>
+                <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ read fixture from disk … 0.8 ms</p>
+                <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ same assertion, same answer, zero network</p>
+                <p class="stt-demo-terminal__line t-grn">✔ Tests run: 1, Failures: 0</p>
+                <p class="stt-demo-terminal__line t-grn">BUILD SUCCESS</p>
                 <div class="stt-demo-terminal__summary">
                   <p class="stt-demo-terminal__summary-title">✔ Summary Report</p>
                   <p class="stt-demo-terminal__summary-row"><span>AI execution</span><span class="stt-demo-terminal__summary-val">0.8 ms (replayed)</span></p>
@@ -253,14 +260,16 @@
             <div class="stt-demo-terminal">
               <div class="stt-demo-terminal__bar">
                 <span class="stt-dot stt-dot--r"></span><span class="stt-dot stt-dot--y"></span><span class="stt-dot stt-dot--g"></span>
-                <span class="stt-terminal__title">mvn test</span>
+                <span class="stt-terminal__title">StubbingErrorScenariosTest</span>
               </div>
               <div class="stt-demo-terminal__body">
-                <div class="stt-demo-terminal__group">
-                  <p class="stt-demo-terminal__label">YOUR TEST</p>
-                  <p class="stt-demo-terminal__line stt-demo-terminal__line--dim"><code>VcrStubs.chatModel().respondingWith("Yes, shipped yesterday.")</code></p>
-                  <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ ChatModel returns exactly that — no cassette, no lookup, no network</p>
-                </div>
+                <p class="stt-demo-terminal__line"><span class="t-dim">$</span> mvn test -Dtest=StubbingErrorScenariosTest</p>
+                <p class="stt-demo-terminal__label">YOUR TEST</p>
+                <p class="stt-demo-terminal__line stt-demo-terminal__line--dim"><code>VcrStubs.chatModel().respondingWith("Yes, shipped yesterday.")</code></p>
+                <p class="stt-demo-terminal__line stt-demo-terminal__line--vcr">[VCR] ▸ STUB: no cassette, no lookup</p>
+                <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ ChatModel returns exactly that — zero network</p>
+                <p class="stt-demo-terminal__line t-grn">✔ Tests run: 1, Failures: 0</p>
+                <p class="stt-demo-terminal__line t-grn">BUILD SUCCESS</p>
                 <div class="stt-demo-terminal__summary">
                   <p class="stt-demo-terminal__summary-title">✔ Summary Report</p>
                   <p class="stt-demo-terminal__summary-row"><span>AI execution</span><span class="stt-demo-terminal__summary-val">none — nothing to replay</span></p>
@@ -352,20 +361,19 @@
             <div class="stt-demo-terminal">
               <div class="stt-demo-terminal__bar">
                 <span class="stt-dot stt-dot--r"></span><span class="stt-dot stt-dot--y"></span><span class="stt-dot stt-dot--g"></span>
-                <span class="stt-terminal__title">mvn test</span>
+                <span class="stt-terminal__title">OllamaToolIsolationEndToEndTests</span>
               </div>
               <div class="stt-demo-terminal__body">
-                <div class="stt-demo-terminal__group">
-                  <p class="stt-demo-terminal__label">MODEL TURN</p>
-                  <p class="stt-demo-terminal__line stt-demo-terminal__line--dim">ChatClient asks about order <code>ORD-4471</code></p>
-                  <p class="stt-demo-terminal__line stt-demo-terminal__line--dim">model requests: <code>getOrderStatus("ORD-4471")</code></p>
-                </div>
-                <div class="stt-demo-terminal__group">
-                  <p class="stt-demo-terminal__label stt-demo-terminal__label--replay">REPLAY</p>
-                  <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">🛡 intercepted — recorded result injected</p>
-                  <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ real <code>@Tool</code> method NOT invoked</p>
-                  <p class="stt-demo-terminal__line stt-demo-terminal__line--dim">→ "shipped, arriving in 2 days"</p>
-                </div>
+                <p class="stt-demo-terminal__line"><span class="t-dim">$</span> mvn test -Dtest=OllamaToolIsolationEndToEndTests</p>
+                <p class="stt-demo-terminal__label">MODEL TURN</p>
+                <p class="stt-demo-terminal__line stt-demo-terminal__line--dim">ChatClient asks about order <code>ORD-4471</code></p>
+                <p class="stt-demo-terminal__line stt-demo-terminal__line--dim">model requests: <code>getOrderStatus("ORD-4471")</code></p>
+                <p class="stt-demo-terminal__line stt-demo-terminal__line--vcr">[VCR] 🛡 TOOL ISOLATION TRIGGERED</p>
+                <p class="stt-demo-terminal__line stt-demo-terminal__line--dim">intercepted <code>getOrderStatus</code> — injecting recorded output…</p>
+                <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ REPLAY SUCCESS: real <code>@Tool</code> method NOT invoked</p>
+                <p class="stt-demo-terminal__line stt-demo-terminal__line--dim">→ "shipped, arriving in 2 days"</p>
+                <p class="stt-demo-terminal__line t-grn">✔ Tests run: 1, Failures: 0</p>
+                <p class="stt-demo-terminal__line t-grn">BUILD SUCCESS</p>
                 <div class="stt-demo-terminal__summary">
                   <p class="stt-demo-terminal__summary-title">✔ Summary Report</p>
                   <p class="stt-demo-terminal__summary-row"><span>AI execution</span><span class="stt-demo-terminal__summary-val">~30 ms (both turns replayed, was 54.2 s live)</span></p>
@@ -452,19 +460,19 @@
             <div class="stt-demo-terminal">
               <div class="stt-demo-terminal__bar">
                 <span class="stt-dot stt-dot--r"></span><span class="stt-dot stt-dot--y"></span><span class="stt-dot stt-dot--g"></span>
-                <span class="stt-terminal__title">mvn test</span>
+                <span class="stt-terminal__title">OllamaEmbeddingEndToEndTests</span>
               </div>
               <div class="stt-demo-terminal__body">
-                <div class="stt-demo-terminal__group">
-                  <p class="stt-demo-terminal__label">RECORD <span>— one time only</span></p>
-                  <p class="stt-demo-terminal__line stt-demo-terminal__line--dim"><code>embeddingModel.embed("Istanbul is the largest city…")</code></p>
-                  <p class="stt-demo-terminal__line stt-demo-terminal__line--dim">real embedding call → 2048-dim vector → written to fixture</p>
-                </div>
-                <div class="stt-demo-terminal__group">
-                  <p class="stt-demo-terminal__label stt-demo-terminal__label--replay">REPLAY <span>— every run after</span></p>
-                  <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ identical vector read from disk … 1.0 ms</p>
-                  <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ <code>assertThat(replayed).isEqualTo(recorded)</code></p>
-                </div>
+                <p class="stt-demo-terminal__line"><span class="t-dim">$</span> mvn test -Dtest=OllamaEmbeddingEndToEndTests</p>
+                <p class="stt-demo-terminal__label">RECORD <span>— one time only</span></p>
+                <p class="stt-demo-terminal__line stt-demo-terminal__line--dim"><code>embeddingModel.embed("Istanbul is the largest city…")</code></p>
+                <p class="stt-demo-terminal__line stt-demo-terminal__line--dim">real embedding call → 2048-dim vector → written to fixture</p>
+                <p class="stt-demo-terminal__line stt-demo-terminal__line--vcr">[VCR] ▸ REPLAY_ONLY: fixture found on disk</p>
+                <p class="stt-demo-terminal__label stt-demo-terminal__label--replay">REPLAY <span>— every run after</span></p>
+                <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ identical vector read from disk … 1.0 ms</p>
+                <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ <code>assertThat(replayed).isEqualTo(recorded)</code></p>
+                <p class="stt-demo-terminal__line t-grn">✔ Tests run: 1, Failures: 0</p>
+                <p class="stt-demo-terminal__line t-grn">BUILD SUCCESS</p>
                 <div class="stt-demo-terminal__summary">
                   <p class="stt-demo-terminal__summary-title">✔ Summary Report</p>
                   <p class="stt-demo-terminal__summary-row"><span>AI execution</span><span class="stt-demo-terminal__summary-val">1.0 ms (replayed)</span></p>
@@ -553,19 +561,19 @@
             <div class="stt-demo-terminal">
               <div class="stt-demo-terminal__bar">
                 <span class="stt-dot stt-dot--r"></span><span class="stt-dot stt-dot--y"></span><span class="stt-dot stt-dot--g"></span>
-                <span class="stt-terminal__title">mvn test</span>
+                <span class="stt-terminal__title">OllamaEvaluatorEndToEndTests</span>
               </div>
               <div class="stt-demo-terminal__body">
-                <div class="stt-demo-terminal__group">
-                  <p class="stt-demo-terminal__label">JUDGE CALL <span>— record once</span></p>
-                  <p class="stt-demo-terminal__line stt-demo-terminal__line--dim">RelevancyEvaluator asks a judge model to score the response</p>
-                  <p class="stt-demo-terminal__line stt-demo-terminal__line--dim">real judge call → verdict written to fixture</p>
-                </div>
-                <div class="stt-demo-terminal__group">
-                  <p class="stt-demo-terminal__label stt-demo-terminal__label--replay">REPLAY <span>— every CI run</span></p>
-                  <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ same verdict read from disk … 1.3 ms</p>
-                  <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ deterministic — not a live judgment</p>
-                </div>
+                <p class="stt-demo-terminal__line"><span class="t-dim">$</span> mvn test -Dtest=OllamaEvaluatorEndToEndTests</p>
+                <p class="stt-demo-terminal__label">JUDGE CALL <span>— record once</span></p>
+                <p class="stt-demo-terminal__line stt-demo-terminal__line--dim">RelevancyEvaluator asks a judge model to score the response</p>
+                <p class="stt-demo-terminal__line stt-demo-terminal__line--dim">real judge call → verdict written to fixture</p>
+                <p class="stt-demo-terminal__line stt-demo-terminal__line--vcr">[VCR] ▸ REPLAY_ONLY: fixture found on disk</p>
+                <p class="stt-demo-terminal__label stt-demo-terminal__label--replay">REPLAY <span>— every CI run</span></p>
+                <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ same verdict read from disk … 1.3 ms</p>
+                <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ deterministic — not a live judgment</p>
+                <p class="stt-demo-terminal__line t-grn">✔ Tests run: 1, Failures: 0</p>
+                <p class="stt-demo-terminal__line t-grn">BUILD SUCCESS</p>
                 <div class="stt-demo-terminal__summary">
                   <p class="stt-demo-terminal__summary-title">✔ Summary Report</p>
                   <p class="stt-demo-terminal__summary-row"><span>AI execution</span><span class="stt-demo-terminal__summary-val">1.3 ms (replayed)</span></p>
@@ -652,19 +660,19 @@
             <div class="stt-demo-terminal">
               <div class="stt-demo-terminal__bar">
                 <span class="stt-dot stt-dot--r"></span><span class="stt-dot stt-dot--y"></span><span class="stt-dot stt-dot--g"></span>
-                <span class="stt-terminal__title">mvn test</span>
+                <span class="stt-terminal__title">OllamaStreamingEndToEndTests</span>
               </div>
               <div class="stt-demo-terminal__body">
-                <div class="stt-demo-terminal__group">
-                  <p class="stt-demo-terminal__label">RECORD <span>— one time only</span></p>
-                  <p class="stt-demo-terminal__line stt-demo-terminal__line--dim"><code>chatClient…stream()</code> → chunks arrive one by one: "Yes" · "."</p>
-                  <p class="stt-demo-terminal__line stt-demo-terminal__line--dim">raw chunk sequence written to fixture</p>
-                </div>
-                <div class="stt-demo-terminal__group">
-                  <p class="stt-demo-terminal__label stt-demo-terminal__label--replay">REPLAY <span>— every run after</span></p>
-                  <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ same 2 chunks emitted, same order … 0.8 ms total</p>
-                  <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ no artificial delay between chunks</p>
-                </div>
+                <p class="stt-demo-terminal__line"><span class="t-dim">$</span> mvn test -Dtest=OllamaStreamingEndToEndTests</p>
+                <p class="stt-demo-terminal__label">RECORD <span>— one time only</span></p>
+                <p class="stt-demo-terminal__line stt-demo-terminal__line--dim"><code>chatClient…stream()</code> → chunks arrive one by one: "Yes" · "."</p>
+                <p class="stt-demo-terminal__line stt-demo-terminal__line--dim">raw chunk sequence written to fixture</p>
+                <p class="stt-demo-terminal__line stt-demo-terminal__line--vcr">[VCR] ▸ REPLAY_ONLY: fixture found on disk</p>
+                <p class="stt-demo-terminal__label stt-demo-terminal__label--replay">REPLAY <span>— every run after</span></p>
+                <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ same 2 chunks emitted, same order … 0.8 ms total</p>
+                <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ no artificial delay between chunks</p>
+                <p class="stt-demo-terminal__line t-grn">✔ Tests run: 1, Failures: 0</p>
+                <p class="stt-demo-terminal__line t-grn">BUILD SUCCESS</p>
                 <div class="stt-demo-terminal__summary">
                   <p class="stt-demo-terminal__summary-title">✔ Summary Report</p>
                   <p class="stt-demo-terminal__summary-row"><span>AI execution</span><span class="stt-demo-terminal__summary-val">0.8 ms (replayed)</span></p>

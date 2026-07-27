@@ -604,31 +604,14 @@
 	font-size: 0.92em;
 }
 
-/* Per-tab terminal panel: a static, already-rendered readout of that tab's own
-   real test scenario. This is also the complete no-JS/no-motion experience --
-   the command line already holds its full text and the result is already
-   visible, so nothing above this comment depends on script. landing.js (see
-   the inline script at the end of this template) progressively enhances it:
-   typing the command, revealing the result, and auto-advancing between tabs,
-   skipping all of that under prefers-reduced-motion. */
-.stt-demo-terminal {
-	margin-top: clamp(18px, 2.4vw, 26px);
-	border-radius: var(--stt-radius);
-	overflow: hidden;
-	background: var(--stt-code-bg);
-	border: 1px solid rgba(255, 255, 255, 0.09);
-	box-shadow: 0 14px 34px rgba(16, 21, 27, 0.16);
-}
-
-.stt-demo-terminal__bar {
-	display: flex;
-	align-items: center;
-	gap: 7px;
-	padding: 11px 15px;
-	background: rgba(255, 255, 255, 0.05);
-	border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-}
-
+/* Hero terminal content: a static, already-rendered readout of scenario 1 of
+   6, and also the complete no-JS/no-motion experience -- the command line
+   already holds its full text and the result is already visible, so nothing
+   here depends on script. The inline script at the end of this template
+   progressively enhances it: typing each scenario's command, revealing its
+   result, and cycling to the next of six, skipping all of that under
+   prefers-reduced-motion. Sits inside .stt-terminal (see above), which
+   supplies the outer chrome shared with the rest of the hero art. */
 .stt-demo-terminal__body {
 	padding: 18px 20px 20px;
 	font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
@@ -649,7 +632,7 @@
 	animation: stt-cursor-blink 1s steps(1) infinite;
 }
 
-.stt-demo-terminal.is-typing .stt-demo-terminal__cursor {
+.stt-terminal.is-typing .stt-demo-terminal__cursor {
 	animation: stt-cursor-blink 0.85s steps(1) infinite;
 }
 
@@ -660,26 +643,6 @@
 
 .stt-demo-terminal__result {
 	transition: opacity 0.2s ease;
-}
-
-.stt-demo-terminal__label {
-	margin: 0 0 2px;
-	font-weight: 760;
-	letter-spacing: 0.06em;
-	font-size: 11.5px;
-	color: #f0a91e;
-}
-
-.stt-demo-terminal__label--replay {
-	color: #7ee08a;
-}
-
-.stt-demo-terminal__label span {
-	margin-left: 6px;
-	font-weight: 450;
-	letter-spacing: normal;
-	color: #7b8b9c;
-	text-transform: none;
 }
 
 .stt-demo-terminal__line {
@@ -701,27 +664,12 @@
 	color: #7ee08a;
 }
 
-.stt-demo-terminal__line--vcr {
-	color: #f0a91e;
-	font-weight: 620;
-}
-
-.stt-demo-terminal__body .t-grn { color: #7ee08a; }
-.stt-demo-terminal__body .t-dim { color: #7b8b9c; }
-
 .stt-demo-terminal__summary {
 	margin-top: 8px;
 	padding: 14px 16px;
 	border-radius: 10px;
 	background: rgba(109, 179, 63, 0.12);
 	border: 1px solid rgba(109, 179, 63, 0.3);
-}
-
-.stt-demo-terminal__summary-title {
-	margin: 0 0 8px;
-	font-weight: 700;
-	color: #7ee08a;
-	font-size: 13px;
 }
 
 .stt-demo-terminal__summary-row {
@@ -738,15 +686,6 @@
 	color: #e3ecf3;
 	font-weight: 600;
 	text-align: right;
-}
-
-.stt-demo-terminal__summary-row--feature {
-	display: block;
-	margin-top: 8px;
-	padding-top: 8px;
-	border-top: 1px solid rgba(109, 179, 63, 0.25);
-	color: #e3ecf3;
-	font-weight: 620;
 }
 
 @media screen and (max-width: 700px) {

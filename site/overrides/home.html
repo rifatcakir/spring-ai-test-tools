@@ -559,47 +559,7 @@
     </div>
   </section>
 
-  <!-- ========================= 3. STAT ROW ============================= -->
-  <section class="stt-section">
-    <div class="stt-wrap">
-      <div class="stt-stats">
-        <div class="stt-stat">
-          <div class="stt-stat__num">0.8<span class="stt-stat__unit">ms</span></div>
-          <div class="stt-stat__label">Median replayed call<br><span class="stt-stat__was">was 2.9 – 4.1 s live</span></div>
-        </div>
-        <div class="stt-stat">
-          <div class="stt-stat__num">3,500<span class="stt-stat__unit">×</span></div>
-          <div class="stt-stat__label">Faster than a warm<br><span class="stt-stat__was">real model call</span></div>
-        </div>
-        <div class="stt-stat">
-          <div class="stt-stat__num"><span class="stt-stat__unit stt-stat__unit--pre">$</span>0</div>
-          <div class="stt-stat__label">Tokens per run<br><span class="stt-stat__was">on every replay, forever</span></div>
-        </div>
-        <div class="stt-stat">
-          <div class="stt-stat__num">0</div>
-          <div class="stt-stat__label">Network requests<br><span class="stt-stat__was">asserted by a counter</span></div>
-        </div>
-      </div>
-      <p class="stt-note">
-        Measured, not estimated: 200 timed iterations of a real
-        <code>chatClient…call().content()</code> against a committed fixture (median
-        0.819 ms), and <code>OllamaToolIsolationEndToEndTests</code> against
-        Testcontainers-managed <code>llama3.2:1b</code> — cold turn 46.65 s, warm turn
-        0.40 s, both turns replaying in ~30 ms. The hero terminal's other scenarios are
-        measured the same way, against this project's own committed fixtures under
-        <code>REPLAY_ONLY</code>: embedding 1.02 ms, evaluator 1.34 ms, streaming 0.80 ms
-        median (100 iterations each). CPU inference on Windows 11; hosted providers were
-        not measured.
-        <a href="{{ 'configuration/' | url }}">Full method &amp; compatibility →</a>
-        <br>
-        * These figures were measured locally (real-model timings via
-        Testcontainers/Ollama on CPU; replay timings are local fixture reads). Results
-        vary by hardware.
-      </p>
-    </div>
-  </section>
-
-  <!-- ==================== 4. ZERO CODE CHANGES ======================== -->
+  <!-- ==================== 3. ZERO CODE CHANGES ======================== -->
   <section class="stt-section stt-section--tint">
     <div class="stt-wrap">
       <h2 class="stt-h2">The same test, zero code changes</h2>
@@ -648,7 +608,7 @@
     </div>
   </section>
 
-  <!-- ==================== 5. CAPABILITY CARDS ========================= -->
+  <!-- ==================== 4. CAPABILITY CARDS ========================= -->
   <section class="stt-section">
     <div class="stt-wrap">
       <h2 class="stt-h2">Everything it does</h2>
@@ -702,7 +662,7 @@
     </div>
   </section>
 
-  <!-- =========================== 6. WHY =============================== -->
+  <!-- =========================== 5. WHY =============================== -->
   <section class="stt-section stt-section--tint">
     <div class="stt-wrap">
       <h2 class="stt-h2">Why this exists</h2>
@@ -730,7 +690,7 @@
     </div>
   </section>
 
-  <!-- ======================= 7. COMPARISON ============================ -->
+  <!-- ======================= 6. COMPARISON ============================ -->
   <section class="stt-section">
     <div class="stt-wrap">
       <h2 class="stt-h2">How it compares</h2>
@@ -825,7 +785,7 @@
     </div>
   </section>
 
-  <!-- ==================== 8. ARCHITECTURE ============================= -->
+  <!-- ==================== 7. ARCHITECTURE ============================= -->
   <section class="stt-section stt-section--tint">
     <div class="stt-wrap">
       <h2 class="stt-h2">How it's put together</h2>
@@ -844,6 +804,46 @@
 ├── assertions/        <span class="t-dim">VcrAssertions — fluent, deterministic checks</span>
 └── stub/              <span class="t-dim">VcrStubs — hand-authored ChatModel/EmbeddingModel</span></pre>
       </div>
+    </div>
+  </section>
+
+  <!-- ========================= 8. STAT ROW ============================= -->
+  <section class="stt-section">
+    <div class="stt-wrap">
+      <div class="stt-stats">
+        <div class="stt-stat">
+          <div class="stt-stat__num">0.8<span class="stt-stat__unit">ms</span></div>
+          <div class="stt-stat__label">Median replayed call<br><span class="stt-stat__was">was 2.9 – 4.1 s live</span></div>
+        </div>
+        <div class="stt-stat">
+          <div class="stt-stat__num">3,500<span class="stt-stat__unit">×</span></div>
+          <div class="stt-stat__label">Faster than a warm<br><span class="stt-stat__was">real model call</span></div>
+        </div>
+        <div class="stt-stat">
+          <div class="stt-stat__num"><span class="stt-stat__unit stt-stat__unit--pre">$</span>0</div>
+          <div class="stt-stat__label">Tokens per run<br><span class="stt-stat__was">on every replay, forever</span></div>
+        </div>
+        <div class="stt-stat">
+          <div class="stt-stat__num">0</div>
+          <div class="stt-stat__label">Network requests<br><span class="stt-stat__was">asserted by a counter</span></div>
+        </div>
+      </div>
+      <p class="stt-note">
+        Measured, not estimated: 200 timed iterations of a real
+        <code>chatClient…call().content()</code> against a committed fixture (median
+        0.819 ms), and <code>OllamaToolIsolationEndToEndTests</code> against
+        Testcontainers-managed <code>llama3.2:1b</code> — cold turn 46.65 s, warm turn
+        0.40 s, both turns replaying in ~30 ms. The hero terminal's other scenarios are
+        measured the same way, against this project's own committed fixtures under
+        <code>REPLAY_ONLY</code>: embedding 1.02 ms, evaluator 1.34 ms, streaming 0.80 ms
+        median (100 iterations each). CPU inference on Windows 11; hosted providers were
+        not measured.
+        <a href="{{ 'configuration/' | url }}">Full method &amp; compatibility →</a>
+        <br>
+        * These figures were measured locally (real-model timings via
+        Testcontainers/Ollama on CPU; replay timings are local fixture reads). Results
+        vary by hardware.
+      </p>
     </div>
   </section>
 

@@ -59,12 +59,19 @@
           <div class="stt-demo-terminal__body">
             <p class="stt-demo-terminal__cmdline"><span class="t-dim">$</span> <span class="stt-demo-terminal__cmd">mvn test -Dtest=OllamaEndToEndTests</span><span class="stt-demo-terminal__cursor">&#9612;</span></p>
             <div class="stt-demo-terminal__result">
-              <p class="stt-demo-terminal__line stt-demo-terminal__line--dim">record once → real model ~46.7 s</p>
-              <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ replay reads fixture … 0.8 ms</p>
-              <div class="stt-demo-terminal__summary">
-                <p class="stt-demo-terminal__summary-row"><span>AI execution</span><span class="stt-demo-terminal__summary-val">0.8 ms (replayed)</span></p>
-                <p class="stt-demo-terminal__summary-row"><span>Tokens · Network</span><span class="stt-demo-terminal__summary-val">0 · offline</span></p>
-              </div>
+              <p class="stt-demo-terminal__line stt-demo-terminal__line--comment"># Asserts the assistant answers an order-status question correctly</p>
+              <p class="stt-demo-terminal__line stt-demo-terminal__line--tag">[FIRST RUN]</p>
+              <p class="stt-demo-terminal__line stt-demo-terminal__line--record">🔴 RECORD   Real model call · full network round-trip</p>
+              <p class="stt-demo-terminal__line stt-demo-terminal__line--record">💾 SAVED    Fixture committed to git · reviewed in PR</p>
+              <p class="stt-demo-terminal__line stt-demo-terminal__line--tag">[EVERY RUN AFTER]</p>
+              <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">🟢 REPLAY   chat reply            ← from local fixture</p>
+              <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">🟢 REPLAY   structured output     ← from local fixture</p>
+              <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">🟢 REPLAY   tool-call round trip  ← from local fixture</p>
+              <p class="stt-demo-terminal__line stt-demo-terminal__line--ok">✔ BUILD SUCCESS · identical ChatResponse</p>
+              <p class="stt-demo-terminal__sep">--- SUMMARY ---</p>
+              <p class="stt-demo-terminal__line stt-demo-terminal__line--summary">⚡ Replay:  Reads a committed file — no model call</p>
+              <p class="stt-demo-terminal__line stt-demo-terminal__line--summary">💰 Tokens:  0</p>
+              <p class="stt-demo-terminal__line stt-demo-terminal__line--summary">🌐 Network: Offline · 0 requests</p>
             </div>
           </div>
         </div>
@@ -584,6 +591,10 @@
         median (100 iterations each). CPU inference on Windows 11; hosted providers were
         not measured.
         <a href="{{ 'configuration/' | url }}">Full method &amp; compatibility →</a>
+        <br>
+        * These figures were measured locally (real-model timings via
+        Testcontainers/Ollama on CPU; replay timings are local fixture reads). Results
+        vary by hardware.
       </p>
     </div>
   </section>
@@ -887,77 +898,113 @@
   // Scenario 0 below must read identically to the static fallback markup
   // above -- it's what a script-enabled visitor sees on the very first
   // typing pass, before anything has been rewritten.
+  //
+  // A couple of lines here were adjusted from the originally drafted script
+  // to match this project's own committed fixtures exactly: the embedding
+  // scenario's real vector is 2048-dim (not 384), the evaluator scenario's
+  // real recorded verdict does not assert "PASS" (the judge model's actual
+  // recorded answer is left as-is, whatever it was, since the point is
+  // replay fidelity, not a flattering verdict), and the streaming scenario's
+  // real recorded chunk sequence is exactly two chunks, "Yes" and ".".
   var scenarios = [
     {
       title: "OllamaEndToEndTests",
       cmd: "mvn test -Dtest=OllamaEndToEndTests",
       lines: [
-        ["dim", "record once → real model ~46.7 s"],
-        ["ok", "✔ replay reads fixture … 0.8 ms"]
-      ],
-      summary: [
-        ["AI execution", "0.8 ms (replayed)"],
-        ["Tokens · Network", "0 · offline"]
+        ["comment", "# Asserts the assistant answers an order-status question correctly"],
+        ["tag", "[FIRST RUN]"],
+        ["record", "🔴 RECORD   Real model call · full network round-trip"],
+        ["record", "💾 SAVED    Fixture committed to git · reviewed in PR"],
+        ["tag", "[EVERY RUN AFTER]"],
+        ["ok", "🟢 REPLAY   chat reply            ← from local fixture"],
+        ["ok", "🟢 REPLAY   structured output     ← from local fixture"],
+        ["ok", "🟢 REPLAY   tool-call round trip  ← from local fixture"],
+        ["ok", "✔ BUILD SUCCESS · identical ChatResponse"],
+        ["sep", "--- SUMMARY ---"],
+        ["summary", "⚡ Replay:  Reads a committed file — no model call"],
+        ["summary", "💰 Tokens:  0"],
+        ["summary", "🌐 Network: Offline · 0 requests"]
       ]
     },
     {
       title: "StubbingErrorScenariosTest",
       cmd: "mvn test -Dtest=StubbingErrorScenariosTest",
       lines: [
-        ["dim", ".respondingWith(“Yes, shipped yesterday.”)"],
-        ["ok", "✔ returned exactly that — zero network"]
-      ],
-      summary: [
-        ["AI execution", "none — nothing to replay"],
-        ["Tokens · Network", "0 · offline"]
+        ["comment", "# Asserts code handles refusals, timeouts, and truncated replies"],
+        ["stub", '🧩 STUB   respondingWith("Refund declined")  → asserts graceful exit'],
+        ["stub", "🧩 STUB   failingWith(TimeoutException)      → asserts retry policy"],
+        ["stub", '🧩 STUB   withFinishReason("length")         → asserts truncation logic'],
+        ["ok", "✔ Tests run: 3, Failures: 0"],
+        ["ok", "✔ BUILD SUCCESS"],
+        ["sep", "--- SUMMARY ---"],
+        ["summary", "🖊  Source:  Hand-written stub (inline or file)"],
+        ["summary", "💰 Tokens:  0"],
+        ["summary", "🌐 Network: Never touched"]
       ]
     },
     {
       title: "OllamaToolIsolationEndToEndTests",
       cmd: "mvn test -Dtest=OllamaToolIsolationEndToEndTests",
       lines: [
-        ["dim", "🛡 getOrderStatus intercepted, real @Tool NOT invoked"],
-        ["ok", "✔ → “shipped, arriving in 2 days”"]
-      ],
-      summary: [
-        ["AI execution", "~30 ms (replayed)"],
-        ["🔒 Side-effects prevented", "1"]
+        ["comment", "# Asserts the agent answers using its getOrderStatus tool"],
+        ["tag", '[AI] wants to call tool: getOrderStatus("ORD-4471")'],
+        ["record", "🛡️ TOOL ISOLATION TRIGGERED"],
+        ["plain", "   Intercepted 'getOrderStatus' before execution…"],
+        ["plain", "   Injected recorded result from fixture."],
+        ["ok", "🟢 REPLAY SUCCESS · Real @Tool method was NOT invoked!"],
+        ["plain", "   (No DB write · No email sent · No API charge)"],
+        ["ok", "✔ BUILD SUCCESS · assertion passes on final answer"],
+        ["sep", "--- SUMMARY ---"],
+        ["summary", "🔒 Side-effects: Prevented (1 isolated call)"],
+        ["summary", "⚡ Tool result:  Replayed from fixture"],
+        ["summary", "🌐 Network:      Offline"]
       ]
     },
     {
       title: "OllamaEmbeddingEndToEndTests",
       cmd: "mvn test -Dtest=OllamaEmbeddingEndToEndTests",
       lines: [
-        ["dim", "Istanbul input → 2048-dim vector"],
-        ["ok", "✔ identical vector replayed … 1.0 ms"]
-      ],
-      summary: [
-        ["AI execution", "1.0 ms (replayed)"],
-        ["Vector match", "2048/2048, exact"]
+        ["comment", "# Asserts a replayed embedding is byte-for-byte identical, not “close enough”"],
+        ["tag", "[FIRST RUN]"],
+        ["record", '🔴 RECORD   Embed "Istanbul is the largest city…" (real model)'],
+        ["record", "💾 SAVED    2048-dim vector committed to fixture"],
+        ["tag", "[EVERY RUN AFTER]"],
+        ["ok", "🟢 REPLAY   Identical 2048-dim vector injected from fixture"],
+        ["ok", "✔ PASS      assertThat(replayed).isEqualTo(recorded)"],
+        ["sep", "--- SUMMARY ---"],
+        ["summary", "🧮 Vector:  2048/2048 dims, replayed byte-for-byte"],
+        ["summary", "💰 Tokens:  0"],
+        ["summary", "🌐 Network: Offline"]
       ]
     },
     {
       title: "OllamaEvaluatorEndToEndTests",
       cmd: "mvn test -Dtest=OllamaEvaluatorEndToEndTests",
       lines: [
-        ["dim", "RelevancyEvaluator judge call replayed"],
-        ["ok", "✔ deterministic — not a live judgment"]
-      ],
-      summary: [
-        ["AI execution", "1.3 ms (replayed)"],
-        ["🧠 Verdict", "replayed, deterministic"]
+        ["comment", "# Asserts a judge model's verdict replays deterministically in CI"],
+        ["tag", '[ANSWER]    "The capital of France is Paris."'],
+        ["tag", "[EVAL]      RelevancyEvaluator asks the judge model…"],
+        ["ok", "🟢 REPLAY   Judge call served from fixture — no live LLM"],
+        ["ok", "✔ VERDICT   Replayed exactly as recorded — same result every CI run"],
+        ["sep", "--- SUMMARY ---"],
+        ["summary", "🧠 Judge:   Spring AI RelevancyEvaluator (recorded)"],
+        ["summary", "⚡ Verdict: Replayed · deterministic in CI"],
+        ["summary", "💰 Tokens:  0"]
       ]
     },
     {
       title: "OllamaStreamingEndToEndTests",
       cmd: "mvn test -Dtest=OllamaStreamingEndToEndTests",
       lines: [
-        ["dim", "“Yes” · “.” — 2 chunks"],
-        ["ok", "✔ same order replayed … 0.8 ms total"]
-      ],
-      summary: [
-        ["AI execution", "0.8 ms (replayed)"],
-        ["🧩 Chunks replayed", "2, in order"]
+        ["comment", "# Asserts a streamed reply arrives as the same ordered chunks"],
+        ["record", "🔴 RECORD   Streamed once from the real model"],
+        ["ok", "🟢 REPLAY   Emits the identical chunk sequence:"],
+        ["plain", '            "Yes" · "."'],
+        ["ok", "✔ PASS      Same order · same boundaries"],
+        ["sep", "--- SUMMARY ---"],
+        ["summary", "🎞  Chunks:  2, replayed in identical order"],
+        ["summary", "💰 Tokens:  0"],
+        ["summary", "🌐 Network: Offline"]
       ]
     }
   ];
@@ -975,14 +1022,12 @@
   function renderResult(scenario) {
     var html = "";
     scenario.lines.forEach(function (l) {
-      html += '<p class="stt-demo-terminal__line stt-demo-terminal__line--' + l[0] + '">' + l[1] + "</p>";
+      if (l[0] === "sep") {
+        html += '<p class="stt-demo-terminal__sep">' + l[1] + "</p>";
+      } else {
+        html += '<p class="stt-demo-terminal__line stt-demo-terminal__line--' + l[0] + '">' + l[1] + "</p>";
+      }
     });
-    html += '<div class="stt-demo-terminal__summary">';
-    scenario.summary.forEach(function (row) {
-      html += '<p class="stt-demo-terminal__summary-row"><span>' + row[0] +
-        '</span><span class="stt-demo-terminal__summary-val">' + row[1] + "</span></p>";
-    });
-    html += "</div>";
     resultEl.innerHTML = html;
   }
 

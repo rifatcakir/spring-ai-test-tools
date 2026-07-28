@@ -57,7 +57,7 @@
             <span class="stt-terminal__title">OllamaEndToEndTests</span>
           </div>
           <div class="stt-demo-terminal__body">
-            <p class="stt-demo-terminal__cmdline"><span class="t-dim">$</span> <span class="stt-demo-terminal__cmd">mvn test -Dtest=OllamaEndToEndTests</span><span class="stt-demo-terminal__cursor">&#9612;</span></p>
+            <p class="stt-demo-terminal__cmdline"><span class="t-dim">$</span> <span class="stt-demo-terminal__cmd">mvn test -pl spring-ai-test-tools -Dtest=OllamaEndToEndTests</span><span class="stt-demo-terminal__cursor">&#9612;</span></p>
             <div class="stt-demo-terminal__result">
               <p class="stt-demo-terminal__line stt-demo-terminal__line--comment"># Asserts the assistant answers an order-status question correctly</p>
               <p class="stt-demo-terminal__line stt-demo-terminal__line--tag">[FIRST RUN]</p>
@@ -199,7 +199,7 @@
             <p class="stt-demo__proves">
               <strong>What this proves:</strong> a real cache miss records a fixture, and a
               real cache hit replays it with zero additional HTTP requests —
-              <a href="https://github.com/rifatcakir/spring-ai-test-tools/blob/main/src/test/java/io/github/rifatcakir/springai/testtools/recorder/e2e/OllamaEndToEndTests.java" target="_blank" rel="noopener"><code>OllamaEndToEndTests</code></a>.
+              <a href="https://github.com/rifatcakir/spring-ai-test-tools/blob/main/spring-ai-test-tools/src/test/java/io/github/rifatcakir/springai/testtools/recorder/e2e/OllamaEndToEndTests.java" target="_blank" rel="noopener"><code>OllamaEndToEndTests</code></a>.
             </p>
           </div>
 
@@ -326,7 +326,7 @@
               <strong>What this proves:</strong> the real <code>@Tool</code> method runs
               exactly once — on the call that records it — and zero times on an identical
               replay, full isolation, by default —
-              <a href="https://github.com/rifatcakir/spring-ai-test-tools/blob/main/src/test/java/io/github/rifatcakir/springai/testtools/recorder/e2e/OllamaToolIsolationEndToEndTests.java" target="_blank" rel="noopener"><code>OllamaToolIsolationEndToEndTests</code></a>.
+              <a href="https://github.com/rifatcakir/spring-ai-test-tools/blob/main/spring-ai-test-tools/src/test/java/io/github/rifatcakir/springai/testtools/recorder/e2e/OllamaToolIsolationEndToEndTests.java" target="_blank" rel="noopener"><code>OllamaToolIsolationEndToEndTests</code></a>.
             </p>
           </div>
 
@@ -400,7 +400,7 @@
               <strong>What this proves:</strong> a replayed embedding is
               <code>assertThat(replayed).isEqualTo(recorded)</code> exact, not
               "same length" or "close enough" —
-              <a href="https://github.com/rifatcakir/spring-ai-test-tools/blob/main/src/test/java/io/github/rifatcakir/springai/testtools/recorder/e2e/OllamaEmbeddingEndToEndTests.java" target="_blank" rel="noopener"><code>OllamaEmbeddingEndToEndTests</code></a>.
+              <a href="https://github.com/rifatcakir/spring-ai-test-tools/blob/main/spring-ai-test-tools/src/test/java/io/github/rifatcakir/springai/testtools/recorder/e2e/OllamaEmbeddingEndToEndTests.java" target="_blank" rel="noopener"><code>OllamaEmbeddingEndToEndTests</code></a>.
             </p>
           </div>
 
@@ -476,7 +476,7 @@
               <strong>What this proves:</strong> the same judge verdict replays
               deterministically in CI — a frozen regression check, not a live evaluation —
               and a genuinely different judged answer still reaches the judge model again —
-              <a href="https://github.com/rifatcakir/spring-ai-test-tools/blob/main/src/test/java/io/github/rifatcakir/springai/testtools/recorder/e2e/OllamaEvaluatorEndToEndTests.java" target="_blank" rel="noopener"><code>OllamaEvaluatorEndToEndTests</code></a>.
+              <a href="https://github.com/rifatcakir/spring-ai-test-tools/blob/main/spring-ai-test-tools/src/test/java/io/github/rifatcakir/springai/testtools/recorder/e2e/OllamaEvaluatorEndToEndTests.java" target="_blank" rel="noopener"><code>OllamaEvaluatorEndToEndTests</code></a>.
             </p>
           </div>
 
@@ -550,7 +550,7 @@
               <strong>What this proves:</strong> a replayed stream emits the exact same
               chunk-for-chunk sequence — tool calls included — asserted chunk-by-chunk, not
               just on the aggregated text —
-              <a href="https://github.com/rifatcakir/spring-ai-test-tools/blob/main/src/test/java/io/github/rifatcakir/springai/testtools/recorder/e2e/OllamaStreamingEndToEndTests.java" target="_blank" rel="noopener"><code>OllamaStreamingEndToEndTests</code></a>.
+              <a href="https://github.com/rifatcakir/spring-ai-test-tools/blob/main/spring-ai-test-tools/src/test/java/io/github/rifatcakir/springai/testtools/recorder/e2e/OllamaStreamingEndToEndTests.java" target="_blank" rel="noopener"><code>OllamaStreamingEndToEndTests</code></a>.
             </p>
           </div>
 
@@ -909,7 +909,7 @@
   var scenarios = [
     {
       title: "OllamaEndToEndTests",
-      cmd: "mvn test -Dtest=OllamaEndToEndTests",
+      cmd: "mvn test -pl spring-ai-test-tools -Dtest=OllamaEndToEndTests",
       lines: [
         ["comment", "# Asserts the assistant answers an order-status question correctly"],
         ["tag", "[FIRST RUN]"],
@@ -944,7 +944,7 @@
     },
     {
       title: "OllamaToolIsolationEndToEndTests",
-      cmd: "mvn test -Dtest=OllamaToolIsolationEndToEndTests",
+      cmd: "mvn test -pl spring-ai-test-tools -Dtest=OllamaToolIsolationEndToEndTests",
       lines: [
         ["comment", "# Asserts the agent answers using its getOrderStatus tool"],
         ["tag", '[AI] wants to call tool: getOrderStatus("ORD-4471")'],
@@ -962,7 +962,7 @@
     },
     {
       title: "OllamaEmbeddingEndToEndTests",
-      cmd: "mvn test -Dtest=OllamaEmbeddingEndToEndTests",
+      cmd: "mvn test -pl spring-ai-test-tools -Dtest=OllamaEmbeddingEndToEndTests",
       lines: [
         ["comment", "# Asserts a replayed embedding is byte-for-byte identical, not “close enough”"],
         ["tag", "[FIRST RUN]"],
@@ -979,7 +979,7 @@
     },
     {
       title: "OllamaEvaluatorEndToEndTests",
-      cmd: "mvn test -Dtest=OllamaEvaluatorEndToEndTests",
+      cmd: "mvn test -pl spring-ai-test-tools -Dtest=OllamaEvaluatorEndToEndTests",
       lines: [
         ["comment", "# Asserts a judge model's verdict replays deterministically in CI"],
         ["tag", '[ANSWER]    "The capital of France is Paris."'],
@@ -994,7 +994,7 @@
     },
     {
       title: "OllamaStreamingEndToEndTests",
-      cmd: "mvn test -Dtest=OllamaStreamingEndToEndTests",
+      cmd: "mvn test -pl spring-ai-test-tools -Dtest=OllamaStreamingEndToEndTests",
       lines: [
         ["comment", "# Asserts a streamed reply arrives as the same ordered chunks"],
         ["record", "🔴 RECORD   Streamed once from the real model"],

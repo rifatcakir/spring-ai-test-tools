@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.github.rifatcakir</groupId>
+        <artifactId>spring-ai-test-tools-parent</artifactId>
+        <version>0.1.0</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>spring-ai-test-tools-maven-plugin</artifactId>
+    <!-- packaging=maven-plugin requires at least one @Mojo to generate a plugin
+         descriptor — maven-plugin-plugin:descriptor fails outright with zero goals
+         ("No mojo definitions were found"), confirmed by actually running the build, not
+         assumed. Adding a placeholder Mojo just to satisfy that would be real plugin
+         logic, which Phase 1 is explicitly not meant to include yet (see
+         docs/V2-TOOLING-PRD.md). So this module stays plain packaging=jar for Phase 1 and
+         flips to packaging=maven-plugin in Phase 2, the same moment vcr:record/prune/verify
+         actually get their first @Mojo class. -->
+    <packaging>jar</packaging>
+
+    <name>spring-ai-test-tools-maven-plugin</name>
+    <description>Thin Mojo layer over spring-ai-test-tools-build-core: vcr:record,
+        vcr:prune, vcr:verify (docs/V2-TOOLING-PRD.md). Phase 1 skeleton only -- no goals
+        implemented yet; that is Phase 2, not started, pending approval.</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.github.rifatcakir</groupId>
+            <artifactId>spring-ai-test-tools-build-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Maven 3.9.x API, provided scope: a plugin never bundles the Maven runtime it
+             executes inside. Versions confirmed against real Maven Central metadata
+             (maven-metadata.xml), not guessed — see the parent POM's property comments. -->
+        <dependency>
+            <groupId>org.apache.maven</groupId>
+            <artifactId>maven-plugin-api</artifactId>
+            <version>${maven-plugin-api.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.maven</groupId>
+            <artifactId>maven-core</artifactId>
+            <version>${maven-plugin-api.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.maven.plugin-tools</groupId>
+            <artifactId>maven-plugin-annotations</artifactId>
+            <version>${maven-plugin-tools.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <!-- No <build> section yet: maven-plugin-plugin (which generates plugin.xml) only
+         does something useful once packaging flips to maven-plugin in Phase 2, alongside
+         the first real @Mojo class. Declaring it now against jar packaging would be dead
+         configuration. -->
+
+</project>

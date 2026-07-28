@@ -1,0 +1,270 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.github.rifatcakir</groupId>
+        <artifactId>spring-ai-test-tools-parent</artifactId>
+        <version>0.1.0</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <!-- Published coordinate is unchanged by the multi-module conversion:
+         io.github.rifatcakir:spring-ai-test-tools:0.1.0 — groupId/version inherited from
+         the parent above resolve to exactly the same values the single-module pom.xml
+         declared directly before this restructure. -->
+    <artifactId>spring-ai-test-tools</artifactId>
+    <packaging>jar</packaging>
+
+    <name>spring-ai-test-tools</name>
+    <description>Deterministic, file-based record-and-replay (VCR) caching for Spring AI integration tests -- the Recorder layer of a Spring AI test-and-evaluation toolkit.</description>
+    <!-- GitHub repository renamed to match the Maven artifactId (GitHub redirects the
+         old spring-ai-test-vcr name automatically, but url/scm should point at the
+         current name directly rather than relying on the redirect). -->
+    <url>https://github.com/rifatcakir/spring-ai-test-tools</url>
+
+    <licenses>
+        <license>
+            <name>Apache-2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>rifatcakir</id>
+            <name>Rifat Cakir</name>
+            <email>rifatcakira@gmail.com</email>
+            <url>https://github.com/rifatcakir</url>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:https://github.com/rifatcakir/spring-ai-test-tools.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/rifatcakir/spring-ai-test-tools.git</developerConnection>
+        <url>https://github.com/rifatcakir/spring-ai-test-tools</url>
+    </scm>
+
+    <dependencies>
+        <!-- ChatClient, advisor API, chat model domain. -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-client-chat</artifactId>
+        </dependency>
+
+        <!-- @ConfigurationProperties / @AutoConfiguration. Optional so it does not leak
+             onto consumers who wire the advisor by hand. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Jackson 3 (tools.jackson.*). Spring Boot 4 manages the version. -->
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+
+        <!-- Generates META-INF/spring-configuration-metadata.json for IDE completion. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- @Vcr + VcrModeExtension must be usable from a *consuming* project's own test
+             code, so they live in main sources — but this is the one main-source class pair
+             that needs JUnit 5 itself. Optional: present so this module compiles, never
+             force-propagated, since anything that could use this library at all already has
+             junit-jupiter-api on its test classpath (via spring-boot-starter-test or
+             equivalent). Version managed transitively via spring-boot-dependencies' imported
+             junit-bom. -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- The Assertions layer (io.github.rifatcakir.springai.testtools.assertions) is
+             public API built as custom AssertJ assertion classes (VcrAssertions.assertThat(...)
+             extending AbstractObjectAssert), so it needs assertj-core in main sources for
+             the same reason junit-jupiter-api above does. Optional, same reasoning: never
+             force-propagated, since anything using assertions at all already has
+             assertj-core on its test classpath (via spring-boot-starter-test or
+             equivalent). Version managed transitively via spring-boot-dependencies. -->
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Real Ollama chat model, for the end-to-end record/replay proof only. Never a
+             dependency of the library itself, which is provider-agnostic by design. -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-ollama</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- A second, genuinely different ChatModel implementation, for the multi-provider
+             empirical validation proof only: see OpenAiViaOllamaEndToEndTests. Pointed at
+             Ollama's own OpenAI-compatible endpoint rather than a real OpenAI account, so
+             this needs no paid API key. Never a dependency of the library itself. -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-openai</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Testcontainers + its Ollama module, for the same test. Explicit version: see
+             the testcontainers.version property comment in the parent POM. -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Spring AI's own autoconfiguration for tool-calling and ChatClient, needed only
+             by OllamaToolIsolationEndToEndTests (docs/TOOL-ISOLATION-PRD.md): this
+             library's own ChatClientBuilderCustomizer mechanism does not by itself load
+             Spring AI's ToolCallingManager bean; a consuming Spring Boot application pulls
+             these in transitively via a starter (confirmed via `mvn dependency:tree` on
+             spring-ai-test-tools-example: spring-ai-starter-model-ollama already depends
+             on both). Declared here, test-scope only, so this one test can prove
+             VcrToolCallingManagerBeanPostProcessor survives the real autoconfiguration
+             graph a consumer actually uses; never a dependency of the library itself. -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-autoconfigure-model-tool</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-autoconfigure-model-chat-client</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>ollama</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <profiles>
+        <!-- integration-test is not redeclared here: Maven profiles defined in the parent
+             POM are inherited by every module, so `-Pintegration-test` at the reactor root
+             already reaches this module's surefire.excludedGroups override. -->
+
+        <!-- Everything needed to publish to Maven Central, isolated in its own profile so
+             an ordinary `mvn test` / `mvn install` for local development never requires a
+             GPG key or Sonatype credentials. Activate explicitly with -Prelease. Lives in
+             this module specifically, not the parent aggregator: only this module's jar is
+             the thing being released today. See docs/PUBLISHING.md for the full walkthrough
+             — namespace verification, GPG key setup, settings.xml credentials, and the
+             actual release command — none of which this pom can do for you. -->
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <!-- Attaches a -sources.jar, required by Maven Central. -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <version>3.3.1</version>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- Attaches a -javadoc.jar, required by Maven Central. Verified with
+                         `mvn -Prelease javadoc:javadoc` — see docs/PUBLISHING.md for what
+                         that actually checked. -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <version>3.12.0</version>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- Signs every produced artifact. Requires a GPG key to be available
+                         to the build (via gpg-agent, or gpg.passphrase / gpg.keyname
+                         properties) — deliberately not configured here; see
+                         docs/PUBLISHING.md. Bound to `verify` so signing happens after
+                         tests, before install/deploy. -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>3.2.8</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- Uploads to the Sonatype Central Publishing Portal (OSSRH's
+                         successor — the old s01.oss.sonatype.org staging-repo flow is
+                         retired). No <distributionManagement> needed for this plugin;
+                         `publishingServerId` refers to a <server> entry named "central" in
+                         settings.xml, which this pom does not and must not define — see
+                         docs/PUBLISHING.md. autoPublish is deliberately false: a build
+                         uploads and validates a bundle, but a human still has to click
+                         "Publish" in the Central Portal UI, so a bad release can be
+                         dropped before it becomes permanent. -->
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.11.0</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>false</autoPublish>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
+</project>

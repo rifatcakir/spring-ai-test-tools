@@ -83,5 +83,12 @@ jobs:
       # verified chunk-for-chunk rather than just on the aggregated text (R3). Same
       # cadence as the rest of this job for the same reason: a real Ollama pull is too
       # slow for every push.
+      #
+      # -pl spring-ai-test-tools: since the multi-module conversion (docs/V2-TOOLING-PRD.md
+      # Phase 1), these three classes live only in that one module. Without -pl, Surefire's
+      # default failIfNoSpecifiedTests=true fails the *other* reactor modules outright with
+      # "No tests matching pattern ... were executed!" the moment -Dtest names classes that
+      # don't exist in every module -- reproduced locally before adding this flag, not
+      # guessed.
       - name: mvn test -Pintegration-test (real-model e2e proofs)
-        run: mvn --batch-mode --no-transfer-progress test -Pintegration-test -Dtest=OllamaEndToEndTests,OllamaEvaluatorEndToEndTests,OllamaStreamingEndToEndTests
+        run: mvn --batch-mode --no-transfer-progress test -pl spring-ai-test-tools -Pintegration-test -Dtest=OllamaEndToEndTests,OllamaEvaluatorEndToEndTests,OllamaStreamingEndToEndTests

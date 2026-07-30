@@ -30,6 +30,12 @@
       "description": "Explicit advisor order, overriding the value scope would otherwise derive. Leave unset unless the advisor needs to interleave with other custom advisors in a specific position."
     },
     {
+      "name": "spring.ai.test.vcr.fixture-size-warn-threshold",
+      "type": "org.springframework.util.unit.DataSize",
+      "description": "Log a warning when a written fixture (chat, streaming, tool-execution or embedding) reaches this size, for example 256KB or 1MB. Purely advisory: a large fixture is valid and replays correctly, so nothing is refused, truncated or compressed. Large committed fixtures bloat the repository and are not readably diffable in a pull request, which this makes visible at the moment it happens. Set to 0 to disable the check entirely.",
+      "defaultValue": "256KB"
+    },
+    {
       "name": "spring.ai.test.vcr.embedding.enabled",
       "type": "java.lang.Boolean",
       "description": "Whether to wrap the context's EmbeddingModel bean(s) with the VCR cache. Off by default and independent of spring.ai.test.vcr.enabled: enabling chat caching must never silently start caching embeddings too, and vice versa.",

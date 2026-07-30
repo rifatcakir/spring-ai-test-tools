@@ -28,6 +28,7 @@ Every property is under the `spring.ai.test.vcr` prefix:
 | `scope` | `VcrScope` | `OUTSIDE_TOOL_LOOP` | Where the advisor sits relative to tool calling — see [Tool Calling](tool-calling.md). |
 | `cache-directory` | `String` | `src/test/resources/llm-cache` | Where fixtures are read from and written to. Meant to be committed to version control. |
 | `order` | `Integer` | derived from `scope` | Explicit advisor order. Only needed to interleave with other custom advisors at a specific position. |
+| `fixture-size-warn-threshold` | `DataSize` | `256KB` | Log a `WARN` when a written fixture reaches this size. Advisory only — nothing is refused, truncated or compressed. Applies to every fixture family. `0` disables it. |
 
 ## Tool calling isolation
 

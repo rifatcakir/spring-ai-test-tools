@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Optional;
 
+import io.github.rifatcakir.springai.testtools.recorder.VcrFixtureSizeWarning;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tools.jackson.databind.DeserializationFeature;
@@ -39,15 +40,29 @@ public class VcrToolExecutionTrackStore {
 
 	private final JsonMapper jsonMapper;
 
+	private final long fixtureSizeWarnThresholdBytes;
+
 	public VcrToolExecutionTrackStore(Path cacheDirectory) {
 		this(cacheDirectory, defaultJsonMapper());
 	}
 
 	public VcrToolExecutionTrackStore(Path cacheDirectory, JsonMapper jsonMapper) {
+		this(cacheDirectory, jsonMapper, VcrFixtureSizeWarning.DEFAULT_THRESHOLD_BYTES);
+	}
+
+	/**
+	 * @param fixtureSizeWarnThresholdBytes size at or above which a written fixture is
+	 * reported; zero or negative disables the check. Tool-execution fixtures are included
+	 * because a retrieval-shaped {@code @Tool} method returning a large document is one of
+	 * the most plausible ways a RAG test grows a fixture, and that result is entirely
+	 * author-controlled.
+	 */
+	public VcrToolExecutionTrackStore(Path cacheDirectory, JsonMapper jsonMapper, long fixtureSizeWarnThresholdBytes) {
 		Assert.notNull(cacheDirectory, "cacheDirectory must not be null");
 		Assert.notNull(jsonMapper, "jsonMapper must not be null");
 		this.cacheDirectory = cacheDirectory.toAbsolutePath().normalize();
 		this.jsonMapper = jsonMapper;
+		this.fixtureSizeWarnThresholdBytes = fixtureSizeWarnThresholdBytes;
 	}
 
 	/**
@@ -122,6 +137,7 @@ public class VcrToolExecutionTrackStore {
 			}
 
 			logger.info("VCR TOOL RECORDED  [{}] -> {}", shortHash(track.hash()), path);
+			VcrFixtureSizeWarning.warnIfLarge(logger, "VCR TOOL", path, this.fixtureSizeWarnThresholdBytes);
 		}
 		catch (IOException ex) {
 			throw new UncheckedIOException("VCR TOOL failed to write fixture to " + path, ex);

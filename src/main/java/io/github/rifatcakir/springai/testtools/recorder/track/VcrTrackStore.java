@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Optional;
 
+import io.github.rifatcakir.springai.testtools.recorder.VcrFixtureSizeWarning;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tools.jackson.databind.DeserializationFeature;
@@ -46,15 +47,27 @@ public class VcrTrackStore {
 
 	private final JsonMapper jsonMapper;
 
+	private final long fixtureSizeWarnThresholdBytes;
+
 	public VcrTrackStore(Path cacheDirectory) {
 		this(cacheDirectory, defaultJsonMapper());
 	}
 
 	public VcrTrackStore(Path cacheDirectory, JsonMapper jsonMapper) {
+		this(cacheDirectory, jsonMapper, VcrFixtureSizeWarning.DEFAULT_THRESHOLD_BYTES);
+	}
+
+	/**
+	 * @param fixtureSizeWarnThresholdBytes size at or above which a written fixture is
+	 * reported; zero or negative disables the check. See {@link VcrFixtureSizeWarning} for
+	 * why this warns rather than refuses, and why it is an instrument rather than a fix.
+	 */
+	public VcrTrackStore(Path cacheDirectory, JsonMapper jsonMapper, long fixtureSizeWarnThresholdBytes) {
 		Assert.notNull(cacheDirectory, "cacheDirectory must not be null");
 		Assert.notNull(jsonMapper, "jsonMapper must not be null");
 		this.cacheDirectory = cacheDirectory.toAbsolutePath().normalize();
 		this.jsonMapper = jsonMapper;
+		this.fixtureSizeWarnThresholdBytes = fixtureSizeWarnThresholdBytes;
 	}
 
 	/**
@@ -136,6 +149,7 @@ public class VcrTrackStore {
 			}
 
 			logger.info("VCR RECORDED  [{}] -> {}", shortHash(track.hash()), path);
+			VcrFixtureSizeWarning.warnIfLarge(logger, "VCR", path, this.fixtureSizeWarnThresholdBytes);
 		}
 		catch (IOException ex) {
 			throw new UncheckedIOException("VCR failed to write fixture to " + path, ex);

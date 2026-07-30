@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Optional;
 
+import io.github.rifatcakir.springai.testtools.recorder.VcrFixtureSizeWarning;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tools.jackson.databind.DeserializationFeature;
@@ -43,15 +44,29 @@ public class VcrEmbeddingTrackStore {
 
 	private final JsonMapper jsonMapper;
 
+	private final long fixtureSizeWarnThresholdBytes;
+
 	public VcrEmbeddingTrackStore(Path cacheDirectory) {
 		this(cacheDirectory, defaultJsonMapper());
 	}
 
 	public VcrEmbeddingTrackStore(Path cacheDirectory, JsonMapper jsonMapper) {
+		this(cacheDirectory, jsonMapper, VcrFixtureSizeWarning.DEFAULT_THRESHOLD_BYTES);
+	}
+
+	/**
+	 * @param fixtureSizeWarnThresholdBytes size at or above which a written fixture is
+	 * reported; zero or negative disables the check. An embedding fixture's size follows
+	 * the model's dimensionality rather than anything the author wrote, so this only ever
+	 * fires for a genuinely unusual call — a very large batch of inputs — not for ordinary
+	 * use of a high-dimension model; see {@link VcrFixtureSizeWarning}.
+	 */
+	public VcrEmbeddingTrackStore(Path cacheDirectory, JsonMapper jsonMapper, long fixtureSizeWarnThresholdBytes) {
 		Assert.notNull(cacheDirectory, "cacheDirectory must not be null");
 		Assert.notNull(jsonMapper, "jsonMapper must not be null");
 		this.cacheDirectory = cacheDirectory.toAbsolutePath().normalize();
 		this.jsonMapper = jsonMapper;
+		this.fixtureSizeWarnThresholdBytes = fixtureSizeWarnThresholdBytes;
 	}
 
 	/**
@@ -126,6 +141,7 @@ public class VcrEmbeddingTrackStore {
 			}
 
 			logger.info("VCR EMBEDDING RECORDED  [{}] -> {}", shortHash(track.hash()), path);
+			VcrFixtureSizeWarning.warnIfLarge(logger, "VCR EMBEDDING", path, this.fixtureSizeWarnThresholdBytes);
 		}
 		catch (IOException ex) {
 			throw new UncheckedIOException("VCR EMBEDDING failed to write fixture to " + path, ex);

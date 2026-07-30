@@ -176,8 +176,21 @@ Prompt *content* is another matter: if your prompts carry PII, redact it — see
   committed to git verbatim inside its fixture. That is the direct cost of design rule #5
   (fixtures are pretty-printed and reviewed in a pull request, not compressed or stored
   externally) — a deliberate trade-off, not an oversight, but a real one for large-context
-  use cases. See `docs/ROADMAP.md`'s v0.2 section for what a future large-fixture mode
-  might look like.
+  use cases.
+
+    A **warning** makes that cost visible at the moment it is incurred: writing a fixture
+    at or above `spring.ai.test.vcr.fixture-size-warn-threshold` (default `256KB`) logs a
+    `WARN` naming the file and its size. It is advisory in the strictest sense — the
+    fixture is written, replay is untouched, nothing is refused or compressed — and it
+    covers every fixture family (chat, streaming, tool-execution, embedding). Set the
+    threshold to `0` to disable it.
+
+    There is deliberately **no** large-fixture policy behind that warning: no compression,
+    no external blob storage, no input preview + hash. Each would trade away the readable
+    diff rule #5 exists to protect, and whether this bloat is a real problem for real users
+    is still an assumption rather than a measurement — the largest fixture either repo
+    commits today is about 28 KB. The warning is the instrument that would produce the
+    evidence. See `docs/ROADMAP.md`'s v0.2 section.
 - **Re-recording is manual, and orphaned fixtures are not cleaned up automatically.**
   `RECORD_ALWAYS` overwrites every fixture a test run actually touches, but if a prompt
   changes enough that its old hash is never looked up again, that file is simply left on

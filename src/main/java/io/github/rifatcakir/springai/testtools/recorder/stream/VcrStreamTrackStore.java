@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Optional;
 
+import io.github.rifatcakir.springai.testtools.recorder.VcrFixtureSizeWarning;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tools.jackson.databind.DeserializationFeature;
@@ -41,15 +42,28 @@ public class VcrStreamTrackStore {
 
 	private final JsonMapper jsonMapper;
 
+	private final long fixtureSizeWarnThresholdBytes;
+
 	public VcrStreamTrackStore(Path cacheDirectory) {
 		this(cacheDirectory, defaultJsonMapper());
 	}
 
 	public VcrStreamTrackStore(Path cacheDirectory, JsonMapper jsonMapper) {
+		this(cacheDirectory, jsonMapper, VcrFixtureSizeWarning.DEFAULT_THRESHOLD_BYTES);
+	}
+
+	/**
+	 * @param fixtureSizeWarnThresholdBytes size at or above which a written fixture is
+	 * reported; zero or negative disables the check. A streamed fixture stores the raw
+	 * chunk sequence, so it is structurally the largest of the three text fixture types
+	 * for the same answer — one more reason the threshold applies here too.
+	 */
+	public VcrStreamTrackStore(Path cacheDirectory, JsonMapper jsonMapper, long fixtureSizeWarnThresholdBytes) {
 		Assert.notNull(cacheDirectory, "cacheDirectory must not be null");
 		Assert.notNull(jsonMapper, "jsonMapper must not be null");
 		this.cacheDirectory = cacheDirectory.toAbsolutePath().normalize();
 		this.jsonMapper = jsonMapper;
+		this.fixtureSizeWarnThresholdBytes = fixtureSizeWarnThresholdBytes;
 	}
 
 	/**
@@ -125,6 +139,7 @@ public class VcrStreamTrackStore {
 			}
 
 			logger.info("VCR STREAM RECORDED  [{}] -> {}", shortHash(track.hash()), path);
+			VcrFixtureSizeWarning.warnIfLarge(logger, "VCR STREAM", path, this.fixtureSizeWarnThresholdBytes);
 		}
 		catch (IOException ex) {
 			throw new UncheckedIOException("VCR STREAM failed to write fixture to " + path, ex);

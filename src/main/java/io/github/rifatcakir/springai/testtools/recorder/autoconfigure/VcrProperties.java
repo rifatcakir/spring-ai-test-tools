@@ -1,10 +1,12 @@
 package io.github.rifatcakir.springai.testtools.recorder.autoconfigure;
 
+import io.github.rifatcakir.springai.testtools.recorder.VcrFixtureSizeWarning;
 import io.github.rifatcakir.springai.testtools.recorder.VcrMode;
 import io.github.rifatcakir.springai.testtools.recorder.VcrScope;
 import io.github.rifatcakir.springai.testtools.recorder.tool.VcrToolMode;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.util.unit.DataSize;
 
 /**
  * Configuration for the VCR test cache, bound from {@code spring.ai.test.vcr.*}.
@@ -44,6 +46,17 @@ public class VcrProperties {
 	 * interleave with other custom advisors in a specific way.
 	 */
 	private Integer order;
+
+	/**
+	 * Log a warning when a written fixture — chat, streaming, tool-execution or embedding
+	 * — reaches this size. Purely advisory: a large fixture is valid and replays
+	 * correctly, so nothing is ever refused, truncated or compressed. Set to {@code 0} to
+	 * disable. See
+	 * {@link io.github.rifatcakir.springai.testtools.recorder.VcrFixtureSizeWarning} for
+	 * why this is a warning rather than a policy, and why the full large-fixture design
+	 * stays deferred.
+	 */
+	private DataSize fixtureSizeWarnThreshold = DataSize.ofBytes(VcrFixtureSizeWarning.DEFAULT_THRESHOLD_BYTES);
 
 	/**
 	 * {@code EmbeddingModel} interception (R4) — deliberately a separate group with its
@@ -99,6 +112,25 @@ public class VcrProperties {
 
 	public void setOrder(Integer order) {
 		this.order = order;
+	}
+
+	public DataSize getFixtureSizeWarnThreshold() {
+		return this.fixtureSizeWarnThreshold;
+	}
+
+	public void setFixtureSizeWarnThreshold(DataSize fixtureSizeWarnThreshold) {
+		this.fixtureSizeWarnThreshold = fixtureSizeWarnThreshold;
+	}
+
+	/**
+	 * The configured threshold in bytes, or {@code 0} when unset — the value the stores
+	 * take. Converting here rather than passing {@code DataSize} into the stores keeps
+	 * them free of Spring Boot types, matching how every other store constructor already
+	 * takes plain values.
+	 * @return the threshold in bytes; {@code 0} disables the check
+	 */
+	public long getFixtureSizeWarnThresholdBytes() {
+		return (this.fixtureSizeWarnThreshold != null) ? this.fixtureSizeWarnThreshold.toBytes() : 0L;
 	}
 
 	public Embedding getEmbedding() {

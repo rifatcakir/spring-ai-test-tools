@@ -70,7 +70,8 @@ public class SpringAiVcrEmbeddingAutoConfiguration {
 	public VcrEmbeddingTrackStore vcrEmbeddingTrackStore(VcrProperties properties) {
 		Path directory = Path.of(properties.getEmbedding().getCacheDirectory());
 		logger.info("VCR EMBEDDING cache directory: {}", directory.toAbsolutePath().normalize());
-		return new VcrEmbeddingTrackStore(directory);
+		return new VcrEmbeddingTrackStore(directory, VcrEmbeddingTrackStore.defaultJsonMapper(),
+				properties.getFixtureSizeWarnThresholdBytes());
 	}
 
 	/**

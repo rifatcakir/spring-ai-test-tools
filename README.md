@@ -367,6 +367,7 @@ Every property is under the `spring.ai.test.vcr` prefix:
 | `scope` | `VcrScope` | `OUTSIDE_TOOL_LOOP` | Where the advisor sits relative to tool calling — see "Tool calling" below. |
 | `cache-directory` | `String` | `src/test/resources/llm-cache` | Where fixtures are read from and written to. Meant to be committed to version control. |
 | `order` | `Integer` | derived from `scope` | Explicit advisor order. Only needed to interleave with other custom advisors at a specific position. |
+| `fixture-size-warn-threshold` | `DataSize` | `256KB` | Log a warning when a written fixture reaches this size. Advisory only — nothing is refused, truncated or compressed. `0` disables. See "Large fixtures" below. |
 | `tool.mode` | `VcrToolMode` | `REPLAY_FROM_CASSETTE` | Whether a tool invocation is isolated from replay or allowed to run for real — see "Tool calling" below. |
 | `tool.cache-directory` | `String` | `src/test/resources/llm-cache-tool` | Where tool-invocation fixtures are read from and written to — a separate directory from the chat cache. |
 
@@ -408,6 +409,35 @@ the rest of the suite the way a shared exempt-list property could.
 Applies to whichever thread runs the annotated test method — the same constraint blocking
 calls already have (see "Limitations" below): async or reactive code that switches
 threads before reaching the advisor will not see the override.
+
+### Large fixtures
+
+Fixtures are committed and reviewed, which is design rule #5 — and the direct cost of
+that rule is that a prompt carrying a large payload (a RAG pipeline's retrieved document,
+a PDF's extracted text) lands in git verbatim, uncompressed and not readably diffable.
+
+There is deliberately **no** large-fixture policy: no compression, no external blob
+storage, no input preview + hash. Each of those trades away the readable diff that rule #5
+exists to protect, and whether large-context bloat is a real problem for real users is
+currently an assumption rather than a measurement. What ships instead is the instrument
+that would produce the evidence — a warning at write time:
+
+```
+WARN  VCR LARGE FIXTURE  src/test/resources/llm-cache/9f2c….json is 312.4 KB
+      (threshold 256.0 KB). Large committed fixtures bloat the repository and are not
+      readably diffable in a pull request — see the Limitations section in the docs.
+      Advisory only: the fixture was written and replays normally.
+```
+
+It is advisory in the strictest sense: the fixture is written, replay is untouched, and
+nothing is refused or altered. Every fixture family is covered (chat, streaming,
+tool-execution, embedding). The default threshold is `256KB` — roughly two orders of
+magnitude above anything either repo commits today, so enabling this cannot make a healthy
+suite start warning. Turn it off with:
+
+```properties
+spring.ai.test.vcr.fixture-size-warn-threshold=0
+```
 
 ### Volatile prompts
 
@@ -977,8 +1007,9 @@ Prompt *content* is another matter: if your prompts carry PII, redact it with a
   committed to git verbatim inside its fixture. That is the direct cost of design rule #5
   (fixtures are pretty-printed and reviewed in a pull request, not compressed or stored
   externally) — a deliberate trade-off, not an oversight, but a real one for large-context
-  use cases. See [`docs/ROADMAP.md`](docs/ROADMAP.md)'s v0.2 section for what a future
-  large-fixture mode might look like.
+  use cases. A warning makes the cost visible when it is incurred (see "Large fixtures"
+  below); no compression or external-storage mode exists. See
+  [`docs/ROADMAP.md`](docs/ROADMAP.md)'s v0.2 section.
 - **Re-recording is manual, and orphaned fixtures are not cleaned up automatically.**
   `RECORD_ALWAYS` overwrites every fixture a test run actually touches, but if a prompt
   changes enough that its old hash is never looked up again, that file is simply left on

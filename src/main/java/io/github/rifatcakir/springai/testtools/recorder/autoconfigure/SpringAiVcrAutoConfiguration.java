@@ -71,7 +71,8 @@ public class SpringAiVcrAutoConfiguration {
 	public VcrTrackStore vcrTrackStore(VcrProperties properties) {
 		Path directory = Path.of(properties.getCacheDirectory());
 		logger.info("VCR cache directory: {}", directory.toAbsolutePath().normalize());
-		return new VcrTrackStore(directory);
+		return new VcrTrackStore(directory, VcrTrackStore.defaultJsonMapper(),
+				properties.getFixtureSizeWarnThresholdBytes());
 	}
 
 	/**
@@ -89,7 +90,8 @@ public class SpringAiVcrAutoConfiguration {
 	@Bean
 	@ConditionalOnMissingBean
 	public VcrStreamTrackStore vcrStreamTrackStore(VcrProperties properties) {
-		return new VcrStreamTrackStore(Path.of(properties.getCacheDirectory()));
+		return new VcrStreamTrackStore(Path.of(properties.getCacheDirectory()),
+				VcrStreamTrackStore.defaultJsonMapper(), properties.getFixtureSizeWarnThresholdBytes());
 	}
 
 	@Bean
@@ -143,7 +145,8 @@ public class SpringAiVcrAutoConfiguration {
 	public VcrToolExecutionTrackStore vcrToolExecutionTrackStore(VcrProperties properties) {
 		Path directory = Path.of(properties.getTool().getCacheDirectory());
 		logger.info("VCR TOOL cache directory: {}", directory.toAbsolutePath().normalize());
-		return new VcrToolExecutionTrackStore(directory);
+		return new VcrToolExecutionTrackStore(directory, VcrToolExecutionTrackStore.defaultJsonMapper(),
+				properties.getFixtureSizeWarnThresholdBytes());
 	}
 
 	/**

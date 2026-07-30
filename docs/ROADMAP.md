@@ -342,6 +342,22 @@ Two honest gaps in today's fixture lifecycle, documented as accepted limitations
   a fixture diff stays reviewable afterward — design rule #5's whole reason to exist) before
   any code, the same diagnosis-first discipline every other item in this roadmap already
   followed.
+
+    **Warning shipped in v0.2; the full large-fixture policy stays deferred.**
+    `VcrFixtureSizeWarning` logs a `WARN` when any store (chat, streaming, tool-execution,
+    embedding) writes a fixture at or above `spring.ai.test.vcr.fixture-size-warn-threshold`
+    (default `256KB`, `0` disables). It is advisory only — the fixture is written, replay is
+    untouched, nothing is refused or compressed. The heavier options this item contemplates
+    — input preview + hash, compact vector encoding, external blob storage, compression —
+    are **deliberately not built**, and stay future work until real demand shows up. The
+    reasoning, in keeping with this file's diagnosis-first rule: whether this bloat hurts
+    real users is currently an assumption, not a measurement. The largest fixture either
+    repo commits today is a ~28 KB embedding vector; the largest chat fixture is ~3.6 KB.
+    Prior art points the same way — VCR.py's `decode_compressed_response` deliberately
+    *decompresses* bodies to keep cassettes readable, and the Jest ecosystem's answer to a
+    huge snapshot is a lint rule against it rather than machinery to accommodate it. The
+    warning is the cheap instrument that would turn the assumption into evidence; if it
+    never fires for anyone, that is itself the finding.
 - **No bulk re-record or orphaned-fixture pruning.** `RECORD_ALWAYS` re-records whatever a
   test run actually touches, but a fixture whose prompt changed enough that its old hash
   is never looked up again is simply left on disk forever — nothing detects or removes it.

@@ -1,5 +1,6 @@
 package io.github.rifatcakir.springai.testtools.recorder.track;
 
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -23,6 +24,8 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.content.Media;
+import org.springframework.util.MimeTypeUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -142,6 +145,32 @@ class VcrTrackStoreRoundTripTests {
 			assertThat(call.arguments()).isEqualTo("{\"city\":\"Ankara\"}");
 		});
 		assertThat(assistantTurn.toolResponses()).isEmpty();
+	}
+
+	@Test
+	@DisplayName("an attached image round-trips into the fixture as a reviewable fingerprint, not raw bytes")
+	void requestMessageMediaRoundTrips() {
+		VcrTrackStore store = new VcrTrackStore(this.cacheDirectory);
+		UserMessage withImage = UserMessage.builder()
+			.text("what is in this picture?")
+			.media(new Media(MimeTypeUtils.IMAGE_PNG, URI.create("https://example.com/cat.png")))
+			.build();
+		Prompt promptWithImage = new Prompt(List.of(withImage),
+				ChatOptions.builder().model("llava").temperature(0.0).build());
+
+		VcrCacheKey key = this.keyGenerator.generate(promptWithImage);
+		store.write(this.mapper.toTrack(key, promptWithImage,
+				ChatResponse.builder().generations(List.of(new Generation(new AssistantMessage("a cat.")))).build()));
+
+		VcrTrack written = store.read(key.hash()).orElseThrow();
+		VcrTrack.MessageSnapshot userTurn = written.request().messages().get(0);
+
+		assertThat(userTurn.media()).singleElement().satisfies(media -> {
+			assertThat(media.mimeType()).isEqualTo("image/png");
+			assertThat(media.id()).as("Media's public constructors always leave id null").isNull();
+			assertThat(media.dataToken()).as("a URI-backed attachment's data is the URI text itself, not a digest")
+				.isEqualTo("https://example.com/cat.png");
+		});
 	}
 
 	@Test
@@ -349,6 +378,50 @@ class VcrTrackStoreRoundTripTests {
 		assertThat(track.request().structuredOutput().format()).as("a pre-existing fixture's literal CRLF is left "
 				+ "exactly as committed -- normalization only ever applies going forward, to newly recorded fixtures")
 			.isEqualTo("line one\r\nline two");
+	}
+
+	/**
+	 * Schema {@code "5"} added {@code MessageSnapshot.media} for multimodal capture (see
+	 * {@code VcrTrack.CURRENT_SCHEMA_VERSION}'s Javadoc and {@code
+	 * docs/V2-CANONICALIZATION-AUDIT.md}). A {@code "4"} fixture's JSON has no {@code
+	 * "media"} key on any message at all -- exactly what every fixture recorded before this
+	 * capability existed looks like on disk -- and must still deserialize and replay without
+	 * throwing, same as every prior schema bump.
+	 */
+	@Test
+	@DisplayName("a schema-version-4 fixture predating media capture still replays")
+	void schemaVersion4FixtureWithoutMediaStillReplays() throws Exception {
+		VcrTrackStore store = new VcrTrackStore(this.cacheDirectory);
+		String hash = "f".repeat(64);
+		Files.writeString(store.pathFor(hash), """
+				{
+				  "schemaVersion" : "4",
+				  "hash" : "%s",
+				  "recordedAt" : "2026-07-24T12:00:00Z",
+				  "canonicalRequest" : "irrelevant",
+				  "request" : {
+				    "model" : "llama3.2",
+				    "temperature" : 0.0,
+				    "messages" : [ { "type" : "user", "text" : "hello", "toolCalls" : [], "toolResponses" : [] } ],
+				    "tools" : []
+				  },
+				  "response" : {
+				    "id" : "x",
+				    "model" : "llama3.2",
+				    "generations" : [ { "text" : "hi", "finishReason" : "STOP", "toolCalls" : [] } ],
+				    "usage" : null,
+				    "metadata" : {}
+				  }
+				}
+				""".formatted(hash));
+
+		VcrTrack track = store.read(hash).orElseThrow();
+
+		assertThat(this.mapper.toChatResponse(track).getResult().getOutput().getText()).isEqualTo("hi");
+		assertThat(track.request().messages().get(0).media()).as("missing in the JSON -- deserializes to null rather "
+				+ "than throwing, harmless because nothing in this library ever reads RequestSnapshot.messages() "
+				+ "back after deserialization, same as toolCalls/toolResponses on a schema-\"1\" fixture")
+			.isNull();
 	}
 
 	@Test

@@ -366,6 +366,48 @@ Two honest gaps in today's fixture lifecycle, documented as accepted limitations
   needs its own scoping — e.g. how it tells "genuinely orphaned" apart from "not exercised
   by this particular test selection" — before it's sized.
 
+### v0.2 — canonicalization robustness (v2 item 3: partially done, pre-deploy)
+
+**Native structured output + multimodal hashing: fixed before deploy, `VcrTrack` schema
+`"5"`.** A pre-deploy diagnostic pass (`docs/V2-CANONICALIZATION-AUDIT.md`) inventoried
+every request dimension a real Spring AI 2.0 request can carry, read from the actual
+`spring-ai-client-chat`/`spring-ai-model`/`spring-ai-commons` 2.0.0 jars via `javap`, and
+diffed it against what `VcrCacheKeyGenerator` actually hashes — the same discipline that
+already found and fixed the tool-call (schema "2") and structured-output (schema "3")
+collisions. Two real, empirically-confirmed silent-collision gaps were found and fixed in
+the same pass, both the identical failure class as those two prior bugs:
+
+- **`entity(Class)` vs. `entity(Class, spec -> spec.useProviderStructuredOutput())`** used
+  to hash identically for the same DTO, despite being genuinely different requests (one
+  splices format text into the message, the other sets a native `ChatOptions.outputSchema`
+  field and leaves the message untouched) — confirmed via decompiling
+  `ChatModelCallAdvisor`/`DefaultChatClient`. Fixed: the `ChatClientAttributes.
+  STRUCTURED_OUTPUT_NATIVE` context key's presence now participates in the hash.
+- **Multimodal content** (`Media` on `UserMessage`/`AssistantMessage` — images, audio) fed
+  neither the hash nor the fixture; two prompts differing only in which image was attached
+  used to collide. Fixed: each message's media list now participates in both, with a
+  digest standing in for binary payloads and a real gotcha caught while implementing this
+  (not assumed) — `Media.getName()` is a fresh random UUID on every construction, so it is
+  deliberately excluded to avoid breaking replay for the identical image.
+
+Both fixes are additive (schema `"4"` → `"5"`, every prior fixture still deserializes) and
+proven not to disturb any existing scenario: every pre-existing golden hash test in
+`VcrCacheKeyGeneratorTests` passed unchanged, byte for byte, without updating a single
+literal.
+
+**Deferred, remains this item's open scope**: provider-specific, behavior-changing
+`ChatOptions` fields with no base-interface equivalent — confirmed real and present on
+`OpenAiChatOptions` (`reasoningEffort`, `seed`, `toolChoice`, `logitBias`, `n`), any of
+which can change model output but none of which `VcrCacheKeyGenerator` can see without
+either downcasting to a specific provider's options (breaking the provider-independence
+R2 already proved correct) or a pluggable per-provider hashing extension point that does
+not exist yet. Not yet empirically triggered by this project's own suite (Ollama-only).
+Needs its own design note before any code — the same bar this roadmap already holds every
+other non-trivial item to — before this item can be called done. A dedicated
+compatibility test suite (exercising every message type, every `ChatOptions` dimension
+this library does and does not read) remains unbuilt and is the natural next step once
+that design note exists.
+
 ---
 
 ## What prior art gets right (and what doesn't transfer)

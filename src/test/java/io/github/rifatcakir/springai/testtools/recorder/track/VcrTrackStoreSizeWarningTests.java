@@ -57,7 +57,7 @@ class VcrTrackStoreSizeWarningTests {
 
 	private VcrTrack trackWithTextOfSize(int characters) {
 		VcrTrack.MessageSnapshot message = new VcrTrack.MessageSnapshot("user", "x".repeat(characters), List.of(),
-				List.of());
+				List.of(), List.of());
 		VcrTrack.RequestSnapshot request = new VcrTrack.RequestSnapshot("llama3.2", null, null, null, null, List.of(),
 				List.of(message), List.of(), null);
 		VcrTrack.ResponseSnapshot response = new VcrTrack.ResponseSnapshot("id-1", "llama3.2",

@@ -1,7 +1,10 @@
 package io.github.rifatcakir.springai.testtools.recorder.track;
 
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 
@@ -12,6 +15,8 @@ import org.springframework.ai.chat.client.ChatClientAttributes;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.ToolResponseMessage;
+import org.springframework.ai.content.Media;
+import org.springframework.ai.content.MediaContent;
 import org.springframework.ai.chat.metadata.ChatGenerationMetadata;
 import org.springframework.ai.chat.metadata.ChatResponseMetadata;
 import org.springframework.ai.chat.metadata.DefaultUsage;
@@ -109,7 +114,7 @@ public final class VcrTrackMapper {
 				// Normalized, not raw: a committed fixture must not leak the live value
 				// that the normalizer was configured to redact.
 				messages.add(new VcrTrack.MessageSnapshot(type, normalize(message.getText()),
-						toMessageToolCalls(message), toMessageToolResponses(message)));
+						toMessageToolCalls(message), toMessageToolResponses(message), toMessageMedia(message)));
 			}
 		}
 
@@ -185,6 +190,46 @@ public final class VcrTrackMapper {
 			responses.add(new VcrTrack.ToolResponseSnapshot(response.id(), response.name(), response.responseData()));
 		}
 		return responses;
+	}
+
+	/**
+	 * Schema {@code "5"}: captures each message's media attachments for reviewability, the
+	 * same purpose {@code ToolDefinitionSnapshot} already serves for tool schemas —
+	 * mirroring exactly what {@code VcrCacheKeyGenerator#appendMessageMedia} hashed, so a
+	 * reviewer sees the same fingerprint that determined this fixture's cache key. See that
+	 * method's Javadoc for why {@code Media.getName()} is deliberately not captured.
+	 */
+	private List<VcrTrack.MediaSnapshot> toMessageMedia(Message message) {
+		if (!(message instanceof MediaContent mediaContent) || mediaContent.getMedia() == null) {
+			return List.of();
+		}
+		List<VcrTrack.MediaSnapshot> media = new ArrayList<>();
+		for (Media item : mediaContent.getMedia()) {
+			media.add(new VcrTrack.MediaSnapshot(item.getMimeType() == null ? null : item.getMimeType().toString(),
+					item.getId(), mediaDataToken(item)));
+		}
+		return media;
+	}
+
+	/**
+	 * Mirrors {@code VcrCacheKeyGenerator#mediaDataToken} exactly, same reason {@code
+	 * normalizeLineEndings} above is duplicated rather than shared: what is stored here
+	 * must be provably identical to what was hashed, not merely similar.
+	 */
+	private static String mediaDataToken(Media media) {
+		Object data = media.getData();
+		return (data instanceof byte[] bytes) ? "sha256:" + sha256Hex(bytes) : (data == null ? null : data.toString());
+	}
+
+	private static String sha256Hex(byte[] input) {
+		try {
+			MessageDigest digest = MessageDigest.getInstance("SHA-256");
+			return HexFormat.of().formatHex(digest.digest(input));
+		}
+		catch (NoSuchAlgorithmException ex) {
+			// SHA-256 is mandated by the JLS for every conforming JRE.
+			throw new IllegalStateException("SHA-256 unavailable on this JVM", ex);
+		}
 	}
 
 	private List<VcrTrack.ToolDefinitionSnapshot> toToolSnapshots(ChatOptions options) {

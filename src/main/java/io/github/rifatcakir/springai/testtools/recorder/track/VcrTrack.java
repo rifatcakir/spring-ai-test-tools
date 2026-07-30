@@ -94,8 +94,39 @@ public record VcrTrack(String schemaVersion, String hash, String recordedAt, Str
 	 * model-visible difference. Additive in the sense that mattered here too: no {@code
 	 * RequestSnapshot}/{@code StructuredOutputSnapshot} field was added or removed, so a
 	 * {@code "3"} fixture still deserializes without any change.
+	 *
+	 * <p>{@code "5"}: two independent additions, both closing a confirmed silent-collision
+	 * gap found in a pre-deploy canonicalization audit (see {@code
+	 * docs/V2-CANONICALIZATION-AUDIT.md}), the same "diagnose against real bytecode/a real
+	 * model before touching the hash" discipline as every prior bump.
+	 * <ol>
+	 * <li><strong>Native vs. text-spliced structured output.</strong> {@code
+	 * entity(Class)} and {@code entity(Class, spec -> spec.useProviderStructuredOutput())}
+	 * populate identical {@code OUTPUT_FORMAT}/{@code STRUCTURED_OUTPUT_SCHEMA} context
+	 * values for the same target type, but are genuinely different requests: the former
+	 * splices format instructions into message text, the latter sets a native {@code
+	 * StructuredOutputChatOptions.outputSchema} field and leaves the message untouched.
+	 * Confirmed via decompiling {@code ChatModelCallAdvisor}/{@code DefaultChatClient} that
+	 * a {@code STRUCTURED_OUTPUT_NATIVE} context key is present if and only if the native
+	 * path is used, and confirmed empirically that the two collided on one hash before this
+	 * bump. See {@code VcrCacheKeyGenerator#appendStructuredOutput}.</li>
+	 * <li><strong>Multimodal content.</strong> {@code UserMessage}/{@code AssistantMessage}
+	 * both carry a {@code List<Media>} (images, audio) that previously fed neither the hash
+	 * nor this fixture — only {@code Message.getText()} did. Two prompts differing only in
+	 * which image was attached, identical caption text, used to collide on one fixture;
+	 * confirmed empirically before this fix. {@link MessageSnapshot} gains {@code media}
+	 * (new {@link MediaSnapshot} record: {@code mimeType}, {@code id}, a digest/URI token
+	 * for the data — see {@code VcrCacheKeyGenerator#appendMessageMedia}'s Javadoc for why
+	 * {@code Media.getName()} is deliberately excluded, a real gotcha caught while
+	 * implementing this, not assumed: it is a fresh random UUID on every construction, and
+	 * hashing it would break replay for the identical image).</li>
+	 * </ol>
+	 * Both additive, same as every prior bump: no existing field removed, and neither
+	 * changes the canonical form for a request that carries neither native structured
+	 * output nor media — a {@code "4"} fixture, and every fixture recorded before this
+	 * bump, still deserializes and still hashes exactly as before.
 	 */
-	public static final String CURRENT_SCHEMA_VERSION = "4";
+	public static final String CURRENT_SCHEMA_VERSION = "5";
 
 	/**
 	 * What went to the model. Recorded for reviewability — a fixture diff in a pull
@@ -138,7 +169,8 @@ public record VcrTrack(String schemaVersion, String hash, String recordedAt, Str
 	 * an {@code AssistantMessage} may carry the former, a {@code ToolResponseMessage} the
 	 * latter, and every other message type carries neither — but both are always
 	 * non-{@code null}, empty when not applicable, so a caller never needs a null check to
-	 * iterate them.
+	 * iterate them. {@code media} follows the same convention, populated only for a
+	 * {@code UserMessage}/{@code AssistantMessage} that actually attached something.
 	 * @param type the message role, e.g. {@code "user"}, {@code "system"}, {@code "assistant"}
 	 * @param text the message content, after any {@code VcrPromptNormalizer}s have run;
 	 * empty for a tool-calls-only assistant turn or for any {@code ToolResponseMessage},
@@ -147,9 +179,31 @@ public record VcrTrack(String schemaVersion, String hash, String recordedAt, Str
 	 * {@code AssistantMessage} that made tool calls, empty otherwise
 	 * @param toolResponses tool results this message is reporting back to the model —
 	 * populated only for a {@code ToolResponseMessage}, empty otherwise
+	 * @param media images/audio this message attached (schema {@code "5"}) — empty for a
+	 * message that carried none, which is every message recorded before this field existed
 	 */
 	public record MessageSnapshot(String type, String text, List<ToolCallSnapshot> toolCalls,
-			List<ToolResponseSnapshot> toolResponses) {
+			List<ToolResponseSnapshot> toolResponses, List<MediaSnapshot> media) {
+	}
+
+	/**
+	 * One {@code Media} attachment (schema {@code "5"}) — a human-reviewable fingerprint,
+	 * not the raw attachment: a fixture is committed and reviewed in a pull request, and
+	 * nobody reviews a multi-megabyte base64 image inline in a JSON diff. See {@code
+	 * VcrCacheKeyGenerator#appendMessageMedia}'s Javadoc for the full reasoning, including
+	 * why {@code Media.getName()} is deliberately not captured here either (a fresh random
+	 * UUID on every construction, confirmed by decompiling {@code Media}'s own
+	 * constructors — capturing it would make two recordings of the identical image show
+	 * different fixture content for no reason a reviewer could explain).
+	 * @param mimeType the attachment's MIME type, e.g. {@code "image/png"}
+	 * @param id the attachment's explicit id, or {@code null} if none was set (the common
+	 * case: {@code Media}'s own public constructors always leave this {@code null})
+	 * @param dataToken {@code "sha256:" + hex digest} for binary data, or the literal URI
+	 * string for a {@code URI}-backed attachment — mirrors exactly what
+	 * {@code VcrCacheKeyGenerator} hashed, so a reviewer sees the same fingerprint that
+	 * determined whether this fixture was a hit or a miss
+	 */
+	public record MediaSnapshot(String mimeType, String id, String dataToken) {
 	}
 
 	/**

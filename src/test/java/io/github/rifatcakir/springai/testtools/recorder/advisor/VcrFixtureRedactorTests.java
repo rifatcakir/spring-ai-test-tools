@@ -160,7 +160,7 @@ class VcrFixtureRedactorTests {
 							.stream()
 							.map(message -> new VcrTrack.MessageSnapshot(message.type(),
 									message.text().replace("SECRET", "[REDACTED]"), message.toolCalls(),
-									message.toolResponses()))
+									message.toolResponses(), message.media()))
 							.toList(),
 						track.request().tools(), track.request().structuredOutput()),
 				track.response());

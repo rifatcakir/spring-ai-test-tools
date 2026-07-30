@@ -1,5 +1,6 @@
 package io.github.rifatcakir.springai.testtools.recorder.key;
 
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
@@ -14,9 +15,11 @@ import org.springframework.ai.chat.messages.ToolResponseMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.content.Media;
 import org.springframework.ai.model.tool.ToolCallingChatOptions;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.definition.ToolDefinition;
+import org.springframework.util.MimeTypeUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -342,6 +345,119 @@ class VcrCacheKeyGeneratorTests {
 									+ "\"temperatureCelsius\":{\"type\":\"integer\"}}}"))
 			.hash();
 		assertThat(cityWeatherHash).isEqualTo("22232d5274962bb8619eb4837668e407c61e461f59d2acfff8f1cd886d798cd2");
+	}
+
+	private static Map<String, Object> nativeStructuredOutputContext(String format, String jsonSchema) {
+		return Map.of(ChatClientAttributes.OUTPUT_FORMAT.getKey(), format,
+				ChatClientAttributes.STRUCTURED_OUTPUT_SCHEMA.getKey(), jsonSchema,
+				ChatClientAttributes.STRUCTURED_OUTPUT_NATIVE.getKey(), Boolean.TRUE);
+	}
+
+	/**
+	 * The pre-deploy audit finding this test closes (see {@code
+	 * docs/V2-CANONICALIZATION-AUDIT.md}): {@code entity(Class)} and {@code entity(Class,
+	 * spec -> spec.useProviderStructuredOutput())} populate identical {@code
+	 * OUTPUT_FORMAT}/{@code STRUCTURED_OUTPUT_SCHEMA} context values for the same DTO —
+	 * confirmed by decompiling {@code DefaultChatClient}/{@code ChatModelCallAdvisor} — but
+	 * are genuinely different requests (one splices format text into the message, the other
+	 * sets a native {@code ChatOptions} field and leaves the message untouched). Before this
+	 * fix, the two hashed identically; confirmed empirically with exactly this test before
+	 * the fix landed, and confirmed different after it.
+	 */
+	@Test
+	@DisplayName("BUG FIXED: entity() native structured output no longer collides with the text-spliced form for "
+			+ "the identical schema")
+	void structuredOutputNativeParticipatesInTheHash() {
+		Prompt samePromptText = prompt("Give me an example. Make up any reasonable data.", options("llama3.2", 0.0));
+		String format = "Respond in JSON matching this schema: {city, temperatureCelsius}";
+		String schema = "{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"},"
+				+ "\"temperatureCelsius\":{\"type\":\"integer\"}}}";
+
+		String nonNativeHash = this.generator.generate(samePromptText, structuredOutputContext(format, schema)).hash();
+		String nativeHash = this.generator.generate(samePromptText, nativeStructuredOutputContext(format, schema))
+			.hash();
+
+		assertThat(nativeHash)
+			.as("BUG FIXED: native and text-spliced structured output, identical schema, must no longer collide")
+			.isNotEqualTo(nonNativeHash);
+	}
+
+	/**
+	 * Same golden-master guarantee as {@link #hashIsPinnedForKnownStructuredOutput()}, for
+	 * the native-structured-output canonicalization added alongside {@code VcrTrack} schema
+	 * version "5".
+	 */
+	@Test
+	@DisplayName("pins the exact hash for a known native structured-output schema")
+	void hashIsPinnedForKnownNativeStructuredOutput() {
+		Prompt samePromptText = prompt("Give me an example. Make up any reasonable data.", options("llama3.2", 0.0));
+
+		String nativeHash = this.generator
+			.generate(samePromptText,
+					nativeStructuredOutputContext("Respond in JSON matching this schema: {city, temperatureCelsius}",
+							"{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"},"
+									+ "\"temperatureCelsius\":{\"type\":\"integer\"}}}"))
+			.hash();
+		assertThat(nativeHash).isEqualTo("f11b0c56e5ddd216e29b4975e4bbfbdcef9858648b40f4273a2309a24dac4b71");
+	}
+
+	private static UserMessage messageWithImage(String caption, String imageUri) {
+		return UserMessage.builder()
+			.text(caption)
+			.media(new Media(MimeTypeUtils.IMAGE_PNG, URI.create(imageUri)))
+			.build();
+	}
+
+	/**
+	 * The other pre-deploy audit finding this test closes: {@code UserMessage}/{@code
+	 * AssistantMessage} carry a {@code List<Media>} that previously fed neither {@code
+	 * getText()} nor the hash. Before this fix, two prompts differing only in which image
+	 * was attached -- identical caption -- canonicalized identically; confirmed empirically
+	 * with exactly this test before the fix landed, and confirmed different after it.
+	 */
+	@Test
+	@DisplayName("BUG FIXED: two prompts with the same caption but different attached images no longer collide")
+	void mediaParticipatesInTheHash() {
+		ChatOptions options = options("llava", 0.0);
+		String caption = "what is in this picture?";
+
+		String hashA = this.generator
+			.generate(new Prompt(List.of(messageWithImage(caption, "https://example.com/cat.png")), options))
+			.hash();
+		String hashB = this.generator
+			.generate(new Prompt(List.of(messageWithImage(caption, "https://example.com/dog.png")), options))
+			.hash();
+		String hashARepeated = this.generator
+			.generate(new Prompt(List.of(messageWithImage(caption, "https://example.com/cat.png")), options))
+			.hash();
+
+		assertThat(hashB).as("BUG FIXED: a genuinely different image, same caption, must not collide").isNotEqualTo(hashA);
+		assertThat(hashARepeated).as("the identical image URI, hashed twice, must still be stable — a fixture "
+				+ "recorded once must still replay on a later run").isEqualTo(hashA);
+	}
+
+	@Test
+	@DisplayName("a message with no media hashes exactly as before -- no change for the overwhelming majority of "
+			+ "prompts, which never attach anything")
+	void noMediaMeansNoChangeToTheCanonicalForm() {
+		Prompt withoutMedia = prompt("hello", options("llama3", 0.0));
+
+		assertThat(this.generator.generate(withoutMedia).hash())
+			.isEqualTo("9a7ff0e4563dbe15ec35f04cb18901204c48f9ff572df5b642784590bc86efc2");
+	}
+
+	/**
+	 * Same golden-master guarantee as {@link #hashIsPinnedForKnownInputs()}, for the media
+	 * canonicalization added alongside {@code VcrTrack} schema version "5".
+	 */
+	@Test
+	@DisplayName("pins the exact hash for a known image attachment")
+	void hashIsPinnedForKnownMedia() {
+		String hash = this.generator
+			.generate(new Prompt(List.of(messageWithImage("what is in this picture?", "https://example.com/cat.png")),
+					options("llava", 0.0)))
+			.hash();
+		assertThat(hash).isEqualTo("39380b965cd9c3623a09d3e02d773e1ed3a92f372e8c434d9e80dbff49728f6a");
 	}
 
 	private static ToolCallback toolCallback(String name, String description, String inputSchema) {

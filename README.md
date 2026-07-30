@@ -969,6 +969,13 @@ no cache key at all):
 - an `entity()` call's target type — its format instructions and JSON schema participate
   in the hash, so two different structured-output types sharing the same prompt text
   always record and replay as their own separate fixtures
+- whether `entity()` used native provider structured output
+  (`spec -> spec.useProviderStructuredOutput()`) or the default text-instruction form — the
+  same schema hashes differently in each mode, since they are genuinely different requests
+- which image or audio clip a message attaches (`Media` on a `UserMessage`/`AssistantMessage`)
+  — two prompts with the same caption but a different attachment record and replay as
+  separate fixtures; the attachment's mime type and content participate, its
+  library-assigned default name deliberately does not (see "Limitations")
 
 That makes fixtures a prompt regression check. If a teammate reshapes a system prompt, CI
 fails with the exact canonical request that changed rather than a silently different answer.
@@ -1002,6 +1009,20 @@ Prompt *content* is another matter: if your prompts carry PII, redact it with a
   has there — see [Tool calling](#tool-calling) above.
 - **`EXECUTE_REAL` re-runs real `@Tool` side effects on every replay, by design** — the
   explicit opt-in for asserting a tool actually ran; not the default.
+- **A message's `Media.getName()` never participates in the hash or the fixture.** Spring
+  AI's own `Media` class assigns a fresh random UUID-based name on every construction
+  (confirmed by reading its bytecode) unless one is explicitly set via `Media.builder()`
+  — hashing it would make the identical image, attached twice, produce two different
+  hashes and break replay for the ordinary case. Mime type, id (when explicitly set) and
+  the attachment's own content participate; the auto-generated name does not.
+- **Provider-specific `ChatOptions` fields with no base-interface equivalent are invisible
+  to the hash.** `reasoningEffort`, `seed`, `toolChoice` and similar fields exist on
+  concrete types like `OpenAiChatOptions` but not on the base `ChatOptions`/
+  `ToolCallingChatOptions` interfaces this library deliberately limits itself to reading
+  (the same design that keeps the hash provider-agnostic — see "Providers" above). A test
+  that varies one of these while keeping everything else identical will not bust the
+  cache. See [`docs/V2-CANONICALIZATION-AUDIT.md`](docs/V2-CANONICALIZATION-AUDIT.md) and
+  [`docs/ROADMAP.md`](docs/ROADMAP.md)'s v0.2 section.
 - **Committed fixtures can bloat the repo for large-context prompts.** A RAG pipeline
   embedding a large retrieved document, or any prompt carrying a big payload, gets
   committed to git verbatim inside its fixture. That is the direct cost of design rule #5

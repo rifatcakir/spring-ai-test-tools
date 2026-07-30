@@ -117,6 +117,13 @@ Any of these changes the SHA-256 and forces a re-record:
 - an `entity()` call's target type — its format instructions and JSON schema participate
   in the hash, so two different structured-output types sharing the same prompt text
   always record and replay as their own separate fixtures (see [Structured Output](structured-output.md))
+- whether `entity()` used native provider structured output
+  (`spec -> spec.useProviderStructuredOutput()`) or the default text-instruction form —
+  genuinely different requests, so they never share a fixture even for the identical schema
+- which image or audio clip a message attaches (`Media` on a `UserMessage`/`AssistantMessage`)
+  — mime type and content participate; the library's own auto-generated default name does
+  not, since it is a fresh random value on every construction and hashing it would break
+  replay for the identical attachment
 
 That makes fixtures a prompt regression check. If a teammate reshapes a system prompt, CI
 fails with the exact canonical request that changed rather than a silently different
@@ -171,6 +178,17 @@ Prompt *content* is another matter: if your prompts carry PII, redact it — see
   `VcrToolMode` — see [Tool calling](tool-calling.md).
 - **`EXECUTE_REAL` re-runs real `@Tool` side effects on every replay, by design** — the
   explicit opt-in for asserting a tool actually ran; not the default.
+- **A message's `Media.getName()` never participates in the hash or the fixture.** Spring
+  AI's own `Media` class assigns a fresh random UUID-based name on every construction
+  unless one is explicitly set via `Media.builder()` — hashing it would break replay for
+  the identical image attached twice. Mime type, an explicitly-set id, and the
+  attachment's own content participate; the auto-generated name does not.
+- **Provider-specific `ChatOptions` fields with no base-interface equivalent are invisible
+  to the hash.** Fields like `reasoningEffort`, `seed` or `toolChoice` exist on concrete
+  types such as `OpenAiChatOptions` but not on the base `ChatOptions`/
+  `ToolCallingChatOptions` interfaces this library deliberately limits itself to, the same
+  design that keeps the hash provider-agnostic. Varying one of these while everything else
+  stays identical will not bust the cache — see the [canonicalization audit](https://github.com/rifatcakir/spring-ai-test-tools/blob/main/docs/V2-CANONICALIZATION-AUDIT.md).
 - **Committed fixtures can bloat the repo for large-context prompts.** A RAG pipeline
   embedding a large retrieved document, or any prompt carrying a big payload, gets
   committed to git verbatim inside its fixture. That is the direct cost of design rule #5

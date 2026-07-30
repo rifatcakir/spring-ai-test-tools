@@ -19,6 +19,8 @@ import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.ToolResponseMessage;
 import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.content.Media;
+import org.springframework.ai.content.MediaContent;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.definition.ToolDefinition;
 import org.springframework.ai.model.tool.ToolCallingChatOptions;
@@ -228,6 +230,7 @@ public class VcrCacheKeyGenerator {
 					.append(FIELD_SEPARATOR);
 				appendMessageToolCalls(sb, message);
 				appendMessageToolResponses(sb, message);
+				appendMessageMedia(sb, message);
 			}
 		}
 
@@ -245,6 +248,21 @@ public class VcrCacheKeyGenerator {
 	 * <p>Deliberately silent when neither key is present: this must not add so much as an
 	 * "absent" marker line for a request that never touched {@code entity()}, or every
 	 * fixture recorded before this method existed would hash differently.
+	 *
+	 * <p><strong>Schema {@code "5"}: also distinguishes native from text-spliced structured
+	 * output.</strong> {@code entity(Class)} and {@code entity(Class, spec ->
+	 * spec.useProviderStructuredOutput())} both populate {@code OUTPUT_FORMAT}/{@code
+	 * STRUCTURED_OUTPUT_SCHEMA} with identical text for the same target type — but they are
+	 * genuinely different requests: the non-native path has {@code ChatModelCallAdvisor}
+	 * splice the format instructions into the last message's text, while the native path
+	 * instead sets the schema as a {@code StructuredOutputChatOptions.outputSchema} field on
+	 * {@code ChatOptions} and leaves message text untouched. Confirmed by decompiling {@code
+	 * ChatModelCallAdvisor}/{@code DefaultChatClient}: {@link
+	 * ChatClientAttributes#STRUCTURED_OUTPUT_NATIVE}'s context key is present if and only if
+	 * {@code useProviderStructuredOutput()} was called. Before this bump, this generator read
+	 * only the schema text — identical in both modes — so the two collided on one hash,
+	 * confirmed empirically before the fix (identical hash for a native and a non-native call
+	 * sharing the same DTO) and confirmed different after it.
 	 */
 	private void appendStructuredOutput(StringBuilder sb, Map<String, Object> context) {
 		if (context == null || context.isEmpty()) {
@@ -262,6 +280,12 @@ public class VcrCacheKeyGenerator {
 			sb.append("structuredOutputSchema=")
 				.append(escape(normalizeLineEndings(value(schema))))
 				.append(FIELD_SEPARATOR);
+		}
+		// Presence, not value, is what ChatModelCallAdvisor itself checks
+		// (Map.containsKey) -- this context key is only ever put when
+		// isEnableNative() is true, never put with a false value.
+		if (context.containsKey(ChatClientAttributes.STRUCTURED_OUTPUT_NATIVE.getKey())) {
+			sb.append("structuredOutputNative=true").append(FIELD_SEPARATOR);
 		}
 	}
 
@@ -345,6 +369,58 @@ public class VcrCacheKeyGenerator {
 	}
 
 	/**
+	 * Schema {@code "5"}: multimodal content participates in the hash.
+	 *
+	 * <p>{@code UserMessage} and {@code AssistantMessage} both implement {@code
+	 * MediaContent}, carrying a {@code List<Media>} the generator previously never read —
+	 * only {@code Message.getText()} fed the hash, so two prompts differing only in which
+	 * image or audio clip was attached (identical caption text) canonicalized identically
+	 * and collided on one fixture. Confirmed empirically before this fix, not assumed.
+	 *
+	 * <p><strong>{@code Media.getName()} is deliberately excluded.</strong> Decompiling
+	 * {@code Media}'s own two public constructors ({@code Media(MimeType, URI)}/{@code
+	 * Media(MimeType, Resource)}) shows both call {@code generateDefaultName(mimeType)}
+	 * unconditionally, which returns {@code mimeType.getSubtype() + "-" +
+	 * UUID.randomUUID()} -- a fresh random value on every single construction, even for
+	 * "the same" logical image. Hashing it would mean the identical image, attached twice
+	 * (once when a fixture is recorded, again on a later run expected to replay it), gets
+	 * two different names and therefore two different hashes -- breaking exact-match
+	 * replay for the ordinary case, not just an edge case. {@code getId()} carries no such
+	 * risk (both public constructors leave it {@code null}; only an explicit {@code
+	 * Media.builder()...id(...)} sets a real, stable value), so it participates normally.
+	 */
+	private void appendMessageMedia(StringBuilder sb, Message message) {
+		if (!(message instanceof MediaContent mediaContent) || mediaContent.getMedia() == null) {
+			return;
+		}
+		for (Media media : mediaContent.getMedia()) {
+			sb.append("message.media=")
+				.append(escape(value(media.getMimeType())))
+				.append('|')
+				.append(escape(value(media.getId())))
+				.append('|')
+				.append(escape(mediaDataToken(media)))
+				.append(FIELD_SEPARATOR);
+		}
+	}
+
+	/**
+	 * {@code Media.getData()} is either a {@code byte[]} (a {@code Resource}-backed media
+	 * item, whose bytes were already read once at construction time -- no I/O happens
+	 * here) or a plain {@code String} (a {@code URI}-backed one, where the constructor
+	 * stores {@code uri.toString()} directly). A {@code byte[]} is digested rather than
+	 * embedded verbatim, for the same reason a tool's JSON schema is stored as text but a
+	 * multi-megabyte image is not: an embedded image would make the canonical form (and,
+	 * in {@code VcrTrackMapper}, the committed fixture) balloon in size for no reviewable
+	 * benefit -- nobody eyeballs raw image bytes in a pull request. A URI string is already
+	 * compact and human-meaningful, so it participates as-is.
+	 */
+	private static String mediaDataToken(Media media) {
+		Object data = media.getData();
+		return (data instanceof byte[] bytes) ? "sha256:" + sha256Hex(bytes) : value(data);
+	}
+
+	/**
 	 * Apply every configured normalizer, in registration order.
 	 */
 	protected String normalize(String text) {
@@ -397,9 +473,13 @@ public class VcrCacheKeyGenerator {
 	}
 
 	private static String sha256Hex(String input) {
+		return sha256Hex(input.getBytes(StandardCharsets.UTF_8));
+	}
+
+	private static String sha256Hex(byte[] input) {
 		try {
 			MessageDigest digest = MessageDigest.getInstance("SHA-256");
-			return HexFormat.of().formatHex(digest.digest(input.getBytes(StandardCharsets.UTF_8)));
+			return HexFormat.of().formatHex(digest.digest(input));
 		}
 		catch (NoSuchAlgorithmException ex) {
 			// SHA-256 is mandated by the JLS for every conforming JRE.

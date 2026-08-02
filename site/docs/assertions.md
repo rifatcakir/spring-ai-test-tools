@@ -35,6 +35,34 @@ assertThat(response).hasJsonField("/estimatedDays", 9).extractingText().contains
     nothing left for `hasToolCall(...)` to find on that final answer — check the model's
     own turn instead (see [Tool Calling](tool-calling.md)).
 
+## Request-side assertions
+
+Everything above asserts on a *response*. `VcrAssertions.assertThat(VcrTrack)` asserts on
+a fixture's *request* — what was actually sent, which a `ChatResponse` never carries, not
+even on a replay. Read the fixture with `VcrTrackStore`, then assert on it:
+
+```java
+VcrTrack track = new VcrTrackStore(cacheDirectory).read(hash).orElseThrow();
+
+assertThat(track)
+    .hasSystemMessageContaining("45-day return window")  // retrieved context made it into the prompt
+    .hasNoMessageContaining("Lisbon")                     // an irrelevant retrieved document did not leak in
+    .hasMessageCount(2);
+```
+
+- **`hasMessageContaining(text)`** — at least one message, any role.
+- **`hasSystemMessageContaining(text)`** — narrowed to the `system` message, the common
+  place a RAG pipeline's retrieved context gets injected.
+- **`hasNoMessageContaining(text)`** — the mirror image, for proving something did *not*
+  leak into the prompt.
+- **`hasMessageCount(int)`**.
+
+!!! note "Not a RAG-specific assertion type"
+    Spring AI's message model has no notion of "a retrieved document" distinct from an
+    ordinary message, so there's nothing RAG-specific to key an assertion off — these are
+    plain message-content checks, equally useful for verifying a redactor didn't
+    over-redact, or any other "what did we actually send" question.
+
 ## Semantic assertions
 
 "Is this response close enough in meaning to what I expected" — a plain string or JSON

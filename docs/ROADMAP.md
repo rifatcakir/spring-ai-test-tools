@@ -455,6 +455,40 @@ slice is worth it" discipline this roadmap already applies elsewhere:
   that deserves its own design pass before any code, the same bar every other
   non-trivial item on this roadmap is held to.
 
+### v0.2 — assertion layer expansion (v2 item 6: MCP part not needed, RAG part done)
+
+Two sub-parts, investigated before either was built rather than assumed to both need new
+code — the same discipline as the fixture-format-tooling item above:
+
+- **MCP assertions — investigated, not built, because there is nothing MCP-specific to
+  build.** Confirmed in the canonicalization audit (`docs/V2-CANONICALIZATION-AUDIT.md`)
+  by downloading the real `spring-ai-mcp:2.0.0` jar and reading its bytecode:
+  `SyncMcpToolCallback`/`AsyncMcpToolCallback` implement the standard `ToolCallback`
+  interface and expose `getToolDefinition()` exactly like any local `@Tool` method.
+  `ChatResponseAssert#hasToolCall(...)` already asserts on any tool call by name and
+  arguments regardless of whether the callback behind it wraps a local method or a remote
+  MCP server call — there is no MCP-specific shape for a dedicated assertion type to key
+  off. Building one anyway would be API surface for a distinction Spring AI's own domain
+  model doesn't make.
+- **RAG assertions — done, reframed as general request-side assertions.** The real gap
+  found, checked rather than assumed: every existing assertion (`ChatResponseAssert`/
+  `ChatClientResponseAssert`) asserts on a *response*, and a response — even a replayed
+  one, `VcrTrackMapper#toChatResponse` builds it entirely from `VcrTrack.response()` —
+  never carries what was actually *sent*. A test wanting to verify a RAG pipeline's
+  retrieved context genuinely reached the prompt (as opposed to whether the model's
+  *answer* merely reflects it, which the existing response-side assertions already cover)
+  had no fluent way to check that. `VcrAssertions.assertThat(VcrTrack)` /
+  `VcrTrackAssert` closes it: `hasMessageContaining`, `hasSystemMessageContaining`,
+  `hasNoMessageContaining`, `hasMessageCount`, reading a fixture's committed
+  `RequestSnapshot`. Named honestly, not as "RAG assertions": Spring AI's message model
+  has no notion of "a retrieved document" distinct from an ordinary message, so what
+  shipped is a general request/message-content assertion, with RAG-grounding checks as
+  the motivating (and now demonstrated, see `spring-ai-test-tools-example`'s
+  `RagAgentRecordReplayTest`) use case rather than a bespoke type. 9 new tests against
+  hand-built `VcrTrack` objects, the same no-model/no-fixture style
+  `ChatResponseAssertTests` already uses, every assertion covering both a passing and a
+  failing case with its message checked for content.
+
 ---
 
 ## What prior art gets right (and what doesn't transfer)

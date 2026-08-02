@@ -1,5 +1,7 @@
 package io.github.rifatcakir.springai.testtools.assertions;
 
+import io.github.rifatcakir.springai.testtools.recorder.track.VcrTrack;
+
 import org.springframework.ai.chat.client.ChatClientResponse;
 import org.springframework.ai.chat.model.ChatResponse;
 
@@ -14,6 +16,12 @@ import org.springframework.ai.chat.model.ChatResponse;
  * {@link ChatClientResponse} (adds advisor {@code context()}), {@code .chatResponse()}
  * returns the plain {@link ChatResponse} that most of this project's own tests already
  * build directly.
+ *
+ * <p>A third overload, {@link #assertThat(VcrTrack)}, is different in kind from the
+ * other two, not just in target type: it asserts on a fixture's <strong>request</strong>
+ * side, which a {@code ChatResponse}/{@code ChatClientResponse} never carries even on a
+ * replay (see {@link VcrTrackAssert}'s own Javadoc for why). A caller reaches for this
+ * one specifically to check what was sent, not what came back.
  *
  * @author Rifat Cakir
  */
@@ -40,6 +48,16 @@ public final class VcrAssertions {
 	 */
 	public static ChatResponseAssert assertThat(ChatResponse actual) {
 		return new ChatResponseAssert(actual);
+	}
+
+	/**
+	 * Start a fluent assertion against a {@link VcrTrack}'s request side — what was
+	 * actually sent, as read from a committed fixture via {@code VcrTrackStore#read}.
+	 * @param actual the fixture to assert on
+	 * @return a fluent assertion object
+	 */
+	public static VcrTrackAssert assertThat(VcrTrack actual) {
+		return new VcrTrackAssert(actual);
 	}
 
 }

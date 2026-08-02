@@ -532,6 +532,44 @@ what a redactor's return value claims. Multiple redactors run in registration or
 (`Ordered` sequence when Spring-managed); a redactor that throws is not swallowed, so a
 broken redactor fails the recording loudly rather than shipping a half-redacted fixture.
 
+### Validating committed fixtures
+
+`VcrFixtureValidator` checks a directory of fixtures for integrity — no model, no
+network, no live request to compare against, only what is already on disk. Wire it into
+your own suite as an ordinary test:
+
+```java
+@Test
+void everyCommittedChatFixtureIsIntact() {
+    List<VcrFixtureProblem> problems = VcrFixtureValidator
+        .validateChatFixtures(Path.of("src/test/resources/llm-cache"));
+    assertThat(problems).isEmpty();
+}
+```
+
+One method per fixture family — `validateChatFixtures`, `validateStreamFixtures`,
+`validateEmbeddingFixtures`, `validateToolFixtures` — since there's no single directory
+layout to auto-discover; point each at the same directory you already configured via
+`spring.ai.test.vcr.*.cache-directory`.
+
+Two things are checked per fixture:
+
+- **It parses.** A store already degrades a malformed fixture to a cache miss rather than
+  throwing (design rule #7), which is right for a single replay but means nothing
+  notices a corrupt file until a test happens to ask for that exact hash. This surfaces
+  it proactively, for every fixture in the directory.
+- **Its filename matches its own recorded hash.** A real gap, not a hypothetical one:
+  `VcrTrackStore#read(String)` resolves a file purely by the hash it's given and returns
+  whatever `VcrTrack` is inside — it never checks that `track.hash()` equals the filename
+  it came from. A renamed file, a fixture copied from a different hash's file during a
+  bad merge, or a hand-edited `"hash"` field would replay in silence without this check.
+
+What this does **not** check: whether a fixture is still the *correct* answer for the
+live request that would produce its hash today. That would mean re-issuing the original
+request against a real model — exactly the cost this library exists to avoid paying in
+CI. `REPLAY_ONLY` already surfaces a genuinely stale or missing fixture the moment a real
+test asks for it; this is a between-runs integrity check, not a freshness check.
+
 ### Tool calling
 
 Spring AI 2.0 moved the tool-calling loop into the advisor chain as `ToolCallingAdvisor`

@@ -129,6 +129,39 @@ That makes fixtures a prompt regression check. If a teammate reshapes a system p
 fails with the exact canonical request that changed rather than a silently different
 answer.
 
+## Validating committed fixtures
+
+`VcrFixtureValidator` checks a directory of fixtures for integrity — no model, no
+network, no live request to compare against, only what is already on disk:
+
+```java
+@Test
+void everyCommittedChatFixtureIsIntact() {
+    List<VcrFixtureProblem> problems = VcrFixtureValidator
+        .validateChatFixtures(Path.of("src/test/resources/llm-cache"));
+    assertThat(problems).isEmpty();
+}
+```
+
+One method per fixture family (`validateChatFixtures`/`validateStreamFixtures`/
+`validateEmbeddingFixtures`/`validateToolFixtures`) — point each at the same directory
+already configured via `spring.ai.test.vcr.*.cache-directory`.
+
+Two checks, both real:
+
+- **It parses** under the current schema, surfaced proactively for every fixture in the
+  directory rather than only the moment some test happens to ask for that exact hash.
+- **Its filename matches its own recorded `hash` field.** A genuine gap: the store
+  classes resolve a file purely by the hash they're given and never cross-check the
+  deserialized `hash()` against the filename — a renamed file, a fixture copied from a
+  different hash during a bad merge, or a hand-edited `"hash"` field would replay in
+  silence without this check.
+
+What it does **not** check: whether a fixture is still the *correct* answer for the live
+request that would produce its hash today — that would mean reaching a real model, the
+exact cost this library exists to avoid in CI. `REPLAY_ONLY` already surfaces a genuinely
+stale or missing fixture the moment a real test asks for it.
+
 ## Cross-platform fixtures
 
 Line endings inside a tool's input schema or an `entity()` call's format

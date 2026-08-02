@@ -408,6 +408,53 @@ compatibility test suite (exercising every message type, every `ChatOptions` dim
 this library does and does not read) remains unbuilt and is the natural next step once
 that design note exists.
 
+### v0.2 — fixture format tooling (v2 item 4: partially done)
+
+Three sub-parts, deliberately scoped and delivered one at a time rather than as one
+bundled feature — the same "don't build the whole thing before confirming the first
+slice is worth it" discipline this roadmap already applies elsewhere:
+
+- **(c) Fixture validation — done.** `io.github.rifatcakir.springai.testtools.recorder.validation.VcrFixtureValidator`,
+  one method per fixture family (`validateChatFixtures`/`validateStreamFixtures`/
+  `validateEmbeddingFixtures`/`validateToolFixtures`), each returning a `List<VcrFixtureProblem>`
+  for a caller (typically one `@Test` in a consumer's own suite) to assert against. Two
+  checks, both real, found by reading this project's own store classes rather than
+  assumed: a fixture parses under the current schema, and — a genuine, previously
+  unchecked gap — **its filename actually matches its own recorded `hash` field**.
+  `VcrTrackStore#read(String)` (and its three siblings) resolve a file purely by the hash
+  parameter given and return whatever is inside, never cross-checking the deserialized
+  `track.hash()` against the filename it came from; a renamed file, a fixture copy-pasted
+  from a different hash during a bad merge, or a hand-edited `"hash"` field would replay
+  in silence without this check. Deliberately does **not** claim to check whether a
+  fixture is still the *correct* answer for its live request — that would require
+  re-issuing the request against a real model, exactly the cost this library exists to
+  avoid paying in CI; `VcrMode.REPLAY_ONLY` already surfaces a genuinely stale/missing
+  fixture the moment a real test asks for it. 8 new tests, all against real fixtures
+  written through this project's own stores/mapper (or minimal hand-written JSON for the
+  three sibling families), not fixtures pretending to be fixtures.
+- **(b) Schema migration command — not built, and not scoped as speculative work.**
+  Checked before proposing it, not assumed needed: `VcrTrack`'s schema has bumped five
+  times (`"1"` → `"5"`) and every single bump has been additive — a new optional field
+  that simply deserializes to `null` on an older fixture, never read back after
+  deserialization regardless (see `VcrTrack`'s own Javadoc history). **No schema bump to
+  date has ever actually required migrating a fixture's content.** Building a migration
+  command now would be tooling for a problem that has not occurred yet — the same
+  category of premature investment already rejected once for bulk re-record/orphan
+  cleanup (see the "fixture lifecycle tooling" section above, and the multi-module
+  reactor conversion that was started and then deliberately reverted for the same
+  reason). Revisit only if a future schema bump is ever genuinely non-additive.
+- **(a) YAML fixture format — not built, needs its own design note.** A real, debatable
+  trade-off rather than an obvious win: this project's existing pretty-printed JSON
+  fixtures are already short and reviewable for every fixture family except embeddings
+  (which design rule #5 itself already accepts as the one deliberate exception — see
+  `VcrEmbeddingTrack`'s own Javadoc), so YAML's usual "more readable than JSON" pitch has
+  a weaker case here than it would for a verbose, deeply-nested format. Would also touch
+  every store class's serialization boundary (`defaultJsonMapper()` and its three
+  siblings) and raise a real compatibility question — do JSON and YAML fixtures coexist
+  in one directory, keyed by extension, or is it an all-or-nothing per-project choice —
+  that deserves its own design pass before any code, the same bar every other
+  non-trivial item on this roadmap is held to.
+
 ---
 
 ## What prior art gets right (and what doesn't transfer)

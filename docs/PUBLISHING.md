@@ -2,12 +2,21 @@
 
 Last updated: 2026-08-03
 
-**Status: the build side is prepared and verified. A GPG key now exists and its public
-half is published. A `central` server entry exists in local `settings.xml`. Nobody has
-actually published anything to Central yet.** Every step below that requires a secret,
-a key, or an account is written as something *you* do, by hand, outside of anything an
+**Status: published. `io.github.rifatcakir:spring-ai-test-tools:0.1.0` is live on Maven
+Central.** `mvn deploy -Prelease` was run by hand on 2026-08-03, the bundle validated
+(Deployment ID `b12ff567-ec49-4324-9141-337fe3958e07`, 1/1 components validated) on the
+Central Portal, and the maintainer clicked "Publish" the same day. That click is
+permanent: `0.1.0` cannot be deleted or overwritten on Central, only superseded by a
+later version. Everything below is kept as a historical record of how this release was
+prepared and as the runbook for the *next* version — every step that requires a secret,
+a key, or an account was written as something *you* do, by hand, outside of anything an
 agent should be doing on your behalf — see "Why this is a manual walkthrough" at the
 bottom.
+
+Central's search index and `repo1.maven.org` sync can lag the Portal's own "published"
+state by anywhere from a few minutes to a few hours. If a fresh dependency resolution
+doesn't find `0.1.0` yet, that's propagation delay, not a failed publish — retry later
+rather than re-running `mvn deploy`.
 
 ## What's already done (in this repo)
 
@@ -192,6 +201,13 @@ bundle on the Central Portal, but does **not** publish it automatically. Go to
 "Publish" yourself. Once published, a version on Central is permanent — it cannot be
 deleted or overwritten, only superseded by a new version. That irreversibility is exactly
 why the manual click exists as the last gate rather than automating it away.
+
+**Done, 2026-08-03.** `mvn deploy -Prelease` uploaded the bundle, the Portal validated it
+(Deployment ID `b12ff567-ec49-4324-9141-337fe3958e07`, 1/1 components validated), and the
+"Publish" click was made by hand the same day. `io.github.rifatcakir:spring-ai-test-tools:0.1.0`
+is now a permanent, live Maven Central coordinate. The next release (`0.1.1` or later)
+repeats steps 3–5 above with a bumped version — steps 1 and 2 (namespace, GPG key) don't
+need to be redone.
 
 ## Why this is a manual walkthrough
 

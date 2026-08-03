@@ -300,11 +300,11 @@ per-test escape hatch out of a sealed `REPLAY_ONLY` CI run. A GitHub Actions wor
 (`.github/workflows/ci.yml`) is live and green at
 <https://github.com/rifatcakir/spring-ai-test-tools/actions> — the repo is public and
 pushed, and both the per-PR unit test job and the scheduled Ollama e2e job have run
-successfully on a real hosted runner. The build side of publishing (`LICENSE`, Central
-metadata, a `release` profile) is done and `mvn -Prelease package` verified to actually
-work; nothing has been published, and everything credential-related is left for the
-maintainer per `docs/PUBLISHING.md`. See `STATUS.md` for the full detail and the bugs
-fixed to get here.
+successfully on a real hosted runner. **Published**: `io.github.rifatcakir:spring-ai-test-tools:0.1.0`
+went live on Maven Central on 2026-08-03 (`mvn deploy -Prelease`, validated and published
+via the Central Portal) and is confirmed resolvable from `repo1.maven.org`. See
+`docs/PUBLISHING.md` for the release record and `STATUS.md` for the full detail and the
+bugs fixed to get here.
 
 ---
 

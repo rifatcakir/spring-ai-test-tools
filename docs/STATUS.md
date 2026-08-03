@@ -361,11 +361,11 @@ green** at <https://github.com/rifatcakir/spring-ai-test-tools/actions> — the 
 public, pushed, and both the per-PR unit test job and the scheduled Ollama e2e job have
 completed successfully on a real hosted runner. See "Next tasks" item 7 for details.
 
-The build side of publishing is prepared — `LICENSE`, Central-required `pom.xml`
-metadata (including a confirmed repo URL and a listed contact email), a `release` Maven
-profile — and `mvn -Prelease package` was verified to actually produce a clean javadoc
-jar. **Nothing has been published or credentialed**; see `docs/PUBLISHING.md` for exactly
-what the maintainer still has to do by hand.
+**Published.** `io.github.rifatcakir:spring-ai-test-tools:0.1.0` is live on Maven Central
+as of 2026-08-03 — `mvn deploy -Prelease` uploaded and validated the bundle, the
+maintainer clicked "Publish" on the Central Portal, and the artifact is confirmed
+resolvable from `repo1.maven.org` (not just a local install). See `docs/PUBLISHING.md`
+for the full history and the runbook for the next release.
 
 ## Bugs found on first compile (fixed)
 
@@ -551,7 +551,7 @@ read.
    fast. Both the `test` job and the scheduled `e2e` job have completed successfully on
    the actual GitHub-hosted runner — this is no longer a local-only dry run; every
    previously-unverified item below has now been confirmed on real infrastructure.
-8. ~~**Publishing.**~~ **Build side prepared, nothing published.** `LICENSE` (Apache-2.0
+8. ~~**Publishing.**~~ **Done — published to Maven Central, 2026-08-03.** `LICENSE` (Apache-2.0
    — confirmed with the maintainer before adding; it was already what README/ROADMAP
    referenced, but license choice is hard to reverse so it wasn't picked unasked).
    `pom.xml` gained the Central-required metadata (`url`, `licenses`, `developers`,
@@ -563,13 +563,15 @@ read.
    needs a GPG key. **Verified**: `mvn -Prelease package -DskipTests` actually produces
    `-sources.jar` and `-javadoc.jar` with zero Javadoc errors (66 cosmetic "no comment"
    warnings, no failures) — the step most projects discover is broken only when they try
-   to actually release. Full walkthrough, including exactly what the maintainer still
-   has to do by hand (namespace verification, GPG key generation, Sonatype token,
-   `settings.xml` credentials, the real release commands), in `docs/PUBLISHING.md`.
-   **Not done, deliberately**: no GPG key generated, no credentials created or written
-   anywhere, no real `mvn deploy` — all of that is the maintainer's own action, not
-   something to do on their behalf. `CONTRIBUTING.md` also not started; folded into a
-   future task rather than blocking this one.
+   to actually release. Full walkthrough — namespace verification, GPG key generation,
+   Sonatype token, `settings.xml` credentials, the real release commands, and the
+   record of the actual 2026-08-03 release — in `docs/PUBLISHING.md`. `mvn deploy
+   -Prelease` was run by hand by the maintainer, the Central Portal validated the
+   bundle, and the maintainer clicked "Publish". `io.github.rifatcakir:spring-ai-test-tools:0.1.0`
+   is confirmed resolvable from `repo1.maven.org` (verified by clearing it out of a local
+   `~/.m2/repository` and rebuilding the example repo against a clean cache).
+   `CONTRIBUTING.md` still not started; folded into a future task rather than blocking
+   this one.
 
 ## Resolved questions (kept for history)
 

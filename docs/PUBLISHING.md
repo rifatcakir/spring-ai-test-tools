@@ -13,10 +13,15 @@ a key, or an account was written as something *you* do, by hand, outside of anyt
 agent should be doing on your behalf — see "Why this is a manual walkthrough" at the
 bottom.
 
-Central's search index and `repo1.maven.org` sync can lag the Portal's own "published"
-state by anywhere from a few minutes to a few hours. If a fresh dependency resolution
-doesn't find `0.1.0` yet, that's propagation delay, not a failed publish — retry later
-rather than re-running `mvn deploy`.
+**Confirmed synced, 2026-08-03.** `repo1.maven.org/maven2/io/github/rifatcakir/spring-ai-test-tools/0.1.0/`
+serves the jar and pom (HTTP 200), and `search.maven.org` indexes the coordinate.
+Verified end to end by clearing the artifact out of a local `~/.m2/repository` entirely
+and running `mvn clean test` in the sibling
+[`spring-ai-test-tools-example`](https://github.com/rifatcakir/spring-ai-test-tools-example)
+repo — Maven re-downloaded `spring-ai-test-tools-0.1.0.jar` straight from Central and all
+tests passed. (The general propagation lag noted in earlier drafts of this doc — Central's
+search index and `repo1.maven.org` sync can trail the Portal's own "published" state by
+minutes to hours — applies to future releases too; it's just already elapsed for `0.1.0`.)
 
 ## What's already done (in this repo)
 

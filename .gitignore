@@ -21,3 +21,8 @@ target/
 .site-build/
 site/.cache/
 
+# Stale agent-dispatch bootstrap prompts from before this project existed in any real
+# form -- all four tasks it describes are done and superseded by STATUS.md/ROADMAP.md.
+# Kept locally for reference, deliberately not tracked going forward.
+docs/DISPATCH_PROMPT.md
+

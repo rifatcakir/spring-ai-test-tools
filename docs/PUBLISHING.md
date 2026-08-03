@@ -1,6 +1,6 @@
 # Publishing to Maven Central
 
-Last updated: 2026-07-21
+Last updated: 2026-08-03
 
 **Status: the build side is prepared and verified. A GPG key now exists and its public
 half is published. A `central` server entry exists in local `settings.xml`. Nobody has
@@ -27,16 +27,20 @@ bottom.
   Isolated in its own profile so an ordinary `mvn test` / `mvn install` never needs a GPG
   key — nothing about local development changed.
 - **Verified**: `mvn -Prelease package -DskipTests` actually runs `javadoc:javadoc`
-  end-to-end and produces `target/spring-ai-test-vcr-0.1.0-javadoc.jar` and
-  `-sources.jar` alongside the main jar, with **zero Javadoc errors** (66 warnings, all
-  "no comment" / "no @param" / "no @return" on getters, setters, and constructors that
-  inherit their meaning from the class-level Javadoc — cosmetic, not blocking). This is
-  the step most projects find out is broken only when they try to actually release, so it
-  was checked here rather than assumed.
+  end-to-end and produces `target/spring-ai-test-tools-0.1.0-javadoc.jar` and
+  `-sources.jar` alongside the main jar, with **zero Javadoc errors** (100 warnings as of
+  the current codebase, all "no comment" / "no @param" / "no @return" on getters, setters,
+  and constructors that inherit their meaning from the class-level Javadoc — cosmetic, not
+  blocking; the warning count has grown alongside the codebase but the "zero errors"
+  property that actually matters for a release has been re-checked every time, not just
+  assumed to still hold). This is the step most projects find out is broken only when they
+  try to actually release, so it was checked here rather than assumed.
 - **Version bumped: `0.1.0-SNAPSHOT` → `0.1.0`.** Central rejects SNAPSHOT versions
   outright, so this had to happen before a real release regardless. Verified afterward
-  with a fresh `mvn clean verify -Prelease`: 47/47 tests still green, all four required
-  artifacts produced and signed under the new, non-SNAPSHOT filenames (see below).
+  with a fresh `mvn clean verify -Prelease`, most recently on 2026-08-03 after the
+  schema-"5" canonicalization fixes: **250/250 tests green**, all three required
+  artifacts (jar, sources, javadoc — see below for the fourth, the signed `.asc` files)
+  produced correctly under the non-SNAPSHOT filenames.
 - **GPG key generated and published.** Ed25519/Cv25519 (`sec ed25519` + `ssb cv25519`,
   not RSA — a modern, equally valid choice; this doc's earlier draft suggested RSA 4096
   as *a* safe default, not the only one). Fingerprint
@@ -50,10 +54,20 @@ bottom.
   actual username/password were not inspected or verified as real, valid tokens — only
   that the block is present and correctly named, which is as far as this can be checked
   without reading a credential.
-- **Not verified, and cannot be from here**: whether `maven-gpg-plugin`'s `sign` goal
-  actually produces a valid signature when Maven runs it (needs an interactive passphrase
-  unlock — see step 5 below for why that has to be run by hand), or whether
-  `central-publishing-maven-plugin`'s upload succeeds with the current token.
+- **Checked on 2026-08-03, from an agent sandbox — confirms the mechanics, not the
+  signature itself.** `mvn clean verify -Prelease` run end to end: compiles, all 250
+  tests pass, and all three unsigned artifacts (`spring-ai-test-tools-0.1.0.jar`,
+  `-sources.jar`, `-javadoc.jar`) land correctly in `target/`. The build then reaches
+  `gpg:sign` and fails immediately with `gpg: no default secret key: No secret key` —
+  not a `pinentry` passphrase prompt, but a clean, expected failure: this sandbox has no
+  GPG key material at all (`gpg --list-secret-keys` is empty here), which is exactly
+  right — the real signing key lives only on the maintainer's own machine, never in an
+  agent's environment. This confirms the pom's build/package/sign wiring is correct up to
+  the point where it needs a real key; **still not verified, and still cannot be from
+  here**: whether the actual signature `maven-gpg-plugin` produces on your machine (with
+  your real key) is one Central accepts, and whether
+  `central-publishing-maven-plugin`'s upload succeeds with your current token. Both only
+  get proven by step 5 below, run by hand.
 
 ## What you need to do, in order
 

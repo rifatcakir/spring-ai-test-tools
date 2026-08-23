@@ -25,8 +25,8 @@ exist first for anything built on top of it to be usable in CI at all.
 
 ## Current state
 
-Core architecture scaffolded and now proven end-to-end. **`mvn test` is green (203/203)**,
-plus sixteen real Testcontainers + Ollama integration tests (excluded from the default run,
+Core architecture scaffolded and now proven end-to-end. **`mvn test` is green (250/250)**,
+plus seventeen real Testcontainers + Ollama integration tests (excluded from the default run,
 verified separately via `mvn test -Pintegration-test`) that prove the library's actual
 reason to exist: record on a real cache miss, replay on a hit, zero additional network
 calls on the hit — one for a plain call, one for a two-turn tool-calling round trip, one

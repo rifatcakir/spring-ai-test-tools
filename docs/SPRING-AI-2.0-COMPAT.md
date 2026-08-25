@@ -1,5 +1,11 @@
 # Spring AI 2.0 GA compatibility / gap analysis
 
+**Update:** row 6.2 (cache-read/cache-write token accounting) is closed — was **Gap**, now
+**Covered**. See `docs/R6-CACHE-TOKEN-USAGE-PRD.md` for the fix (`VcrTrack.UsageSnapshot`/
+`VcrTrackMapper`/`VcrStreamTrackMapper`, schema `"6"`) and the library's own version bump to
+`0.1.1`. The row and tally below are updated in place rather than left stale; the rest of this
+document's analysis is otherwise unchanged from when it was written.
+
 Status: **Analysis, not a build plan.** Built directly on `docs/SPRING-AI-2.0-FEATURES.md`
 (the feature inventory produced in the prior task) and re-verified against this library's
 own source (`VcrCacheKeyGenerator`, `VcrTrackMapper`, `VcrTrack`, `DeterministicVcrAdvisor`,
@@ -243,7 +249,7 @@ paragraph already states this precisely — not re-litigated here).
 | 4 | `ToolSearchToolCallingAdvisor` (progressive tool disclosure) | **Partial** | Architecture confirmed (`extends ToolCallingAdvisor`, identical `DEFAULT_ORDER`); real `llama3.2:1b` e2e demo failed to complete the two-hop protocol, per R5 §7 | scenario-opportunity | Needs a stronger model, not library code |
 | 5 | `StructuredOutputValidationAdvisor` (self-correcting structured output) | **Covered** | Both default-order (one fixture) and per-attempt-order (one fixture per retry) confirmed against a real forced-failure loop, R5 §2/§6 | already-covered | Most thoroughly proven finding in this whole analysis |
 | 6.1 | Cumulative usage across recursive-advisor loop iterations | **N/A at pinned 2.0.0 / Covered at 2.0.1+** | Independently re-confirmed this session: zero "usage" references anywhere in `ToolCallingAdvisor.class`/`StructuredOutputValidationAdvisor.class`'s constant pools at `2.0.0`. 2.0.1 behavior (real `UsageAccumulator`, verified via a real-model probe) inherited from the prior draft, not re-run this session | already-covered (2.0.1+) / N-A (2.0.0) | §2(a) above — nothing to build; there's no cumulative concept at the pinned version to get wrong |
-| 6.2 | Cache-read/cache-write token accounting (`Usage.getCacheReadInputTokens/getCacheWriteInputTokens`) | **Gap** | `VcrTrack.UsageSnapshot` has only 3 fields; `VcrTrackMapper` never reads or restores the two new `Usage` methods; `DefaultUsage`'s 6-arg ctor (re-confirmed present via `javap`) is never called | **real-gap** | §2(b) above — new finding this session; concrete, closable, see priority list |
+| 6.2 | Cache-read/cache-write token accounting (`Usage.getCacheReadInputTokens/getCacheWriteInputTokens`) | **Covered (closed, see update above)** | `VcrTrack.UsageSnapshot` now carries both fields (schema `"6"`); `VcrTrackMapper#toResponseSnapshot` reads them, `#toUsage` calls `DefaultUsage`'s 6-arg ctor; `VcrStreamTrackMapper`'s duplicate call sites fixed too; round-trip + backward-compat tests in `VcrTrackStoreRoundTripTests`; `mvn clean test` 253/253. See `docs/R6-CACHE-TOKEN-USAGE-PRD.md` | already-covered | Was §2(b)'s new finding this session; closed the same session |
 | 7.1 | MCP client tool consumption | **Covered** | `SyncMcpToolCallbackProvider implements ToolCallbackProvider` re-confirmed; `VcrToolCallingManager`/`VcrCacheKeyGenerator` re-read this session, confirmed to key off `AssistantMessage.ToolCall`/`ToolCallback.getToolDefinition()` alone, no MCP-specific branch anywhere | already-covered | §3 above |
 | 7.2 | MCP server (exposing this app's own tools) | **N/A** | Responds to an external MCP client, never reaching `ChatClient`'s advisor chain | N/A by design | §3 above |
 | 7.3 | MCP client sampling (`@McpSampling`) | **Gap** | Confirmed by an authoritative source (Spring AI team recipe, inherited from prior draft, not re-checked this session): sampling handlers use a raw `ChatModel`, deliberately not `ChatClient`, to avoid an infinite loop — invisible to this library's `ChatClient`-advisor-layer interception | real-gap | Would need a `VcrChatModel`-style direct wrapper (R4's `VcrEmbeddingModel` precedent) |
@@ -297,24 +303,27 @@ unchanged from the prior draft (MCP client sampling; `ToolSearchToolCallingAdvis
 practical demo blocked on model capability), and two "N/A, unverifiable" rows from the prior
 draft are now corrected to "Covered"/"Partial" once the real Maven coordinate was found.
 
-**Tally: 12 Covered · 3 Partial · 3 Gap · 5 N/A** (23 rows total — one more row than the prior
-draft's 21, from splitting cumulative usage (6) into 6.1/6.2 once a second, independent
-finding existed under that heading; row 6.1 is counted under Covered, reflecting its real
-state once the pin eventually moves to 2.0.1, same convention the prior draft used; row 3.2's
-"Covered for both shipped instances" is likewise counted under Covered).
+**Tally (updated): 13 Covered · 3 Partial · 2 Gap · 5 N/A.** At the time this analysis was
+first written the tally was 12 Covered · 3 Partial · 3 Gap · 5 N/A; row 6.2 has since moved
+from Gap to Covered (see the update note at the top of this document and
+`docs/R6-CACHE-TOKEN-USAGE-PRD.md`). 23 rows total — one more row than the prior draft's 21,
+from splitting cumulative usage (6) into 6.1/6.2 once a second, independent finding existed
+under that heading; row 6.1 is counted under Covered, reflecting its real state once the pin
+eventually moves to 2.0.1, same convention the prior draft used; row 3.2's "Covered for both
+shipped instances" is likewise counted under Covered.
 
 ## Priority list, most to least worth acting on
 
-1. **Cache-read/cache-write token fields (row 6.2)** — the one item in this whole pass that is
-   a concrete, scoped, ready-to-build fix, not a design question: add
-   `cacheReadInputTokens`/`cacheWriteInputTokens` (`Long`) to `VcrTrack.UsageSnapshot`, read
-   them in `VcrTrackMapper#toResponseSnapshot` via the already-existing `Usage` getters, write
-   them back in `#toUsage` via `DefaultUsage`'s already-existing 6-arg constructor (pass
-   `nativeUsage = null`, consistent with how this library already drops that field on
-   purpose), bump `VcrTrack.CURRENT_SCHEMA_VERSION` to `"6"` following the exact precedent of
-   every prior additive bump (a `"5"` fixture still deserializes, the two new fields come back
-   `null`). Highest-value item because it's the only real, user-visible fidelity gap found,
-   with a clear, small, precedented fix — not a speculative feature.
+1. ~~**Cache-read/cache-write token fields (row 6.2)**~~ **Done — see
+   `docs/R6-CACHE-TOKEN-USAGE-PRD.md`.** `cacheReadInputTokens`/`cacheWriteInputTokens`
+   (`Long`) added to `VcrTrack.UsageSnapshot`; `VcrTrackMapper#toResponseSnapshot` reads them
+   via the `Usage` getters, `#toUsage` writes them back via `DefaultUsage`'s 6-arg
+   constructor (`nativeUsage = null`, consistent with that field already being dropped on
+   purpose); `VcrTrack.CURRENT_SCHEMA_VERSION` bumped to `"6"`, additive exactly like every
+   prior bump (a `"5"` fixture still deserializes, both new fields come back `null`). Three
+   new tests in `VcrTrackStoreRoundTripTests`; `mvn clean test` 253/253, working tree clean
+   afterward. Was the highest-value item in this list — the only real, user-visible fidelity
+   gap found, with a clear, small, precedented fix — so closed first.
 2. **Chat memory + VCR e2e test** (§ext. above) — the one remaining "trust the ordering math"
    claim in this whole pass, same category R5 already taught this project not to ship
    undemonstrated once. Cheap: one new e2e test, same pattern as every other

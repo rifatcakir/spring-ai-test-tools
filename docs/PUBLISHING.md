@@ -1,17 +1,61 @@
 # Publishing to Maven Central
 
-Last updated: 2026-08-03
+Last updated: 2026-08-25
 
-**Status: published. `io.github.rifatcakir:spring-ai-test-tools:0.1.0` is live on Maven
-Central.** `mvn deploy -Prelease` was run by hand on 2026-08-03, the bundle validated
-(Deployment ID `b12ff567-ec49-4324-9141-337fe3958e07`, 1/1 components validated) on the
-Central Portal, and the maintainer clicked "Publish" the same day. That click is
-permanent: `0.1.0` cannot be deleted or overwritten on Central, only superseded by a
-later version. Everything below is kept as a historical record of how this release was
-prepared and as the runbook for the *next* version — every step that requires a secret,
-a key, or an account was written as something *you* do, by hand, outside of anything an
-agent should be doing on your behalf — see "Why this is a manual walkthrough" at the
-bottom.
+**Status: `0.1.0` published; `0.1.1` prepared, not yet published.**
+`io.github.rifatcakir:spring-ai-test-tools:0.1.0` is live on Maven Central — `mvn deploy
+-Prelease` was run by hand on 2026-08-03, the bundle validated (Deployment ID
+`b12ff567-ec49-4324-9141-337fe3958e07`, 1/1 components validated) on the Central Portal,
+and the maintainer clicked "Publish" the same day. That click is permanent: `0.1.0`
+cannot be deleted or overwritten on Central, only superseded by a later version.
+`0.1.1` (`docs/R6-CACHE-TOKEN-USAGE-PRD.md` — cache-token usage fidelity fix) has its
+version already bumped in `pom.xml` (`mvn versions:set -DnewVersion=0.1.1`) and
+`mvn clean test` green (253/253) as of this update, but **no release build, signing, or
+upload has been run for it** — see "Next release: `0.1.1`" immediately below for the
+exact remaining steps. Everything further below is kept as a historical record of how
+`0.1.0` was prepared and as the general runbook this next release reuses — every step
+that requires a secret, a key, or an account was written as something *you* do, by hand,
+outside of anything an agent should be doing on your behalf — see "Why this is a manual
+walkthrough" at the bottom.
+
+## Next release: `0.1.1`
+
+Namespace verification and the GPG key (steps 1–2 below) don't need to be redone — only
+steps 3–5 repeat, and step 3/4 only if your Sonatype token has expired or `settings.xml`
+needs attention. In order, run yourself, in your own terminal:
+
+```bash
+# 1. Confirm the version is what you expect (already done, verify it stuck):
+grep -m1 "<version>" pom.xml
+# should print: <version>0.1.1</version>
+
+# 2. A real release build -- this is the first command that attempts to sign anything.
+#    If gpg-agent doesn't already have your key cached, expect a pinentry prompt for
+#    your key's passphrase.
+mvn clean verify -Prelease
+
+# 3. Upload and validate the bundle on the Central Portal (does NOT publish automatically
+#    -- autoPublish is false in pom.xml on purpose).
+mvn deploy -Prelease
+```
+
+Then go to <https://central.sonatype.com>, find the pending `0.1.1` deployment, review
+it, and click "Publish" yourself. That click is the last, deliberately manual gate —
+once clicked, `0.1.1` is permanent on Central too.
+
+If step 2 fails at `gpg:sign` with "no secret key," your GPG key isn't available to this
+shell (wrong `gpg-agent`, different user, different machine) — see step 2 in the general
+walkthrough below for the key's fingerprint and where its public half was published; the
+private key and passphrase live only wherever you originally generated them, never in
+this repository. If step 3 fails with an authentication error, your Sonatype user token
+in `~/.m2/settings.xml` under the `central` server entry has likely expired — generate a
+fresh one under your account at <https://central.sonatype.com> and update that file (see
+step 4 in the general walkthrough for the exact shape; never commit it anywhere).
+
+**No agent should run any of the three commands above, generate a GPG passphrase, or
+write real Sonatype credentials into `settings.xml`.** This section exists so you have
+the exact commands; running them is deliberately left to you, for the same reasons laid
+out in "Why this is a manual walkthrough" at the bottom of this document.
 
 **Confirmed synced, 2026-08-03.** `repo1.maven.org/maven2/io/github/rifatcakir/spring-ai-test-tools/0.1.0/`
 serves the jar and pom (HTTP 200), and `search.maven.org` indexes the coordinate.

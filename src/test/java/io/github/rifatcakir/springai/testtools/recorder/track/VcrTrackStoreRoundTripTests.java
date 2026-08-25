@@ -425,6 +425,104 @@ class VcrTrackStoreRoundTripTests {
 	}
 
 	@Test
+	@DisplayName("R6: cache-read/cache-write token usage round-trips bit-for-bit")
+	void cacheTokenUsageRoundTrips() {
+		VcrTrackStore store = new VcrTrackStore(this.cacheDirectory);
+		ChatResponse original = ChatResponse.builder()
+			.generations(List.of(new Generation(new AssistantMessage("cached answer"))))
+			.metadata(ChatResponseMetadata.builder()
+				.model("claude-sonnet")
+				// nativeUsage intentionally non-null here too, proving it is dropped on
+				// record rather than merely never having been exercised -- same
+				// discipline as VcrTrackMapper's own Javadoc on the field.
+				.usage(new DefaultUsage(120, 40, 160, "some-provider-sdk-object", 96L, 24L))
+				.build())
+			.build();
+
+		VcrCacheKey key = key();
+		store.write(this.mapper.toTrack(key, prompt(), original));
+
+		VcrTrack written = store.read(key.hash()).orElseThrow();
+		assertThat(written.response().usage().cacheReadInputTokens()).isEqualTo(96L);
+		assertThat(written.response().usage().cacheWriteInputTokens()).isEqualTo(24L);
+		// Response-only data: VcrCacheKeyGenerator has no method that accepts a
+		// ChatResponse at all, so the fixture's own hash -- computed before this
+		// response ever existed -- is exactly the request key, untouched by usage.
+		assertThat(written.hash()).isEqualTo(key.hash());
+
+		ChatResponse replayed = this.mapper.toChatResponse(written);
+		assertThat(replayed.getMetadata().getUsage().getCacheReadInputTokens()).isEqualTo(96L);
+		assertThat(replayed.getMetadata().getUsage().getCacheWriteInputTokens()).isEqualTo(24L);
+		// The ordinary fields must still round-trip unchanged alongside the new ones.
+		assertThat(replayed.getMetadata().getUsage().getPromptTokens()).isEqualTo(120);
+		assertThat(replayed.getMetadata().getUsage().getCompletionTokens()).isEqualTo(40);
+		assertThat(replayed.getMetadata().getUsage().getTotalTokens()).isEqualTo(160);
+	}
+
+	@Test
+	@DisplayName("R6: a provider that doesn't report cache tokens still replays -- both come back null, not zero")
+	void usageWithoutCacheTokensStillReplaysAsNull() {
+		VcrTrackStore store = new VcrTrackStore(this.cacheDirectory);
+		ChatResponse original = ChatResponse.builder()
+			.generations(List.of(new Generation(new AssistantMessage("ordinary answer"))))
+			.metadata(ChatResponseMetadata.builder().model("llama3.2").usage(new DefaultUsage(18, 9, 27)).build())
+			.build();
+
+		VcrCacheKey key = key();
+		store.write(this.mapper.toTrack(key, prompt(), original));
+
+		VcrTrack written = store.read(key.hash()).orElseThrow();
+		assertThat(written.response().usage().cacheReadInputTokens()).isNull();
+		assertThat(written.response().usage().cacheWriteInputTokens()).isNull();
+
+		ChatResponse replayed = this.mapper.toChatResponse(written);
+		assertThat(replayed.getMetadata().getUsage().getCacheReadInputTokens()).isNull();
+		assertThat(replayed.getMetadata().getUsage().getCacheWriteInputTokens()).isNull();
+		assertThat(replayed.getMetadata().getUsage().getPromptTokens()).isEqualTo(18);
+	}
+
+	@Test
+	@DisplayName("a schema-version-5 fixture predating cache-token usage still replays")
+	void schemaVersion5FixtureWithoutCacheTokensStillReplays() throws Exception {
+		VcrTrackStore store = new VcrTrackStore(this.cacheDirectory);
+		String hash = "0".repeat(64);
+		// Deliberately the pre-"6" shape: the usage object has no "cacheReadInputTokens"/
+		// "cacheWriteInputTokens" keys at all -- exactly what every fixture recorded before
+		// this capability existed looks like on disk.
+		Files.writeString(store.pathFor(hash), """
+				{
+				  "schemaVersion" : "5",
+				  "hash" : "%s",
+				  "recordedAt" : "2026-08-10T12:00:00Z",
+				  "canonicalRequest" : "irrelevant",
+				  "request" : {
+				    "model" : "llama3.2",
+				    "temperature" : 0.0,
+				    "messages" : [ { "type" : "user", "text" : "hello", "toolCalls" : [], "toolResponses" : [], "media" : [] } ],
+				    "tools" : []
+				  },
+				  "response" : {
+				    "id" : "x",
+				    "model" : "llama3.2",
+				    "generations" : [ { "text" : "hi", "finishReason" : "STOP", "toolCalls" : [] } ],
+				    "usage" : { "promptTokens" : 18, "completionTokens" : 9, "totalTokens" : 27 },
+				    "metadata" : {}
+				  }
+				}
+				""".formatted(hash));
+
+		VcrTrack track = store.read(hash).orElseThrow();
+		ChatResponse replayed = this.mapper.toChatResponse(track);
+
+		assertThat(replayed.getResult().getOutput().getText()).isEqualTo("hi");
+		assertThat(replayed.getMetadata().getUsage().getPromptTokens())
+			.as("the pre-existing usage fields must still replay unchanged").isEqualTo(18);
+		assertThat(track.response().usage().cacheReadInputTokens())
+			.as("missing in the JSON -- must default to null, not throw").isNull();
+		assertThat(track.response().usage().cacheWriteInputTokens()).isNull();
+	}
+
+	@Test
 	@DisplayName("fixtures are human-readable, because they get reviewed in pull requests")
 	void fixturesArePrettyPrinted() throws Exception {
 		VcrTrackStore store = new VcrTrackStore(this.cacheDirectory);

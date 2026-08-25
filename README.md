@@ -216,7 +216,7 @@ capability's format can evolve without touching another's committed fixtures.
 <dependency>
     <groupId>io.github.rifatcakir</groupId>
     <artifactId>spring-ai-test-tools</artifactId>
-    <version>0.1.0</version>
+    <version>0.1.1</version>
     <scope>test</scope>
 </dependency>
 ```

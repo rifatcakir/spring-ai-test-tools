@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-07-24 (Stub file-source + positioning) · Version `0.1.0`
+Last updated: 2026-08-25 (R6: cache-token usage fidelity fix) · Version `0.1.1`
 
 ## Rename: `spring-ai-test-vcr` → `spring-ai-test-tools`
 
@@ -25,7 +25,7 @@ exist first for anything built on top of it to be usable in CI at all.
 
 ## Current state
 
-Core architecture scaffolded and now proven end-to-end. **`mvn test` is green (250/250)**,
+Core architecture scaffolded and now proven end-to-end. **`mvn test` is green (253/253)**,
 plus seventeen real Testcontainers + Ollama integration tests (excluded from the default run,
 verified separately via `mvn test -Pintegration-test`) that prove the library's actual
 reason to exist: record on a real cache miss, replay on a hit, zero additional network
@@ -366,6 +366,39 @@ as of 2026-08-03 — `mvn deploy -Prelease` uploaded and validated the bundle, t
 maintainer clicked "Publish" on the Central Portal, and the artifact is confirmed
 resolvable from `repo1.maven.org` (not just a local install). See `docs/PUBLISHING.md`
 for the full history and the runbook for the next release.
+
+**R6 (cache-token usage fidelity) is built: `docs/R6-CACHE-TOKEN-USAGE-PRD.md`, version
+`0.1.1`.** A Spring AI 2.0 GA compatibility audit (`docs/SPRING-AI-2.0-COMPAT.md` row 6.2)
+found a real, concrete fixture-fidelity gap by reading this library's own source against the
+bytecode-confirmed real `Usage` shape: `Usage.getCacheReadInputTokens()`/
+`getCacheWriteInputTokens()` — a headline 2.0 GA feature, populated by Anthropic and Bedrock
+Converse — were silently dropped by `VcrTrack.UsageSnapshot`/`VcrTrackMapper`, both on record
+(never read off the live `Usage`) and on replay (`DefaultUsage`'s 3-arg constructor only). A
+test asserting on Anthropic prompt-cache token savings saw the real number live and a silent
+`null` on every replay, forever, with no warning. Fixed by bumping
+`VcrTrack.CURRENT_SCHEMA_VERSION` to `"6"` and adding both fields to `UsageSnapshot`, read/
+written in both `VcrTrackMapper` and its streaming counterpart `VcrStreamTrackMapper` (which
+turned out to duplicate the same usage-mapping logic for per-chunk usage — found by grepping
+every call site, not assumed to be the one place). **Unlike every prior schema bump, this one
+never touches `VcrCacheKeyGenerator` or the hash at all** — `Usage` is response data, produced
+only after a call already happened, and the cache key generator has no method that even
+accepts a `ChatResponse` — so every existing golden-hash test is unaffected by construction,
+not merely by observation. Three new tests in `VcrTrackStoreRoundTripTests`: cache tokens
+round-trip bit-for-bit (plus proving a non-null `nativeUsage` is still dropped on purpose), a
+provider that doesn't report them still replays with both fields `null` rather than `0`, and a
+hand-written schema-`"5"` fixture (no cache-token keys at all) still deserializes and replays,
+same backward-compatibility pattern every prior bump's own test follows.
+**`mvn clean test`: 253/253** (250 prior + 4 new − 1 folded into an existing assertion rather
+than left as a separate near-tautological test), working tree clean afterward — the same
+whole-tree dirty check `.github/workflows/ci.yml`'s `test` job enforces.
+`-Pintegration-test` compiles cleanly; the real-Ollama e2e suite itself was not re-run this
+pass (Docker was unavailable in this environment at the time), and Ollama has no prompt-cache
+concept to report regardless, so a live run would only re-confirm the already-unit-tested
+"both null" path, not add real new coverage — worth a genuine Anthropic-backed e2e test if/
+when this project adds one (none exists yet for any Anthropic scenario). Library version
+bumped `0.1.0` → `0.1.1` (`mvn versions:set`) — **not yet published to Maven Central**; see
+`docs/PUBLISHING.md`'s "Next release" section for the exact remaining steps, all
+maintainer-run by design.
 
 ## Bugs found on first compile (fixed)
 

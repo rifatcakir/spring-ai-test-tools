@@ -259,8 +259,11 @@ public final class VcrTrackMapper {
 			Usage source = metadata.getUsage();
 			// Deliberately excludes getNativeUsage(): it holds the raw provider SDK
 			// object, which is neither portable nor safely serialisable.
+			// cacheReadInputTokens/cacheWriteInputTokens (schema "6"): Usage's two new
+			// Spring AI 2.0 GA accessors, both nullable, both simply passed through --
+			// see VcrTrack.CURRENT_SCHEMA_VERSION's Javadoc.
 			usage = new VcrTrack.UsageSnapshot(source.getPromptTokens(), source.getCompletionTokens(),
-					source.getTotalTokens());
+					source.getTotalTokens(), source.getCacheReadInputTokens(), source.getCacheWriteInputTokens());
 		}
 
 		return new VcrTrack.ResponseSnapshot(metadata == null ? null : metadata.getId(),
@@ -344,8 +347,17 @@ public final class VcrTrackMapper {
 		return new Generation(message, generationMetadata);
 	}
 
+	/**
+	 * {@code nativeUsage} is always {@code null} on replay — the raw provider SDK object it
+	 * would hold is exactly what {@link #toResponseSnapshot} already deliberately excludes
+	 * from the fixture, so there is nothing to restore. {@code cacheReadInputTokens}/
+	 * {@code cacheWriteInputTokens} (schema {@code "6"}) come back exactly as recorded,
+	 * {@code null} for a fixture recorded before this capability existed or for a provider
+	 * that never reports them — {@code Usage}'s own documented default for "not reported".
+	 */
 	private Usage toUsage(VcrTrack.UsageSnapshot snapshot) {
-		return new DefaultUsage(snapshot.promptTokens(), snapshot.completionTokens(), snapshot.totalTokens());
+		return new DefaultUsage(snapshot.promptTokens(), snapshot.completionTokens(), snapshot.totalTokens(), null,
+				snapshot.cacheReadInputTokens(), snapshot.cacheWriteInputTokens());
 	}
 
 	private String normalize(String text) {

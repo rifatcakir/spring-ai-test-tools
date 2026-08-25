@@ -125,8 +125,32 @@ public record VcrTrack(String schemaVersion, String hash, String recordedAt, Str
 	 * changes the canonical form for a request that carries neither native structured
 	 * output nor media — a {@code "4"} fixture, and every fixture recorded before this
 	 * bump, still deserializes and still hashes exactly as before.
+	 *
+	 * <p>{@code "6"}: {@link UsageSnapshot} gained {@code cacheReadInputTokens}/
+	 * {@code cacheWriteInputTokens}, mirroring the two methods Spring AI 2.0 GA added to
+	 * {@code Usage} itself (populated today by Anthropic and Bedrock Converse; read-only
+	 * from OpenAI/Google GenAI) — see {@code docs/SPRING-AI-2.0-COMPAT.md} row 6.2. Before
+	 * this bump, {@code VcrTrackMapper} never read these two accessors on record and never
+	 * called {@code DefaultUsage}'s 6-argument constructor on replay, so a test asserting
+	 * on prompt-cache token savings saw the real number live and a silent {@code null} on
+	 * every replay, forever, with no warning — confirmed by reading the pre-fix source, not
+	 * hypothetical.
+	 *
+	 * <p><strong>Unlike every prior bump, this one touches only {@link ResponseSnapshot}, not
+	 * {@link RequestSnapshot}, and therefore does not touch {@code VcrCacheKeyGenerator} or
+	 * the hash at all.</strong> {@code Usage} is response data — what came back after a call
+	 * already happened — and the cache key is, by construction, computed from the
+	 * {@link org.springframework.ai.chat.prompt.Prompt}/context alone, before any call is
+	 * made; {@code VcrCacheKeyGenerator} has no method that even accepts a
+	 * {@code ChatResponse}. So there is no canonicalization formula to change here, and
+	 * every existing golden-hash test in {@code VcrCacheKeyGeneratorTests} is unaffected by
+	 * construction, not merely by observation. Additive in the usual sense too: a
+	 * {@code "5"} fixture's JSON has no {@code cacheReadInputTokens}/
+	 * {@code cacheWriteInputTokens} keys at all, and still deserializes with both simply
+	 * {@code null} on the resulting {@link UsageSnapshot}, exactly as every prior bump's
+	 * new fields did.
 	 */
-	public static final String CURRENT_SCHEMA_VERSION = "5";
+	public static final String CURRENT_SCHEMA_VERSION = "6";
 
 	/**
 	 * What went to the model. Recorded for reviewability — a fixture diff in a pull
@@ -275,8 +299,15 @@ public record VcrTrack(String schemaVersion, String hash, String recordedAt, Str
 	 * provider didn't report it
 	 * @param totalTokens the provider-reported total, or {@code null} if not reported;
 	 * not guaranteed to equal {@code promptTokens + completionTokens} for every provider
+	 * @param cacheReadInputTokens prompt tokens served from the provider's own prompt cache
+	 * (schema {@code "6"}), or {@code null} if the provider didn't report it — populated by
+	 * Anthropic and Bedrock Converse as of Spring AI 2.0 GA, read-only from OpenAI/Google
+	 * GenAI
+	 * @param cacheWriteInputTokens prompt tokens newly written into the provider's cache by
+	 * this request (schema {@code "6"}), or {@code null} if the provider didn't report it
 	 */
-	public record UsageSnapshot(Integer promptTokens, Integer completionTokens, Integer totalTokens) {
+	public record UsageSnapshot(Integer promptTokens, Integer completionTokens, Integer totalTokens,
+			Long cacheReadInputTokens, Long cacheWriteInputTokens) {
 	}
 
 }

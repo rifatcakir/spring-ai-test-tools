@@ -89,8 +89,11 @@ public final class VcrStreamTrackMapper {
 			VcrTrack.UsageSnapshot usage = null;
 			if (metadata != null && metadata.getUsage() != null) {
 				Usage source = metadata.getUsage();
+				// cacheReadInputTokens/cacheWriteInputTokens (schema "6" on the shared
+				// VcrTrack.UsageSnapshot type) -- see VcrTrackMapper#toResponseSnapshot,
+				// the non-streaming counterpart this mirrors.
 				usage = new VcrTrack.UsageSnapshot(source.getPromptTokens(), source.getCompletionTokens(),
-						source.getTotalTokens());
+						source.getTotalTokens(), source.getCacheReadInputTokens(), source.getCacheWriteInputTokens());
 			}
 
 			chunkSnapshots.add(new VcrStreamTrack.ChunkSnapshot(id, model, text, finishReason, toolCalls, usage));
@@ -184,7 +187,8 @@ public final class VcrStreamTrackMapper {
 	}
 
 	private Usage toUsage(VcrTrack.UsageSnapshot snapshot) {
-		return new DefaultUsage(snapshot.promptTokens(), snapshot.completionTokens(), snapshot.totalTokens());
+		return new DefaultUsage(snapshot.promptTokens(), snapshot.completionTokens(), snapshot.totalTokens(), null,
+				snapshot.cacheReadInputTokens(), snapshot.cacheWriteInputTokens());
 	}
 
 	private static <T> List<T> nullSafe(List<T> list) {

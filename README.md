@@ -15,6 +15,11 @@ deterministically, forever.
 Java 21 · Spring Boot 4.0.0 · Spring AI 2.0.0 · Apache-2.0 — the exact combination this is
 tested against, see [Compatibility](#compatibility).
 
+> **Taking an LLM feature to production?** See the
+> [Spring AI Production Readiness Checklist](CHECKLIST.md): 32 checks across platform,
+> tests, evaluation, tools, guardrails and observability
+> ([interactive version](https://rifatcakir.github.io/#checklist)).
+
 ## Why this exists
 
 **Testing an LLM-backed application is slow, expensive, and unrepeatable by default.**

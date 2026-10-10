@@ -2,7 +2,13 @@
 
 Last updated: 2026-10-10
 
-**Status: `0.1.0` and `0.1.1` published; `0.2.0` prepared, not yet published.**
+**Status: `0.2.0` published 2026-10-10** (library only; the Cassette Server image and
+GitHub Release are still to do, steps 3 and 4 below). Built and signed from a clean clone
+of `18ff237`, uploaded as deployment `4780ad18-0c5f-45ee-a75c-362c62ec3b29`, published by
+the maintainer in the Portal, live on `repo1.maven.org` about 7 minutes later; the jar
+there is byte-identical (SHA-1 `59b6c78b…`) to the one built and signed. History below.
+
+**Before that: `0.1.0` and `0.1.1` published; `0.2.0` prepared, not yet published.**
 Both earlier versions are live on Maven Central (`repo1.maven.org` answers HTTP 200 for
 `spring-ai-test-tools-0.1.0.pom` and `-0.1.1.pom`, checked 2026-10-10; this document
 still called `0.1.1` unpublished until then). `0.2.0` adds the Cassette Server's client

@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-10-10 (Cassette Server, branch `feat/cassette-server`) · Version `0.2.0` (prepared, not published)
+Last updated: 2026-10-10 (Cassette Server, branch `feat/cassette-server`) · Version `0.2.0` (library published 2026-10-10)
 
 ## Cassette Server (branch `feat/cassette-server`, not merged)
 
@@ -35,9 +35,15 @@ Dockerfile, no Spring AI, no dependency on the library, never deployed to Centra
   `mkdocs build --strict` passes with the new Cassette Server page. The library's own
   Ollama e2e suite is now 19 tests (the "seventeen" further down predates two additions),
   all green on 2026-10-10.
-- **Not done, needs the maintainer:** merging the branch, the release steps in
-  `docs/PUBLISHING.md`, and (optionally) adding the Cassette Server IT to the nightly
-  `e2e` CI job.
+- **Published 2026-10-10:** `io.github.rifatcakir:spring-ai-test-tools:0.2.0` on Maven
+  Central, from `main` at `18ff237` (fast-forwarded from this branch).
+- **CI on `main` had been red since 2026-10-09** for two external reasons, both fixed by
+  pinning: surefire 3.6.0 (a runner image update) ignored `excludedGroups`, and Ollama
+  0.40 stopped serving embeddings from `llama3.2:1b`. See the commit "build: pin
+  surefire/compiler and the Ollama test image".
+- **Not done, needs the maintainer:** the Cassette Server image (`ghcr.io`) and GitHub
+  Release (`docs/PUBLISHING.md` steps 3 and 4), and optionally adding the Cassette Server
+  IT to the nightly `e2e` CI job.
 
 ## Rename: `spring-ai-test-vcr` → `spring-ai-test-tools`
 

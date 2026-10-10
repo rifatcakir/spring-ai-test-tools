@@ -2,7 +2,13 @@
 
 Last updated: 2026-10-10 (Cassette Server, branch `feat/cassette-server`) · Version `0.2.0` (library published 2026-10-10)
 
-## Cassette Server (branch `feat/cassette-server`, not merged)
+## Cassette Server
+
+**Moved 2026-10-10 to its own repository,
+[`rifatcakir/spring-ai-test-tools-server`](https://github.com/rifatcakir/spring-ai-test-tools-server)**, with its history, end-to-end tests and
+demo; its tests use this library's published `0.2.0` from Maven Central. What follows is the
+record of how it was built here; the server module, `spring-ai-test-tools-it/` and `examples/`
+no longer exist in this repository.
 
 `docs/SERVER-PRD.md` section 11, steps 1 to 8, all done. The repository is a multi-module
 build: the root `pom.xml` is an aggregator only (never a parent, never deployed);

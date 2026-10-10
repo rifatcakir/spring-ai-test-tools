@@ -14,8 +14,10 @@ llm-cache-tool/                one tool-execution fixture
 - `spring-ai-test-tools/.../contract/FixtureContractTests` proves the samples are what the
   library writes today (same field structure, same hashes, same schema versions) and that
   each one replays through the file stores.
-- `spring-ai-test-tools-server/.../FixtureContractTests` proves the server accepts every
-  sample on `PUT`, serves it back byte for byte on `GET`, and knows the same schema versions.
+- The Cassette Server's `FixtureContractTests`, in
+  [`rifatcakir/spring-ai-test-tools-server`](https://github.com/rifatcakir/spring-ai-test-tools-server), proves the server accepts every sample on
+  `PUT`, serves it back byte for byte on `GET`, and knows the same schema versions. That
+  repository keeps a copy of this directory.
 
 When a fixture format changes on purpose, regenerate and commit the samples with the change:
 
@@ -23,4 +25,5 @@ When a fixture format changes on purpose, regenerate and commit the samples with
 mvn -pl spring-ai-test-tools test -Dtest=FixtureContractTests -Dfixture-contract.regenerate=true
 ```
 
-The server's test then fails until `FixtureKind` knows the new version, which is the point.
+Then copy them to the server repository's `fixture-contract/`; its test fails until
+`FixtureKind` knows the new version, which is the point.

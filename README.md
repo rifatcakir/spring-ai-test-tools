@@ -773,7 +773,7 @@ Fixtures on the local file system work for a laptop and for CI. They do not work
 application running in a shared test, QA or demo environment, which has no checked-out
 `src/test/resources`, may run as several instances, and whose recordings nobody can see
 without shelling into a container. For that, keep the library exactly as it is and move only
-the fixtures: run one [Cassette Server](spring-ai-test-tools-server/README.md) per
+the fixtures: run one [Cassette Server](https://github.com/rifatcakir/spring-ai-test-tools-server) per
 environment and point the applications at it.
 
 | | File store (default) | Remote store + Cassette Server |
@@ -799,10 +799,10 @@ spring:
 
 That is the whole change: no code, no `base-url` rewiring, the provider configuration stays
 as it is. The server itself is one jar (Java 21, no Docker needed) from the
-[Releases](https://github.com/rifatcakir/spring-ai-test-tools/releases), or the `ghcr.io/rifatcakir/spring-ai-test-tools-server` image:
+[Releases](https://github.com/rifatcakir/spring-ai-test-tools-server/releases), or the `ghcr.io/rifatcakir/spring-ai-test-tools-server` image:
 
 ```bash
-curl -LO https://github.com/rifatcakir/spring-ai-test-tools/releases/download/v0.2.0/spring-ai-test-tools-server-0.2.0.jar
+curl -LO https://github.com/rifatcakir/spring-ai-test-tools-server/releases/download/v0.2.0/spring-ai-test-tools-server-0.2.0.jar
 java -jar spring-ai-test-tools-server-0.2.0.jar --admin-token=change-me
 ```
 
@@ -822,7 +822,9 @@ What to know before turning it on:
   `store: remote` it logs one `WARN` line at startup so it can never be on unnoticed.
 
 Server flags, the Docker image, the admin API and the storage layout:
-[`spring-ai-test-tools-server/README.md`](spring-ai-test-tools-server/README.md).
+[`rifatcakir/spring-ai-test-tools-server`](https://github.com/rifatcakir/spring-ai-test-tools-server), its own repository, which also has a
+[five-minute demo](https://github.com/rifatcakir/spring-ai-test-tools-server/tree/main/examples/cassette-server-demo) with no API key and no model
+to install.
 
 ## Stubbing
 

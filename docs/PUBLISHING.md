@@ -19,7 +19,12 @@ upload, image push or tag has been run for it.** The steps below are what remain
 of them yours to run. Everything further down is the historical record of how `0.1.0`
 was prepared, kept as the general runbook (GPG key, Sonatype token, `settings.xml`).
 
-## Next release: `0.2.0`
+> **The Cassette Server moved to its own repository on 2026-10-10:**
+> [`rifatcakir/spring-ai-test-tools-server`](https://github.com/rifatcakir/spring-ai-test-tools-server). From now on this runbook covers the
+> library only; steps 3 and 4 below are the record of how the server's `0.2.0` was released
+> from here. Release the server from its repository, with the same version as the library.
+
+## Release `0.2.0` (done)
 
 Two things ship, in two different ways:
 

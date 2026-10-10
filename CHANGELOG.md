@@ -3,6 +3,12 @@
 All notable changes to `io.github.rifatcakir:spring-ai-test-tools` and, from 0.2.0, the
 Cassette Server. Versions of the two are released together and kept equal.
 
+## [Unreleased]
+
+- The Cassette Server, its end-to-end tests and its demo moved to their own repository,
+  [`rifatcakir/spring-ai-test-tools-server`](https://github.com/rifatcakir/spring-ai-test-tools-server), with their history. This repository is
+  the library only again. The server's `v0.2.0` jar is on both repositories' releases.
+
 ## [0.2.0] - 2026-10-10
 
 The Cassette Server: fixtures for a whole test environment on one server, while recording,

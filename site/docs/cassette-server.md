@@ -21,10 +21,10 @@ application. The server just stores the documents, one server per environment.
 ## Run the server
 
 Java 21 is the only requirement; Docker is optional. The jar, from the
-[GitHub Releases](https://github.com/rifatcakir/spring-ai-test-tools/releases):
+[GitHub Releases](https://github.com/rifatcakir/spring-ai-test-tools-server/releases):
 
 ```bash
-curl -LO https://github.com/rifatcakir/spring-ai-test-tools/releases/download/v0.2.0/spring-ai-test-tools-server-0.2.0.jar
+curl -LO https://github.com/rifatcakir/spring-ai-test-tools-server/releases/download/v0.2.0/spring-ai-test-tools-server-0.2.0.jar
 java -jar spring-ai-test-tools-server-0.2.0.jar --port=9090 --storage-dir=./cassettes --admin-token=change-me
 ```
 
@@ -35,8 +35,8 @@ docker run -p 9090:9090 -v cassettes:/data/cassettes \
   -e CASSETTE_ADMIN_TOKEN=change-me ghcr.io/rifatcakir/spring-ai-test-tools-server:0.2.0
 ```
 
-The source is the [`spring-ai-test-tools-server`](https://github.com/rifatcakir/spring-ai-test-tools/tree/main/spring-ai-test-tools-server)
-module of this repository.
+The server has its own repository,
+[`rifatcakir/spring-ai-test-tools-server`](https://github.com/rifatcakir/spring-ai-test-tools-server).
 
 Use the same version as the library. Internal test networks only: fixtures contain prompts
 and answers.
@@ -88,7 +88,7 @@ The zip is in exactly the library's file layout, so the same tests replay with
 ## More
 
 - Flags, environment variables, the full API and the storage layout:
-  [server README](https://github.com/rifatcakir/spring-ai-test-tools/blob/main/spring-ai-test-tools-server/README.md).
+  [server README](https://github.com/rifatcakir/spring-ai-test-tools-server#readme).
 - A five-minute walkthrough with no API key and no model:
-  [`examples/cassette-server-demo`](https://github.com/rifatcakir/spring-ai-test-tools/tree/main/examples/cassette-server-demo).
+  [`examples/cassette-server-demo`](https://github.com/rifatcakir/spring-ai-test-tools-server/tree/main/examples/cassette-server-demo).
 - Design and decisions: [`docs/SERVER-PRD.md`](https://github.com/rifatcakir/spring-ai-test-tools/blob/main/docs/SERVER-PRD.md).

@@ -72,9 +72,12 @@ Then update this table in the same commit.
 |---|---|---|
 | `pom.xml` (root) | Build aggregator | Never a `<parent>`, never deployed |
 | `spring-ai-test-tools/` | The library (published on Maven Central) | Coordinates and pom shape unchanged; no parent |
-| `spring-ai-test-tools-server/` | Cassette Server (`docs/SERVER-PRD.md`) | No Spring AI, no dependency on the library, never deployed |
-| `spring-ai-test-tools-it/` | Server + library end-to-end tests | `mvn -Pintegration-test verify` from the root, never alone |
-| `fixture-contract/` | One library-written fixture per kind | Regenerate with the library's `FixtureContractTests` when a format changes |
+| `fixture-contract/` | One library-written fixture per kind | Regenerate with the library's `FixtureContractTests` when a format changes, and copy to the server repository |
+
+The Cassette Server (`docs/SERVER-PRD.md`) lives in its own repository,
+[`rifatcakir/spring-ai-test-tools-server`](https://github.com/rifatcakir/spring-ai-test-tools-server), with its end-to-end tests and demo. It has
+no Spring AI dependency and no dependency on this library; it keeps a copy of
+`fixture-contract/`.
 
 ## Non-negotiable design rules
 

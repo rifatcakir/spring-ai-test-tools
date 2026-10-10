@@ -295,6 +295,10 @@ a later phase.
 
 ## 7. Modules
 
+*Update 2026-10-10:* after the 0.2.0 release the server moved to its own repository,
+[`rifatcakir/spring-ai-test-tools-server`](https://github.com/rifatcakir/spring-ai-test-tools-server), with its end-to-end tests and demo, which now
+use the published library. The layout below is how it was built.
+
 ```
 pom.xml                            build aggregator only (never deployed, never a <parent>)
 ├── spring-ai-test-tools/          the library — coordinates and pom UNCHANGED

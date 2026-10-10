@@ -24,10 +24,7 @@
 
     <modules>
         <module>spring-ai-test-tools</module>
-        <module>spring-ai-test-tools-server</module>
-        <!-- After the server: its integration tests need the server jar. -->
-        <module>spring-ai-test-tools-it</module>
-        <!-- A runnable example; see its README. Nothing in it is deployed. -->
-        <module>examples/cassette-server-demo</module>
+        <!-- The Cassette Server, its end-to-end tests and its demo live in their own
+             repository: https://github.com/rifatcakir/spring-ai-test-tools-server -->
     </modules>
 </project>

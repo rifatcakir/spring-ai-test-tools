@@ -9,6 +9,3 @@ spring-ai-test-tools/src/test/resources/stub-responses/* text eol=lf
 
 # Contract samples are compared across modules; keep one line ending everywhere.
 fixture-contract/** text eol=lf
-
-# Built into a Linux image; keep shell continuations free of CR on Windows checkouts.
-spring-ai-test-tools-server/Dockerfile text eol=lf

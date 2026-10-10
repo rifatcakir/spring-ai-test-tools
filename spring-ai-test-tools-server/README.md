@@ -149,6 +149,12 @@ Admin API (`/__admin`, admin token required):
 | `GET /__admin/namespaces/{ns}/misses` | The last 100 `404`s, newest first, with whether each has been recorded since |
 | `GET /__admin/namespaces/{ns}/export` | Zip in the library's file layout |
 
+## Tests
+
+`mvn test` runs the server's own tests. The end-to-end proof with the library and a real
+model lives in [`spring-ai-test-tools-it`](../spring-ai-test-tools-it/pom.xml) and needs
+Docker; run it from the repository root with `mvn -Pintegration-test verify`.
+
 ## Not in this version
 
 No web UI, no clustering or high availability, no TTL, no fuzzy matching, no proxying of model

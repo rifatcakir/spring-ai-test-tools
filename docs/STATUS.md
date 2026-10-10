@@ -1,6 +1,33 @@
 # Project status
 
-Last updated: 2026-08-25 (R6: cache-token usage fidelity fix) · Version `0.1.1`
+Last updated: 2026-10-10 (Cassette Server, branch `feat/cassette-server`) · Version `0.1.1`
+
+## Cassette Server (branch `feat/cassette-server`, not merged)
+
+`docs/SERVER-PRD.md` section 11, steps 1 to 8, all done. The repository is a multi-module
+build: the root `pom.xml` is an aggregator only (never a parent, never deployed);
+`spring-ai-test-tools/` is the library with its published coordinates and an unchanged pom;
+`spring-ai-test-tools-server/` is the Cassette Server (Spring Boot 4 executable jar and
+Dockerfile, no Spring AI, no dependency on the library, never deployed to Central);
+`spring-ai-test-tools-it/` holds its end-to-end tests (never installed or deployed).
+`fixture-contract/` is the format contract both modules test against.
+
+- **Default build:** `mvn test` at the root: library 321, server 69, all green.
+- **Integration:** `mvn -Pintegration-test verify` at the root. `CassetteServerEndToEndTests`
+  (11 ordered tests) builds the server image from its Dockerfile, records chat, streaming,
+  an embedding and a two-turn tool call through it against real Ollama, stops Ollama,
+  switches the namespace to `REPLAY_ONLY` via the admin API, replays everything in fresh
+  contexts with no mode of their own (identical content, zero model requests, zero real
+  `@Tool` runs), then replays the exported zip with `store: file`. Verified green on
+  2026-10-10. Run it through the reactor, not `-pl spring-ai-test-tools-it` alone: on its
+  own, Maven resolves the library from `~/.m2`, and an older jar without the remote store
+  silently writes local files instead (the test now asserts the remote stores are in use
+  for exactly this reason).
+- **Found on the way:** the stream, tool and embedding write paths never applied
+  `VcrFixtureRedactor`; fixed (see the PRD, section 10). `.gitattributes` still pointed at
+  the pre-module stub-responses path, which failed one test on Windows checkouts; fixed.
+- **Not done, needs the maintainer:** publishing the image to `ghcr.io`; adding the
+  Cassette Server IT to the nightly `e2e` CI job; merging the branch.
 
 ## Rename: `spring-ai-test-vcr` → `spring-ai-test-tools`
 

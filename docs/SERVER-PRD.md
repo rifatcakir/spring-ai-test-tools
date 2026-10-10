@@ -2,7 +2,8 @@
 
 Last updated: 2026-10-10
 
-Status: **design signed off 2026-10-10, implementation in progress.** Decisions already made by the project owner, not open
+Status: **design signed off 2026-10-10; MVP (section 11, steps 1 to 8) implemented on
+`feat/cassette-server` the same day, integration-tested against real Ollama.** Decisions already made by the project owner, not open
 for debate here:
 
 - **Client–server, not a proxy.** The existing library stays the client: the advisor,
@@ -326,6 +327,14 @@ Following `CLAUDE.md`: assert invocation counts, not just payloads.
   Boot app with `store: remote` and Ollama via Testcontainers. Record once; stop Ollama;
   replay; assert identical content and zero model requests. Same for streaming, embeddings
   and a two-turn tool call.
+
+  *As built (step 8):* `spring-ai-test-tools-it/CassetteServerEndToEndTests`, a module of
+  its own so neither shipped module depends on the other, run by failsafe with
+  `mvn -Pintegration-test verify` (the server jar must be packaged first, which `verify`
+  at the root does). The image is built from the server's real `Dockerfile`. Replays run
+  in fresh contexts that set no mode, after the admin API switched the namespace to
+  `REPLAY_ONLY`, so fork (b) is exercised end to end; a last test replays the namespace
+  export with `store: file`.
 
 ## 9. Forks needing sign-off
 

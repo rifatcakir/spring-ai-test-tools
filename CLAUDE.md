@@ -66,6 +66,16 @@ strings x/org/springframework/ai/chat/client/advisor/api/CallAdvisor.class | gre
 
 Then update this table in the same commit.
 
+## Modules
+
+| Directory | What | Rule |
+|---|---|---|
+| `pom.xml` (root) | Build aggregator | Never a `<parent>`, never deployed |
+| `spring-ai-test-tools/` | The library (published on Maven Central) | Coordinates and pom shape unchanged; no parent |
+| `spring-ai-test-tools-server/` | Cassette Server (`docs/SERVER-PRD.md`) | No Spring AI, no dependency on the library, never deployed |
+| `spring-ai-test-tools-it/` | Server + library end-to-end tests | `mvn -Pintegration-test verify` from the root, never alone |
+| `fixture-contract/` | One library-written fixture per kind | Regenerate with the library's `FixtureContractTests` when a format changes |
+
 ## Non-negotiable design rules
 
 1. **Exact match only.** SHA-256 over the canonicalised prompt. No semantic similarity,

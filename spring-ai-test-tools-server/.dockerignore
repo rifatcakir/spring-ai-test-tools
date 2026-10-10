@@ -1,3 +1,5 @@
-# The image is built from the packaged jar only.
+# The image is built from the packaged jar only. The Dockerfile is listed because
+# docker-java (Testcontainers) refuses a context that excludes it; the Docker CLI does not.
 *
+!Dockerfile
 !target/spring-ai-test-tools-server-*.jar

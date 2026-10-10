@@ -25,5 +25,7 @@
     <modules>
         <module>spring-ai-test-tools</module>
         <module>spring-ai-test-tools-server</module>
+        <!-- After the server: its integration tests need the server jar. -->
+        <module>spring-ai-test-tools-it</module>
     </modules>
 </project>

@@ -24,13 +24,13 @@ public class VcrEmbeddingModelBeanPostProcessor implements BeanPostProcessor {
 
 	private final VcrEmbeddingCacheKeyGenerator keyGenerator;
 
-	private final VcrEmbeddingTrackStore store;
+	private final EmbeddingFixtureStore store;
 
 	private final VcrEmbeddingTrackMapper mapper;
 
 	private final VcrMode mode;
 
-	public VcrEmbeddingModelBeanPostProcessor(VcrEmbeddingCacheKeyGenerator keyGenerator, VcrEmbeddingTrackStore store,
+	public VcrEmbeddingModelBeanPostProcessor(VcrEmbeddingCacheKeyGenerator keyGenerator, EmbeddingFixtureStore store,
 			VcrEmbeddingTrackMapper mapper, VcrMode mode) {
 		Assert.notNull(keyGenerator, "keyGenerator must not be null");
 		Assert.notNull(store, "store must not be null");

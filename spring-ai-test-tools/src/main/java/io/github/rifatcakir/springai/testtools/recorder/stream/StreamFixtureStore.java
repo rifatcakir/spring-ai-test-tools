@@ -1,0 +1,54 @@
+package io.github.rifatcakir.springai.testtools.recorder.stream;
+
+import java.util.Optional;
+
+/**
+ * Where {@link VcrStreamTrack} fixtures for a streamed {@code ChatClient} call are read from and written to.
+ *
+ * <p>The record/replay logic never depends on <em>where</em> a fixture lives, only on
+ * looking one up by its hash and storing a new one. {@link VcrStreamTrackStore} keeps them as files
+ * under a cache directory, the default and the only implementation the library has had
+ * so far; a remote implementation backed by the Cassette Server ({@code docs/SERVER-PRD.md})
+ * stores them over HTTP instead. Keeping this to the operations the recorder actually
+ * performs is deliberate: anything file-specific ({@code pathFor}, {@code
+ * getCacheDirectory}) stays on the file implementation, where callers that genuinely need
+ * a path can still reach it.
+ *
+ * <p>One interface per fixture family rather than one generic {@code FixtureStore<T>},
+ * matching the decision recorded on the stores themselves not to generalize them.
+ *
+ * @author Rifat Cakir
+ */
+public interface StreamFixtureStore {
+
+	/**
+	 * The fixture stored under {@code hash}, or empty if there is none. A fixture that
+	 * exists but cannot be read is reported as empty, not thrown: a corrupt fixture
+	 * degrades to a cache miss, and in {@code REPLAY_ONLY} the caller turns that absence
+	 * into a loud failure anyway.
+	 */
+	Optional<VcrStreamTrack> read(String hash);
+
+	/**
+	 * Store {@code track} under its own hash.
+	 */
+	void write(VcrStreamTrack track);
+
+	/**
+	 * A human-readable description of where the fixture for {@code hash} lives or would
+	 * live, for log lines and {@link
+	 * io.github.rifatcakir.springai.testtools.recorder.VcrCacheMissException} messages.
+	 * Never parsed.
+	 */
+	String locationOf(String hash);
+
+	/**
+	 * A short name for the fixture of {@code hash}, for the {@code CACHE HIT} log line.
+	 * Defaults to {@link #locationOf(String)}; the file store reports just the file name,
+	 * as it always has.
+	 */
+	default String fixtureNameOf(String hash) {
+		return locationOf(hash);
+	}
+
+}

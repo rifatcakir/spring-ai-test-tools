@@ -37,7 +37,7 @@ import org.springframework.util.Assert;
  *
  * @author Rifat Cakir
  */
-public class VcrTrackStore {
+public class VcrTrackStore implements ChatFixtureStore {
 
 	private static final Logger logger = LoggerFactory.getLogger(VcrTrackStore.class);
 
@@ -105,6 +105,7 @@ public class VcrTrackStore {
 	 * @param hash the SHA-256 hex digest
 	 * @return the fixture, or empty if missing or unreadable
 	 */
+	@Override
 	public Optional<VcrTrack> read(String hash) {
 		Path path = pathFor(hash);
 		if (!Files.isRegularFile(path)) {
@@ -132,6 +133,7 @@ public class VcrTrackStore {
 	 * @param track the fixture to write
 	 * @throws UncheckedIOException if the fixture cannot be written
 	 */
+	@Override
 	public void write(VcrTrack track) {
 		Assert.notNull(track, "track must not be null");
 		Path path = pathFor(track.hash());
@@ -185,6 +187,20 @@ public class VcrTrackStore {
 		catch (IOException ex) {
 			throw new UncheckedIOException("VCR failed to delete fixture at " + path, ex);
 		}
+	}
+
+	/**
+	 * The fixture's path, as a string. Identical to what log lines and miss messages
+	 * printed before {@code locationOf} existed.
+	 */
+	@Override
+	public String locationOf(String hash) {
+		return pathFor(hash).toString();
+	}
+
+	@Override
+	public String fixtureNameOf(String hash) {
+		return pathFor(hash).getFileName().toString();
 	}
 
 	public Path getCacheDirectory() {

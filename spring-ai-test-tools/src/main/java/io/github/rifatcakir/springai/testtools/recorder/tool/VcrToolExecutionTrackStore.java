@@ -30,7 +30,7 @@ import org.springframework.util.Assert;
  *
  * @author Rifat Cakir
  */
-public class VcrToolExecutionTrackStore {
+public class VcrToolExecutionTrackStore implements ToolFixtureStore {
 
 	private static final Logger logger = LoggerFactory.getLogger(VcrToolExecutionTrackStore.class);
 
@@ -92,6 +92,7 @@ public class VcrToolExecutionTrackStore {
 	 * @param hash the SHA-256 hex digest
 	 * @return the fixture, or empty if missing or unreadable
 	 */
+	@Override
 	public Optional<VcrToolExecutionTrack> read(String hash) {
 		Path path = pathFor(hash);
 		if (!Files.isRegularFile(path)) {
@@ -120,6 +121,7 @@ public class VcrToolExecutionTrackStore {
 	 * @param track the fixture to write
 	 * @throws UncheckedIOException if the fixture cannot be written
 	 */
+	@Override
 	public void write(VcrToolExecutionTrack track) {
 		Assert.notNull(track, "track must not be null");
 		Path path = pathFor(track.hash());
@@ -152,6 +154,20 @@ public class VcrToolExecutionTrackStore {
 			logger.debug("VCR TOOL atomic move unsupported at {}; falling back to replace", target);
 			Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING);
 		}
+	}
+
+	/**
+	 * The fixture's path, as a string. Identical to what log lines and miss messages
+	 * printed before {@code locationOf} existed.
+	 */
+	@Override
+	public String locationOf(String hash) {
+		return pathFor(hash).toString();
+	}
+
+	@Override
+	public String fixtureNameOf(String hash) {
+		return pathFor(hash).getFileName().toString();
 	}
 
 	public Path getCacheDirectory() {

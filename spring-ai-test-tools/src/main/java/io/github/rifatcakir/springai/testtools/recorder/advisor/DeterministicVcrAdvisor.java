@@ -1,5 +1,7 @@
 package io.github.rifatcakir.springai.testtools.recorder.advisor;
 
+import io.github.rifatcakir.springai.testtools.recorder.stream.StreamFixtureStore;
+import io.github.rifatcakir.springai.testtools.recorder.track.ChatFixtureStore;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -123,7 +125,7 @@ public class DeterministicVcrAdvisor implements CallAdvisor, StreamAdvisor {
 
 	private final VcrCacheKeyGenerator keyGenerator;
 
-	private final VcrTrackStore store;
+	private final ChatFixtureStore store;
 
 	private final VcrTrackMapper mapper;
 
@@ -139,7 +141,7 @@ public class DeterministicVcrAdvisor implements CallAdvisor, StreamAdvisor {
 	 * this is {@code null}, exactly as every {@code DeterministicVcrAdvisor} did before
 	 * R3 existed.
 	 */
-	private final VcrStreamTrackStore streamStore;
+	private final StreamFixtureStore streamStore;
 
 	/** @see #streamStore */
 	private final VcrStreamTrackMapper streamMapper;
@@ -160,7 +162,7 @@ public class DeterministicVcrAdvisor implements CallAdvisor, StreamAdvisor {
 	 * @param scope where this advisor sits relative to {@code ToolCallingAdvisor}; see
 	 * {@link VcrScope}
 	 */
-	public DeterministicVcrAdvisor(VcrCacheKeyGenerator keyGenerator, VcrTrackStore store, VcrTrackMapper mapper,
+	public DeterministicVcrAdvisor(VcrCacheKeyGenerator keyGenerator, ChatFixtureStore store, VcrTrackMapper mapper,
 			VcrMode mode, VcrScope scope) {
 		this(keyGenerator, store, mapper, mode, scope, List.of());
 	}
@@ -169,13 +171,13 @@ public class DeterministicVcrAdvisor implements CallAdvisor, StreamAdvisor {
 	 * Construct an advisor whose order is derived from {@code scope}, with redactors applied
 	 * to every fixture before it is written. Streaming (R3) is inert on an advisor built
 	 * this way. See
-	 * {@link #DeterministicVcrAdvisor(VcrCacheKeyGenerator, VcrTrackStore, VcrTrackMapper, VcrMode, VcrScope)}
+	 * {@link #DeterministicVcrAdvisor(VcrCacheKeyGenerator, ChatFixtureStore, VcrTrackMapper, VcrMode, VcrScope)}
 	 * for the other parameters; this overload adds only {@code redactors}.
 	 * @param redactors applied in list order to every fixture on a cache miss, before it is
 	 * written; never affects the computed hash or what a replay returns — see
 	 * {@link VcrFixtureRedactor}
 	 */
-	public DeterministicVcrAdvisor(VcrCacheKeyGenerator keyGenerator, VcrTrackStore store, VcrTrackMapper mapper,
+	public DeterministicVcrAdvisor(VcrCacheKeyGenerator keyGenerator, ChatFixtureStore store, VcrTrackMapper mapper,
 			VcrMode mode, VcrScope scope, List<VcrFixtureRedactor> redactors) {
 		this(keyGenerator, store, mapper, mode, orderFor(scope), redactors);
 	}
@@ -188,7 +190,7 @@ public class DeterministicVcrAdvisor implements CallAdvisor, StreamAdvisor {
 	 * {@code ToolCallingAdvisor} even if its own order ever changes.
 	 * @param order the exact {@link org.springframework.core.Ordered} value for this advisor
 	 */
-	public DeterministicVcrAdvisor(VcrCacheKeyGenerator keyGenerator, VcrTrackStore store, VcrTrackMapper mapper,
+	public DeterministicVcrAdvisor(VcrCacheKeyGenerator keyGenerator, ChatFixtureStore store, VcrTrackMapper mapper,
 			VcrMode mode, int order) {
 		this(keyGenerator, store, mapper, mode, order, List.of());
 	}
@@ -201,34 +203,34 @@ public class DeterministicVcrAdvisor implements CallAdvisor, StreamAdvisor {
 	 * written; never affects the computed hash or what a replay returns — see
 	 * {@link VcrFixtureRedactor}
 	 */
-	public DeterministicVcrAdvisor(VcrCacheKeyGenerator keyGenerator, VcrTrackStore store, VcrTrackMapper mapper,
+	public DeterministicVcrAdvisor(VcrCacheKeyGenerator keyGenerator, ChatFixtureStore store, VcrTrackMapper mapper,
 			VcrMode mode, int order, List<VcrFixtureRedactor> redactors) {
 		this(keyGenerator, store, mapper, mode, order, redactors, null, null);
 	}
 
 	/**
-	 * Like {@link #DeterministicVcrAdvisor(VcrCacheKeyGenerator, VcrTrackStore, VcrTrackMapper, VcrMode, VcrScope, List)},
+	 * Like {@link #DeterministicVcrAdvisor(VcrCacheKeyGenerator, ChatFixtureStore, VcrTrackMapper, VcrMode, VcrScope, List)},
 	 * with streaming (R3) also enabled on this advisor.
 	 * @param streamStore reads and writes stream fixtures on disk
 	 * @param streamMapper translates between a collected chunk sequence and {@code
 	 * VcrStreamTrack}
 	 */
-	public DeterministicVcrAdvisor(VcrCacheKeyGenerator keyGenerator, VcrTrackStore store, VcrTrackMapper mapper,
-			VcrMode mode, VcrScope scope, List<VcrFixtureRedactor> redactors, VcrStreamTrackStore streamStore,
+	public DeterministicVcrAdvisor(VcrCacheKeyGenerator keyGenerator, ChatFixtureStore store, VcrTrackMapper mapper,
+			VcrMode mode, VcrScope scope, List<VcrFixtureRedactor> redactors, StreamFixtureStore streamStore,
 			VcrStreamTrackMapper streamMapper) {
 		this(keyGenerator, store, mapper, mode, orderFor(scope), redactors, streamStore, streamMapper);
 	}
 
 	/**
-	 * Like {@link #DeterministicVcrAdvisor(VcrCacheKeyGenerator, VcrTrackStore, VcrTrackMapper, VcrMode, int, List)},
+	 * Like {@link #DeterministicVcrAdvisor(VcrCacheKeyGenerator, ChatFixtureStore, VcrTrackMapper, VcrMode, int, List)},
 	 * with streaming (R3) also enabled on this advisor. The most general constructor;
 	 * every other overload delegates to this one.
 	 * @param streamStore reads and writes stream fixtures on disk
 	 * @param streamMapper translates between a collected chunk sequence and {@code
 	 * VcrStreamTrack}
 	 */
-	public DeterministicVcrAdvisor(VcrCacheKeyGenerator keyGenerator, VcrTrackStore store, VcrTrackMapper mapper,
-			VcrMode mode, int order, List<VcrFixtureRedactor> redactors, VcrStreamTrackStore streamStore,
+	public DeterministicVcrAdvisor(VcrCacheKeyGenerator keyGenerator, ChatFixtureStore store, VcrTrackMapper mapper,
+			VcrMode mode, int order, List<VcrFixtureRedactor> redactors, StreamFixtureStore streamStore,
 			VcrStreamTrackMapper streamMapper) {
 		Assert.notNull(keyGenerator, "keyGenerator must not be null");
 		Assert.notNull(store, "store must not be null");
@@ -277,13 +279,13 @@ public class DeterministicVcrAdvisor implements CallAdvisor, StreamAdvisor {
 		Optional<VcrTrack> existing = this.store.read(key.hash());
 
 		if (existing.isPresent()) {
-			logger.info("VCR CACHE HIT  [{}] replaying {}", shortHash, this.store.pathFor(key.hash()).getFileName());
+			logger.info("VCR CACHE HIT  [{}] replaying {}", shortHash, this.store.fixtureNameOf(key.hash()));
 			return replay(chatClientRequest, existing.get());
 		}
 
 		if (effectiveMode == VcrMode.REPLAY_ONLY) {
 			logger.error("VCR CACHE MISS [{}] in REPLAY_ONLY — refusing to call the real model", shortHash);
-			throw new VcrCacheMissException(key.hash(), this.store.pathFor(key.hash()), key.canonicalRequest());
+			throw cacheMiss(this.store, key);
 		}
 
 		logger.info("VCR CACHE MISS [{}] invoking the real model and recording", shortHash);
@@ -324,13 +326,13 @@ public class DeterministicVcrAdvisor implements CallAdvisor, StreamAdvisor {
 
 		if (existing.isPresent()) {
 			logger.info("VCR STREAM CACHE HIT  [{}] replaying {}", shortHash,
-					this.streamStore.pathFor(key.hash()).getFileName());
+					this.streamStore.fixtureNameOf(key.hash()));
 			return replayStream(chatClientRequest, existing.get());
 		}
 
 		if (effectiveMode == VcrMode.REPLAY_ONLY) {
 			logger.error("VCR STREAM CACHE MISS [{}] in REPLAY_ONLY — refusing to call the real model", shortHash);
-			throw new VcrCacheMissException(key.hash(), this.streamStore.pathFor(key.hash()), key.canonicalRequest());
+			throw cacheMiss(this.streamStore, key);
 		}
 
 		logger.info("VCR STREAM CACHE MISS [{}] invoking the real model and recording", shortHash);
@@ -425,6 +427,25 @@ public class DeterministicVcrAdvisor implements CallAdvisor, StreamAdvisor {
 	@Override
 	public String getName() {
 		return "DeterministicVcrAdvisor";
+	}
+
+	/**
+	 * The file stores keep handing {@link VcrCacheMissException} a real {@code Path}, so
+	 * {@code getExpectedPath()} keeps working for anyone who reads it; any other store
+	 * reports its {@code locationOf} string instead.
+	 */
+	private static VcrCacheMissException cacheMiss(ChatFixtureStore store, VcrCacheKey key) {
+		if (store instanceof VcrTrackStore files) {
+			return new VcrCacheMissException(key.hash(), files.pathFor(key.hash()), key.canonicalRequest());
+		}
+		return new VcrCacheMissException(key.hash(), store.locationOf(key.hash()), key.canonicalRequest());
+	}
+
+	private static VcrCacheMissException cacheMiss(StreamFixtureStore store, VcrCacheKey key) {
+		if (store instanceof VcrStreamTrackStore files) {
+			return new VcrCacheMissException(key.hash(), files.pathFor(key.hash()), key.canonicalRequest());
+		}
+		return new VcrCacheMissException(key.hash(), store.locationOf(key.hash()), key.canonicalRequest());
 	}
 
 }

@@ -18,16 +18,33 @@ public class VcrCacheMissException extends RuntimeException {
 
 	private final transient Path expectedPath;
 
+	private final String expectedLocation;
+
 	private final String canonicalRequest;
 
 	public VcrCacheMissException(String hash, Path expectedPath, String canonicalRequest) {
-		super(buildMessage(hash, expectedPath, canonicalRequest));
+		super(buildMessage(hash, String.valueOf(expectedPath), canonicalRequest));
 		this.hash = hash;
 		this.expectedPath = expectedPath;
+		this.expectedLocation = String.valueOf(expectedPath);
 		this.canonicalRequest = canonicalRequest;
 	}
 
-	private static String buildMessage(String hash, Path expectedPath, String canonicalRequest) {
+	/**
+	 * For a fixture that is not a local file (the remote store): {@code expectedLocation}
+	 * is whatever the store's {@code locationOf} reports, and {@link #getExpectedPath()}
+	 * is {@code null}. Kept as a separate constructor rather than turning the existing one
+	 * into a string so callers that read the path keep compiling and keep working.
+	 */
+	public VcrCacheMissException(String hash, String expectedLocation, String canonicalRequest) {
+		super(buildMessage(hash, expectedLocation, canonicalRequest));
+		this.hash = hash;
+		this.expectedPath = null;
+		this.expectedLocation = expectedLocation;
+		this.canonicalRequest = canonicalRequest;
+	}
+
+	private static String buildMessage(String hash, String expectedPath, String canonicalRequest) {
 		return """
 				No VCR fixture for this request, and mode is REPLAY_ONLY so the real model was not called.
 
@@ -59,10 +76,19 @@ public class VcrCacheMissException extends RuntimeException {
 	}
 
 	/**
-	 * The fixture path that was expected to exist.
+	 * The fixture path that was expected to exist, or {@code null} when the fixture store
+	 * is not file-based; see {@link #getExpectedLocation()}.
 	 */
 	public Path getExpectedPath() {
 		return this.expectedPath;
+	}
+
+	/**
+	 * Where the fixture was expected, as the store describes it: a file path for the file
+	 * store, a remote address for the remote store. Always set.
+	 */
+	public String getExpectedLocation() {
+		return this.expectedLocation;
 	}
 
 	/**

@@ -56,14 +56,14 @@ public class VcrEmbeddingModel implements EmbeddingModel {
 
 	private final VcrEmbeddingCacheKeyGenerator keyGenerator;
 
-	private final VcrEmbeddingTrackStore store;
+	private final EmbeddingFixtureStore store;
 
 	private final VcrEmbeddingTrackMapper mapper;
 
 	private final VcrMode mode;
 
 	public VcrEmbeddingModel(EmbeddingModel delegate, VcrEmbeddingCacheKeyGenerator keyGenerator,
-			VcrEmbeddingTrackStore store, VcrEmbeddingTrackMapper mapper, VcrMode mode) {
+			EmbeddingFixtureStore store, VcrEmbeddingTrackMapper mapper, VcrMode mode) {
 		Assert.notNull(delegate, "delegate must not be null");
 		Assert.notNull(keyGenerator, "keyGenerator must not be null");
 		Assert.notNull(store, "store must not be null");
@@ -98,13 +98,13 @@ public class VcrEmbeddingModel implements EmbeddingModel {
 
 		if (existing.isPresent()) {
 			logger.info("VCR EMBEDDING CACHE HIT  [{}] replaying {}", shortHash,
-					this.store.pathFor(key.hash()).getFileName());
+					this.store.fixtureNameOf(key.hash()));
 			return this.mapper.toEmbeddingResponse(existing.get());
 		}
 
 		if (this.mode == VcrMode.REPLAY_ONLY) {
 			logger.error("VCR EMBEDDING CACHE MISS [{}] in REPLAY_ONLY — refusing to call the real model", shortHash);
-			throw new VcrCacheMissException(key.hash(), this.store.pathFor(key.hash()), key.canonicalRequest());
+			throw cacheMiss(key);
 		}
 
 		logger.info("VCR EMBEDDING CACHE MISS [{}] invoking the real model and recording", shortHash);
@@ -124,6 +124,18 @@ public class VcrEmbeddingModel implements EmbeddingModel {
 	@Override
 	public float[] embed(Document document) {
 		return this.delegate.embed(document);
+	}
+
+	/**
+	 * The file store keeps handing {@link VcrCacheMissException} a real {@code Path}, so
+	 * {@code getExpectedPath()} keeps working; any other store reports its
+	 * {@code locationOf} string instead.
+	 */
+	private VcrCacheMissException cacheMiss(VcrEmbeddingCacheKey key) {
+		if (this.store instanceof VcrEmbeddingTrackStore files) {
+			return new VcrCacheMissException(key.hash(), files.pathFor(key.hash()), key.canonicalRequest());
+		}
+		return new VcrCacheMissException(key.hash(), this.store.locationOf(key.hash()), key.canonicalRequest());
 	}
 
 }

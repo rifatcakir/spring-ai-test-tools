@@ -34,12 +34,12 @@ public class VcrToolCallingManagerBeanPostProcessor implements BeanPostProcessor
 
 	private final VcrToolExecutionCacheKeyGenerator keyGenerator;
 
-	private final VcrToolExecutionTrackStore store;
+	private final ToolFixtureStore store;
 
 	private final VcrToolMode mode;
 
 	public VcrToolCallingManagerBeanPostProcessor(VcrToolExecutionCacheKeyGenerator keyGenerator,
-			VcrToolExecutionTrackStore store, VcrToolMode mode) {
+			ToolFixtureStore store, VcrToolMode mode) {
 		Assert.notNull(keyGenerator, "keyGenerator must not be null");
 		Assert.notNull(store, "store must not be null");
 		Assert.notNull(mode, "mode must not be null");

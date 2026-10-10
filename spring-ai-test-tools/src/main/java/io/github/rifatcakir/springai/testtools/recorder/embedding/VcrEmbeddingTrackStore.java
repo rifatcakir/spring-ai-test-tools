@@ -34,7 +34,7 @@ import org.springframework.util.Assert;
  *
  * @author Rifat Cakir
  */
-public class VcrEmbeddingTrackStore {
+public class VcrEmbeddingTrackStore implements EmbeddingFixtureStore {
 
 	private static final Logger logger = LoggerFactory.getLogger(VcrEmbeddingTrackStore.class);
 
@@ -96,6 +96,7 @@ public class VcrEmbeddingTrackStore {
 	 * @param hash the SHA-256 hex digest
 	 * @return the fixture, or empty if missing or unreadable
 	 */
+	@Override
 	public Optional<VcrEmbeddingTrack> read(String hash) {
 		Path path = pathFor(hash);
 		if (!Files.isRegularFile(path)) {
@@ -124,6 +125,7 @@ public class VcrEmbeddingTrackStore {
 	 * @param track the fixture to write
 	 * @throws UncheckedIOException if the fixture cannot be written
 	 */
+	@Override
 	public void write(VcrEmbeddingTrack track) {
 		Assert.notNull(track, "track must not be null");
 		Path path = pathFor(track.hash());
@@ -175,6 +177,20 @@ public class VcrEmbeddingTrackStore {
 		catch (IOException ex) {
 			throw new UncheckedIOException("VCR EMBEDDING failed to delete fixture at " + path, ex);
 		}
+	}
+
+	/**
+	 * The fixture's path, as a string. Identical to what log lines and miss messages
+	 * printed before {@code locationOf} existed.
+	 */
+	@Override
+	public String locationOf(String hash) {
+		return pathFor(hash).toString();
+	}
+
+	@Override
+	public String fixtureNameOf(String hash) {
+		return pathFor(hash).getFileName().toString();
 	}
 
 	public Path getCacheDirectory() {

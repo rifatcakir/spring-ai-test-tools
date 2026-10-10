@@ -266,10 +266,10 @@ a later phase.
   per namespace); admin API: required admin token. Started without `--admin-token`, the
   admin API answers `403` to everything rather than being open.
 - Fixtures contain prompts and answers. Redaction stays on the client: `VcrFixtureRedactor`
-  is applied in `DeterministicVcrAdvisor` before a chat fixture reaches its store, so with
-  the remote store the server receives only redacted content. Whether the stream,
-  embedding and tool paths redact the same way is checked first (section 10); any path
-  that doesn't gets it before the remote store ships.
+  is applied before any fixture reaches its store (chat and streaming in
+  `DeterministicVcrAdvisor`, tools in `VcrToolCallingManager`, embeddings in
+  `VcrEmbeddingModel`), so with the remote store the server receives only redacted content.
+  Section 10 records how the non-chat paths were found unredacted and fixed.
 - Intended for internal test networks. The README says plainly: do not expose it publicly.
 
 ## 7. Modules
@@ -365,7 +365,17 @@ Following `CLAUDE.md`: assert invocation counts, not just payloads.
   `pathFor(…)`, so the abstraction in 5.2 covers them without behavior change; the full
   existing suite (253 tests) stays green after the refactor alone, before any remote code.
 - That every write path already goes through the redactors before reaching a store, so
-  nothing unredacted can be sent to the server.
+  nothing unredacted can be sent to the server. **Checked in step 5: it did not.** Only the
+  blocking chat path applied `VcrFixtureRedactor`; streaming, tool executions and
+  embeddings were written unredacted (the advisor's own Javadoc called streaming redaction
+  out of scope). Fixed before the remote stores shipped: `VcrFixtureRedactor` gained
+  `redactStream`, `redactToolExecution` and `redactEmbedding`, applied on each write path
+  with the same hash and schema-version guarantee. `redactStream` defaults to the existing
+  `redact` (a stream's request side has a chat fixture's shape) and fails loudly if `redact`
+  changes the response, since chunks cannot be derived from a redacted whole. The tool and
+  embedding methods default to pass-through, and a redactor that keeps either default is
+  reported with a `WARN` when the corresponding bean is wrapped. `andThen` now composes all
+  four.
 - Spring Boot 4's executable jar and layered Docker image build in a multi-module setup
   where only one module is a Boot application. **Executable jar verified (step 3):** the
   server module inherits `spring-boot-starter-parent:4.0.0` with an empty `relativePath`

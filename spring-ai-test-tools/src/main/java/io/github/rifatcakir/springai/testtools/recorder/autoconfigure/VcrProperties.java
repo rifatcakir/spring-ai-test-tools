@@ -1,8 +1,11 @@
 package io.github.rifatcakir.springai.testtools.recorder.autoconfigure;
 
+import java.time.Duration;
+
 import io.github.rifatcakir.springai.testtools.recorder.VcrFixtureSizeWarning;
 import io.github.rifatcakir.springai.testtools.recorder.VcrMode;
 import io.github.rifatcakir.springai.testtools.recorder.VcrScope;
+import io.github.rifatcakir.springai.testtools.recorder.VcrStoreType;
 import io.github.rifatcakir.springai.testtools.recorder.tool.VcrToolMode;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -40,6 +43,19 @@ public class VcrProperties {
 	 * in version control; commit them alongside the tests that produced them.
 	 */
 	private String cacheDirectory = "src/test/resources/llm-cache";
+
+	/**
+	 * Where fixtures live: local files (the default) or a Cassette Server. Applies to
+	 * chat, streaming, tool and embedding fixtures alike, so nothing silently stays on
+	 * local disk once the remote store is chosen. The cache-directory properties are
+	 * ignored with {@code remote}.
+	 */
+	private VcrStoreType store = VcrStoreType.FILE;
+
+	/**
+	 * The Cassette Server, used when {@link #store} is {@code remote}.
+	 */
+	private Remote remote = new Remote();
 
 	/**
 	 * Explicit advisor order. When null, derived from {@link #scope}. Set this only to
@@ -106,6 +122,22 @@ public class VcrProperties {
 		this.cacheDirectory = cacheDirectory;
 	}
 
+	public VcrStoreType getStore() {
+		return this.store;
+	}
+
+	public void setStore(VcrStoreType store) {
+		this.store = store;
+	}
+
+	public Remote getRemote() {
+		return this.remote;
+	}
+
+	public void setRemote(Remote remote) {
+		this.remote = remote;
+	}
+
 	public Integer getOrder() {
 		return this.order;
 	}
@@ -147,6 +179,80 @@ public class VcrProperties {
 
 	public void setTool(Tool tool) {
 		this.tool = tool;
+	}
+
+	/**
+	 * The Cassette Server, bound from {@code spring.ai.test.vcr.remote.*}. See {@code
+	 * docs/SERVER-PRD.md}.
+	 */
+	public static class Remote {
+
+		/**
+		 * Root URL of the Cassette Server, e.g. {@code http://cassette-server:9090}.
+		 */
+		private String url;
+
+		/**
+		 * Namespace this application's fixtures live in, typically the application name.
+		 * Applications that should share recordings use the same namespace.
+		 */
+		private String namespace;
+
+		/**
+		 * Bearer token for the server's client API, if it requires one.
+		 */
+		private String token;
+
+		/**
+		 * How long to wait for a connection to the server.
+		 */
+		private Duration connectTimeout = Duration.ofSeconds(2);
+
+		/**
+		 * How long to wait for each response from the server.
+		 */
+		private Duration readTimeout = Duration.ofSeconds(5);
+
+		public String getUrl() {
+			return this.url;
+		}
+
+		public void setUrl(String url) {
+			this.url = url;
+		}
+
+		public String getNamespace() {
+			return this.namespace;
+		}
+
+		public void setNamespace(String namespace) {
+			this.namespace = namespace;
+		}
+
+		public String getToken() {
+			return this.token;
+		}
+
+		public void setToken(String token) {
+			this.token = token;
+		}
+
+		public Duration getConnectTimeout() {
+			return this.connectTimeout;
+		}
+
+		public void setConnectTimeout(Duration connectTimeout) {
+			this.connectTimeout = connectTimeout;
+		}
+
+		public Duration getReadTimeout() {
+			return this.readTimeout;
+		}
+
+		public void setReadTimeout(Duration readTimeout) {
+			this.readTimeout = readTimeout;
+		}
+
 	}
 
 	/**

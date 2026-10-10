@@ -30,9 +30,22 @@ public interface ChatFixtureStore {
 	Optional<VcrTrack> read(String hash);
 
 	/**
-	 * Store {@code track} under its own hash.
+	 * Store {@code track} under its own hash, after a cache miss. A shared store may keep
+	 * a fixture another instance recorded for the same hash in the meantime instead
+	 * (PRD 5.3); the file store always writes.
 	 */
 	void write(VcrTrack track);
+
+	/**
+	 * Store {@code track} under its own hash, replacing any existing fixture: the write
+	 * {@code RECORD_ALWAYS} makes, the one mode where the last write wins. A separate
+	 * method rather than a mode on the store, because the effective mode is decided per
+	 * call ({@code @Vcr} can override it for one test) and only the caller knows it.
+	 * Defaults to {@link #write(VcrTrack)}, which for the file store already replaces.
+	 */
+	default void replace(VcrTrack track) {
+		write(track);
+	}
 
 	/**
 	 * A human-readable description of where the fixture for {@code hash} lives or would

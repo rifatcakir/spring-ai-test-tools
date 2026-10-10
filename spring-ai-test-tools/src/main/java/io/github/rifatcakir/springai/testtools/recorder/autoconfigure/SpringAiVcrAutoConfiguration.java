@@ -8,12 +8,15 @@ import io.github.rifatcakir.springai.testtools.recorder.VcrMode;
 import io.github.rifatcakir.springai.testtools.recorder.VcrPromptNormalizer;
 import io.github.rifatcakir.springai.testtools.recorder.advisor.DeterministicVcrAdvisor;
 import io.github.rifatcakir.springai.testtools.recorder.key.VcrCacheKeyGenerator;
+import io.github.rifatcakir.springai.testtools.recorder.remote.CassetteServerClient;
+import io.github.rifatcakir.springai.testtools.recorder.remote.RemoteChatFixtureStore;
 import io.github.rifatcakir.springai.testtools.recorder.stream.VcrStreamTrackMapper;
 import io.github.rifatcakir.springai.testtools.recorder.stream.VcrStreamTrackStore;
 import io.github.rifatcakir.springai.testtools.recorder.tool.VcrToolCallingManagerBeanPostProcessor;
 import io.github.rifatcakir.springai.testtools.recorder.tool.VcrToolExecutionCacheKeyGenerator;
 import io.github.rifatcakir.springai.testtools.recorder.tool.VcrToolExecutionTrackStore;
 import io.github.rifatcakir.springai.testtools.recorder.tool.VcrToolMode;
+import io.github.rifatcakir.springai.testtools.recorder.track.ChatFixtureStore;
 import io.github.rifatcakir.springai.testtools.recorder.track.VcrTrackMapper;
 import io.github.rifatcakir.springai.testtools.recorder.track.VcrTrackStore;
 import org.slf4j.Logger;
@@ -27,6 +30,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.util.Assert;
 
 /**
  * Wires the VCR advisor onto every {@code ChatClient.Builder} in the context.
@@ -40,6 +44,12 @@ import org.springframework.context.annotation.Bean;
  * of Spring AI 2.0.0. This is the Java equivalent of VCR.py's socket-layer monkeypatching:
  * production code calls {@code ChatClient} exactly as it always does, and no test-only
  * conditional appears anywhere in it.
+ *
+ * <p>{@code spring.ai.test.vcr.store} picks where fixtures live: files (the default) or a
+ * Cassette Server ({@code remote}). Each store bean exists in a file and a remote variant
+ * behind a property condition, and every consumer takes the store interface, so the
+ * advisor and the tool and embedding wrappers are identical in both setups. A
+ * user-supplied bean of a store interface still replaces either default.
  *
  * @author Rifat Cakir
  */
@@ -66,8 +76,42 @@ public class SpringAiVcrAutoConfiguration {
 		return new VcrTrackMapper(normalizers);
 	}
 
+	/**
+	 * Shared by every remote store, here and in {@link
+	 * SpringAiVcrEmbeddingAutoConfiguration}. Creating it is also where the one startup
+	 * {@code WARN} lives (PRD 5.4): with the library on a deployed application's runtime
+	 * classpath, routing AI calls through a fixture server must never be on unnoticed.
+	 */
 	@Bean
+	@ConditionalOnProperty(prefix = VcrProperties.PREFIX, name = "store", havingValue = "remote")
 	@ConditionalOnMissingBean
+	public CassetteServerClient vcrCassetteServerClient(VcrProperties properties) {
+		return cassetteServerClient(properties);
+	}
+
+	static CassetteServerClient cassetteServerClient(VcrProperties properties) {
+		VcrProperties.Remote remote = properties.getRemote();
+		Assert.hasText(remote.getUrl(), "spring.ai.test.vcr.remote.url must be set when spring.ai.test.vcr.store=remote");
+		Assert.hasText(remote.getNamespace(),
+				"spring.ai.test.vcr.remote.namespace must be set when spring.ai.test.vcr.store=remote");
+		CassetteServerClient client = new CassetteServerClient(remote.getUrl(), remote.getNamespace(),
+				remote.getToken(), remote.getConnectTimeout(), remote.getReadTimeout());
+		logger.warn("VCR store=remote: AI calls are recorded and replayed through the Cassette Server at {} "
+				+ "(namespace '{}'). This belongs in test environments only, never in production.",
+				client.getBaseUrl(), client.getNamespace());
+		return client;
+	}
+
+	@Bean
+	@ConditionalOnProperty(prefix = VcrProperties.PREFIX, name = "store", havingValue = "remote")
+	@ConditionalOnMissingBean(ChatFixtureStore.class)
+	public RemoteChatFixtureStore vcrRemoteChatFixtureStore(CassetteServerClient client) {
+		return new RemoteChatFixtureStore(client);
+	}
+
+	@Bean
+	@ConditionalOnProperty(prefix = VcrProperties.PREFIX, name = "store", havingValue = "file", matchIfMissing = true)
+	@ConditionalOnMissingBean(ChatFixtureStore.class)
 	public VcrTrackStore vcrTrackStore(VcrProperties properties) {
 		Path directory = Path.of(properties.getCacheDirectory());
 		logger.info("VCR cache directory: {}", directory.toAbsolutePath().normalize());
@@ -96,7 +140,7 @@ public class SpringAiVcrAutoConfiguration {
 
 	@Bean
 	@ConditionalOnMissingBean
-	public DeterministicVcrAdvisor deterministicVcrAdvisor(VcrCacheKeyGenerator keyGenerator, VcrTrackStore store,
+	public DeterministicVcrAdvisor deterministicVcrAdvisor(VcrCacheKeyGenerator keyGenerator, ChatFixtureStore store,
 			VcrTrackMapper mapper, VcrProperties properties, List<VcrFixtureRedactor> redactors,
 			VcrStreamTrackStore streamStore, VcrStreamTrackMapper streamMapper) {
 

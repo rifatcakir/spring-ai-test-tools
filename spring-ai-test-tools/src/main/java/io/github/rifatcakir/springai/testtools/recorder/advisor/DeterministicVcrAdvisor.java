@@ -273,7 +273,7 @@ public class DeterministicVcrAdvisor implements CallAdvisor, StreamAdvisor {
 
 		if (effectiveMode == VcrMode.RECORD_ALWAYS) {
 			logger.info("VCR RE-RECORD [{}] — mode is RECORD_ALWAYS, ignoring any existing fixture", shortHash);
-			return recordAndReturn(chatClientRequest, callAdvisorChain, key);
+			return recordAndReturn(chatClientRequest, callAdvisorChain, key, true);
 		}
 
 		Optional<VcrTrack> existing = this.store.read(key.hash());
@@ -289,7 +289,7 @@ public class DeterministicVcrAdvisor implements CallAdvisor, StreamAdvisor {
 		}
 
 		logger.info("VCR CACHE MISS [{}] invoking the real model and recording", shortHash);
-		return recordAndReturn(chatClientRequest, callAdvisorChain, key);
+		return recordAndReturn(chatClientRequest, callAdvisorChain, key, false);
 	}
 
 	@Override
@@ -383,7 +383,13 @@ public class DeterministicVcrAdvisor implements CallAdvisor, StreamAdvisor {
 		return new ChatClientResponse(chatResponse, context);
 	}
 
-	private ChatClientResponse recordAndReturn(ChatClientRequest request, CallAdvisorChain chain, VcrCacheKey key) {
+	/**
+	 * @param replaceExisting {@code true} under {@code RECORD_ALWAYS}: the fixture must
+	 * replace whatever the store holds. On a plain miss a shared store may keep a fixture
+	 * another instance recorded first (PRD 5.3), so the two writes are different calls.
+	 */
+	private ChatClientResponse recordAndReturn(ChatClientRequest request, CallAdvisorChain chain, VcrCacheKey key,
+			boolean replaceExisting) {
 		ChatClientResponse response = chain.nextCall(request);
 
 		ChatResponse chatResponse = response.chatResponse();
@@ -393,7 +399,13 @@ public class DeterministicVcrAdvisor implements CallAdvisor, StreamAdvisor {
 			return response;
 		}
 
-		this.store.write(applyRedactors(this.mapper.toTrack(key, request.prompt(), request.context(), chatResponse)));
+		VcrTrack track = applyRedactors(this.mapper.toTrack(key, request.prompt(), request.context(), chatResponse));
+		if (replaceExisting) {
+			this.store.replace(track);
+		}
+		else {
+			this.store.write(track);
+		}
 		return response;
 	}
 

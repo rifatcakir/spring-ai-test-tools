@@ -25,6 +25,39 @@
       "defaultValue": "src/test/resources/llm-cache"
     },
     {
+      "name": "spring.ai.test.vcr.store",
+      "type": "io.github.rifatcakir.springai.testtools.recorder.VcrStoreType",
+      "description": "Where fixtures live. FILE keeps them as JSON files under the cache directories (the default). REMOTE keeps them on a Cassette Server configured under spring.ai.test.vcr.remote.*, for deployed test environments and fixtures shared between instances; chat, streaming, tool and embedding fixtures all move, and the cache-directory properties are ignored.",
+      "defaultValue": "FILE"
+    },
+    {
+      "name": "spring.ai.test.vcr.remote.url",
+      "type": "java.lang.String",
+      "description": "Root URL of the Cassette Server, for example http://cassette-server:9090. Required when spring.ai.test.vcr.store=remote."
+    },
+    {
+      "name": "spring.ai.test.vcr.remote.namespace",
+      "type": "java.lang.String",
+      "description": "Namespace this application's fixtures live in on the Cassette Server, typically the application name. Applications that should share recordings use the same namespace. Required when spring.ai.test.vcr.store=remote."
+    },
+    {
+      "name": "spring.ai.test.vcr.remote.token",
+      "type": "java.lang.String",
+      "description": "Bearer token for the Cassette Server's client API, if the server was started with one."
+    },
+    {
+      "name": "spring.ai.test.vcr.remote.connect-timeout",
+      "type": "java.time.Duration",
+      "description": "How long to wait for a connection to the Cassette Server. An unreachable server fails the call; it is never treated as a cache miss.",
+      "defaultValue": "2s"
+    },
+    {
+      "name": "spring.ai.test.vcr.remote.read-timeout",
+      "type": "java.time.Duration",
+      "description": "How long to wait for each response from the Cassette Server. A timeout fails the call; it is never treated as a cache miss.",
+      "defaultValue": "5s"
+    },
+    {
       "name": "spring.ai.test.vcr.order",
       "type": "java.lang.Integer",
       "description": "Explicit advisor order, overriding the value scope would otherwise derive. Leave unset unless the advisor needs to interleave with other custom advisors in a specific position."

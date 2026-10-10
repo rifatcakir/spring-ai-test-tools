@@ -148,6 +148,16 @@ configuration stays as it is.
   mapper. **No new runtime dependency.**
 - Auto-configuration picks the implementation from `spring.ai.test.vcr.store`.
 
+*As built (step 4):* the remote location is the fixture's real URL
+(`http://cassette-server:9090/api/v1/ns/order-service/chat/{hash}`) rather than a
+`remote://` pseudo-scheme, so a `VcrCacheMissException` message can be pasted into `curl`.
+`remote.url` and `remote.namespace` are both required with `store: remote` and fail startup
+when missing; the namespace is not guessed from `spring.application.name`, because two
+services that share a name by accident would silently share fixtures. The stores gained a
+`replace` method next to `write`: `RECORD_ALWAYS` calls it (`PUT ?overwrite=true`), a plain
+miss calls `write` (`409` keeps the existing fixture). It is a method rather than a store
+setting because `@Vcr` can change the effective mode for a single test.
+
 ### 5.3 Failure semantics
 
 - **Server unreachable or 5xx:** fail loudly with a clear message naming the URL and

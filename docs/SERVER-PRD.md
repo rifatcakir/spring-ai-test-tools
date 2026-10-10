@@ -187,7 +187,7 @@ to be on the runtime classpath of that build. Guard rails, all in the MVP:
 ### 6.1 Running it
 
 ```bash
-java -jar spring-ai-test-tools-server-0.1.0.jar \
+java -jar spring-ai-test-tools-server-0.2.0.jar \
   --port=9090 \
   --storage-dir=/data/cassettes \
   --admin-token=$ADMIN_TOKEN

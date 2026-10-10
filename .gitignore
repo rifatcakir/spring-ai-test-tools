@@ -26,3 +26,6 @@ site/.cache/
 # Kept locally for reference, deliberately not tracked going forward.
 docs/DISPATCH_PROMPT.md
 
+
+# Default storage directory of a Cassette Server started from the repository root.
+cassettes/

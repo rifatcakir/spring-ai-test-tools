@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-10-10 (Cassette Server, branch `feat/cassette-server`) · Version `0.1.1`
+Last updated: 2026-10-10 (Cassette Server, branch `feat/cassette-server`) · Version `0.2.0` (prepared, not published)
 
 ## Cassette Server (branch `feat/cassette-server`, not merged)
 
@@ -26,8 +26,18 @@ Dockerfile, no Spring AI, no dependency on the library, never deployed to Centra
 - **Found on the way:** the stream, tool and embedding write paths never applied
   `VcrFixtureRedactor`; fixed (see the PRD, section 10). `.gitattributes` still pointed at
   the pre-module stub-responses path, which failed one test on Windows checkouts; fixed.
-- **Not done, needs the maintainer:** publishing the image to `ghcr.io`; adding the
-  Cassette Server IT to the nightly `e2e` CI job; merging the branch.
+- **Release prepared as `0.2.0`, nothing published.** Library and server versions are
+  `0.2.0` (`0.1.0` and `0.1.1` are on Central; `0.2.0` is not). `CHANGELOG.md` has the
+  release notes and upgrade notes; `docs/PUBLISHING.md` has the runbook (library to
+  Central, server image to `ghcr.io`, jar to a GitHub Release, tag). Checked:
+  `mvn clean package -Prelease` in the library builds the jar, `-sources.jar` and
+  `-javadoc.jar` with no Javadoc errors (unsigned; signing is the maintainer's step), and
+  `mkdocs build --strict` passes with the new Cassette Server page. The library's own
+  Ollama e2e suite is now 19 tests (the "seventeen" further down predates two additions),
+  all green on 2026-10-10.
+- **Not done, needs the maintainer:** merging the branch, the release steps in
+  `docs/PUBLISHING.md`, and (optionally) adding the Cassette Server IT to the nightly
+  `e2e` CI job.
 
 ## Rename: `spring-ai-test-vcr` → `spring-ai-test-tools`
 

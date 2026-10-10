@@ -58,6 +58,8 @@ public class CassetteServerClient {
 	private final JsonMapper jsonMapper = JsonMapper.builder().build();
 
 	/**
+	 * Create a client for one namespace. Validates the URL scheme and the namespace up
+	 * front, so a typo fails at startup rather than on the first AI call.
 	 * @param baseUrl the server's root URL, e.g. {@code http://cassette-server:9090}
 	 * @param namespace the namespace this application's fixtures live in
 	 * @param token bearer token for the client API, or {@code null} when the server needs
@@ -86,10 +88,18 @@ public class CassetteServerClient {
 			.build();
 	}
 
+	/**
+	 * The server this client talks to.
+	 * @return the server's root URL, without a trailing slash
+	 */
 	public String getBaseUrl() {
 		return this.baseUrl;
 	}
 
+	/**
+	 * The namespace this client's fixtures live in.
+	 * @return the namespace this client reads and writes
+	 */
 	public String getNamespace() {
 		return this.namespace;
 	}
@@ -97,6 +107,9 @@ public class CassetteServerClient {
 	/**
 	 * The URL of one fixture: what log lines and {@code VcrCacheMissException} messages
 	 * show, and something a person can paste into {@code curl} to look at it.
+	 * @param kind the fixture family
+	 * @param hash the fixture's SHA-256
+	 * @return the fixture's URL on the server
 	 */
 	public String locationOf(Kind kind, String hash) {
 		return this.baseUrl + "/api/v1/ns/" + this.namespace + "/" + kind.pathSegment() + "/" + hash;
@@ -104,6 +117,9 @@ public class CassetteServerClient {
 
 	/**
 	 * A short name for {@code CACHE HIT} log lines: {@code namespace/kind/hash}.
+	 * @param kind the fixture family
+	 * @param hash the fixture's SHA-256
+	 * @return {@code namespace/kind/hash}
 	 */
 	public String fixtureNameOf(Kind kind, String hash) {
 		return this.namespace + "/" + kind.pathSegment() + "/" + hash;
@@ -111,6 +127,9 @@ public class CassetteServerClient {
 
 	/**
 	 * The stored document, or empty when the server has none ({@code 404}).
+	 * @param kind the fixture family
+	 * @param hash the fixture's SHA-256
+	 * @return the document as the server stored it, or empty
 	 * @throws CassetteServerException for anything other than {@code 200} or {@code 404}
 	 */
 	public Optional<String> get(Kind kind, String hash) {
@@ -125,6 +144,9 @@ public class CassetteServerClient {
 
 	/**
 	 * Store a document.
+	 * @param kind the fixture family
+	 * @param hash the fixture's SHA-256, which must match the document's own {@code hash}
+	 * @param document the fixture JSON, exactly as the file store would write it
 	 * @param overwrite replace an existing document; only {@code RECORD_ALWAYS} asks for
 	 * this, the one mode where the last write wins (PRD 5.3)
 	 * @return what the server did with it
@@ -247,7 +269,17 @@ public class CassetteServerClient {
 	 */
 	public enum Kind {
 
-		CHAT("chat"), STREAM("stream"), EMBEDDING("embedding"), TOOL("tool");
+		/** {@code VcrTrack} fixtures. */
+		CHAT("chat"),
+
+		/** {@code VcrStreamTrack} fixtures. */
+		STREAM("stream"),
+
+		/** {@code VcrEmbeddingTrack} fixtures. */
+		EMBEDDING("embedding"),
+
+		/** {@code VcrToolExecutionTrack} fixtures. */
+		TOOL("tool");
 
 		private final String pathSegment;
 
@@ -255,6 +287,10 @@ public class CassetteServerClient {
 			this.pathSegment = pathSegment;
 		}
 
+		/**
+		 * The URL segment the server files this family under.
+		 * @return the {@code {kind}} segment in the server's URLs
+		 */
 		public String pathSegment() {
 			return this.pathSegment;
 		}

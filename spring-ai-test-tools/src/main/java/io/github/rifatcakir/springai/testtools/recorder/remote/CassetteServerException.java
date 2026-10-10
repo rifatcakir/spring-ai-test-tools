@@ -17,10 +17,19 @@ package io.github.rifatcakir.springai.testtools.recorder.remote;
  */
 public class CassetteServerException extends RuntimeException {
 
+	/**
+	 * A failure with no underlying exception, such as an unexpected HTTP status.
+	 * @param message what failed, naming the server URL and namespace
+	 */
 	public CassetteServerException(String message) {
 		super(message);
 	}
 
+	/**
+	 * A failure caused by another exception, such as a refused connection or a timeout.
+	 * @param message what failed, naming the server URL and namespace
+	 * @param cause the underlying I/O, timeout or parsing failure
+	 */
 	public CassetteServerException(String message, Throwable cause) {
 		super(message, cause);
 	}

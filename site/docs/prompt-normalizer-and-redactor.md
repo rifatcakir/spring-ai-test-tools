@@ -83,3 +83,19 @@ collision.
 ignored — the fixture is always filed under the hash actually computed. Multiple
 redactors run in registration order; a redactor that throws is not swallowed, so a broken
 redactor fails the recording loudly rather than shipping a half-redacted fixture.
+
+### Streams, tool executions and embeddings
+
+Each fixture family has its own method on the same interface, applied on its own write
+path with the same hash guarantee:
+
+| Method | Default | Override it when |
+|---|---|---|
+| `redact(VcrTrack)` | — (the one you implement) | always |
+| `redactStream(VcrStreamTrack)` | runs `redact` over the stream's request side; fails loudly if `redact` changes the answer | the streamed answer itself needs redacting, chunk by chunk |
+| `redactToolExecution(VcrToolExecutionTrack)` | unchanged | tool arguments or results carry something to keep out |
+| `redactEmbedding(VcrEmbeddingTrack)` | unchanged | embedded texts carry something to keep out |
+
+A registered redactor that keeps the tool or embedding default is reported with a `WARN`
+when tool isolation or embedding caching starts. A redacted tool result is what a later
+replay hands back to the model, so the model's next turn sees the redacted form on replay.

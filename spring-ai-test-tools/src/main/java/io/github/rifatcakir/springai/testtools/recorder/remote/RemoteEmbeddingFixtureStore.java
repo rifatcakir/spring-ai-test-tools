@@ -23,10 +23,21 @@ public class RemoteEmbeddingFixtureStore implements EmbeddingFixtureStore {
 
 	private final RemoteFixtureDocuments<VcrEmbeddingTrack> documents;
 
+	/**
+	 * Serialize with {@link VcrEmbeddingTrackStore#defaultJsonMapper()}, so the server receives exactly what
+	 * the file store would have written.
+	 * @param client the namespace's client
+	 */
 	public RemoteEmbeddingFixtureStore(CassetteServerClient client) {
 		this(client, VcrEmbeddingTrackStore.defaultJsonMapper());
 	}
 
+	/**
+	 * Serialize with a mapper of your own. Use one configured like {@link
+	 * VcrEmbeddingTrackStore#defaultJsonMapper()}, or exports stop matching locally recorded fixtures.
+	 * @param client the namespace's client
+	 * @param jsonMapper reads and writes the fixture JSON
+	 */
 	public RemoteEmbeddingFixtureStore(CassetteServerClient client, JsonMapper jsonMapper) {
 		this.documents = new RemoteFixtureDocuments<>(client, CassetteServerClient.Kind.EMBEDDING, VcrEmbeddingTrack.class,
 				VcrEmbeddingTrack::hash, jsonMapper, LoggerFactory.getLogger(RemoteEmbeddingFixtureStore.class), "VCR EMBEDDING");

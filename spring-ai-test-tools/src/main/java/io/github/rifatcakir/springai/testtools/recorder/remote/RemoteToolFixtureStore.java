@@ -23,10 +23,21 @@ public class RemoteToolFixtureStore implements ToolFixtureStore {
 
 	private final RemoteFixtureDocuments<VcrToolExecutionTrack> documents;
 
+	/**
+	 * Serialize with {@link VcrToolExecutionTrackStore#defaultJsonMapper()}, so the server receives exactly what
+	 * the file store would have written.
+	 * @param client the namespace's client
+	 */
 	public RemoteToolFixtureStore(CassetteServerClient client) {
 		this(client, VcrToolExecutionTrackStore.defaultJsonMapper());
 	}
 
+	/**
+	 * Serialize with a mapper of your own. Use one configured like {@link
+	 * VcrToolExecutionTrackStore#defaultJsonMapper()}, or exports stop matching locally recorded fixtures.
+	 * @param client the namespace's client
+	 * @param jsonMapper reads and writes the fixture JSON
+	 */
 	public RemoteToolFixtureStore(CassetteServerClient client, JsonMapper jsonMapper) {
 		this.documents = new RemoteFixtureDocuments<>(client, CassetteServerClient.Kind.TOOL, VcrToolExecutionTrack.class,
 				VcrToolExecutionTrack::hash, jsonMapper, LoggerFactory.getLogger(RemoteToolFixtureStore.class), "VCR TOOL");

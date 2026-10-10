@@ -32,11 +32,17 @@ A five-minute walkthrough with no API key and no model to install:
 
 ```bash
 mvn -pl spring-ai-test-tools-server package -DskipTests
-java -jar spring-ai-test-tools-server/target/spring-ai-test-tools-server-0.1.0-SNAPSHOT.jar \
+java -jar spring-ai-test-tools-server/target/spring-ai-test-tools-server-0.2.0.jar \
   --port=9090 --storage-dir=/data/cassettes --admin-token=change-me
 ```
 
-Or as a container, built from the same jar ([`Dockerfile`](Dockerfile), layered):
+Or as a container. Once 0.2.0 is released, the published image:
+
+```bash
+docker run -p 9090:9090 -v cassettes:/data/cassettes   -e CASSETTE_ADMIN_TOKEN=change-me ghcr.io/rifatcakir/spring-ai-test-tools-server:0.2.0
+```
+
+or built locally from the same jar ([`Dockerfile`](Dockerfile), layered):
 
 ```bash
 docker build -t spring-ai-test-tools-server spring-ai-test-tools-server
@@ -53,6 +59,8 @@ docker run -p 9090:9090 -v cassettes:/data/cassettes \
 | `--default-mode` | `CASSETTE_DEFAULT_MODE` | `RECORD_OR_REPLAY` | Mode for clients that set none, in namespaces without their own |
 
 Health check: `GET /actuator/health`. One instance per environment; it is not clustered.
+Use the same server version as the library (server 0.2.0 with library 0.2.0): the server
+refuses fixtures with a `schemaVersion` newer than it knows.
 
 ## Point an application at it
 

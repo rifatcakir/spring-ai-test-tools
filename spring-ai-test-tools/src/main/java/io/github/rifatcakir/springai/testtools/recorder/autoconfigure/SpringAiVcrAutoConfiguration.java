@@ -90,6 +90,8 @@ public class SpringAiVcrAutoConfiguration {
 	 * SpringAiVcrEmbeddingAutoConfiguration}. Creating it is also where the one startup
 	 * {@code WARN} lives (PRD 5.4): with the library on a deployed application's runtime
 	 * classpath, routing AI calls through a fixture server must never be on unnoticed.
+	 * @param properties {@code spring.ai.test.vcr.*}, of which {@code remote.*} is used
+	 * @return the client for the configured server and namespace
 	 */
 	@Bean
 	@ConditionalOnProperty(prefix = VcrProperties.PREFIX, name = "store", havingValue = "remote")

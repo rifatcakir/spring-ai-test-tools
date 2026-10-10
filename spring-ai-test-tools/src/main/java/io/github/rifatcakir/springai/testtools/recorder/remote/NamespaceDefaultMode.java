@@ -36,6 +36,10 @@ public class NamespaceDefaultMode implements Supplier<VcrMode> {
 
 	private final AtomicReference<VcrMode> lastSeen = new AtomicReference<>();
 
+	/**
+	 * Ask {@code client}'s namespace for its default mode on every {@link #get()}.
+	 * @param client the namespace's client
+	 */
 	public NamespaceDefaultMode(CassetteServerClient client) {
 		Assert.notNull(client, "client must not be null");
 		this.client = client;

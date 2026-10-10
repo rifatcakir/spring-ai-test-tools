@@ -12,7 +12,10 @@
 
 FROM eclipse-temurin:21-jre AS layers
 WORKDIR /build
-COPY target/spring-ai-test-tools-server-*.jar app.jar
+# A glob, so the Dockerfile needs no edit per version; exactly one jar must match, or a
+# stale jar from an earlier version would be baked in (or break the copy) silently.
+COPY target/spring-ai-test-tools-server-*.jar jars/
+RUN set -e; count=$(ls jars/*.jar | wc -l);     if [ "$count" -ne 1 ]; then       echo "Expected exactly one server jar in target/, found $count:" $(ls jars) "- run mvn clean package." >&2;       exit 1;     fi;     mv jars/*.jar app.jar
 RUN java -Djarmode=tools -jar app.jar extract --layers --launcher --destination extracted
 
 FROM eclipse-temurin:21-jre

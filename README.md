@@ -75,6 +75,7 @@ after that never leaves the file system — same test, same assertion, no edits.
 | **[Embedding Replay](#embeddings)** | `EmbeddingModel` calls cached independently of chat, vectors exact |
 | **[Evaluator Testing](#evaluator)** | Spring AI's own evaluators, deterministic in CI or live on demand |
 | **[Streaming](#streaming)** | `Flux` responses replayed chunk-for-chunk, tool calls included |
+| **[Cassette Server](#shared-fixtures-with-the-cassette-server)** | One fixture store for a whole test environment; same advisor, same files, switched on from YAML |
 
 ## What it costs to run a test
 
@@ -185,6 +186,10 @@ ship; it replaces running one on *every* commit.
   (`BYPASS`) that always reaches the real model even when a fixture already exists — the
   same evaluator, zero new mechanism, purely a `VcrMode` choice. Spring AI's own
   `Evaluator` has no replay concept at all; this is the choice it doesn't offer.
+- **Fixtures for a deployed test environment, not only a checkout.** With
+  `store: remote`, every recorded call (chat, streaming, tool, embedding) reads and writes
+  through one Cassette Server per environment; the hash, tool isolation and redaction stay in
+  the application, and an export from the server replays locally with `store: file`.
 - **Programmatic stubbing, WireMock-style, for what record/replay can't capture.**
   `VcrStubs.chatModel()`/`VcrStubs.embeddingModel()` build a canned `ChatModel`/
   `EmbeddingModel` from an inline string or a file you name and manage — for timeouts,
@@ -221,7 +226,7 @@ capability's format can evolve without touching another's committed fixtures.
 <dependency>
     <groupId>io.github.rifatcakir</groupId>
     <artifactId>spring-ai-test-tools</artifactId>
-    <version>0.1.1</version>
+    <version>0.2.0</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -325,6 +330,10 @@ Tested against, and only against:
 | Java | 21 |
 | Spring Boot | 4.0.0 |
 | Spring AI | 2.0.0 |
+| Cassette Server | the same version as the library (0.2.0 with 0.2.0) |
+
+The server refuses fixtures with a `schemaVersion` newer than it knows, so keep the library
+and the server on the same version.
 
 **Other versions are untested; compatibility is not guaranteed.** Spring AI's own API
 surface has moved fast release to release (see `CLAUDE.md`'s own verified-API-facts table

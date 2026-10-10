@@ -199,7 +199,7 @@
             <p class="stt-demo__proves">
               <strong>What this proves:</strong> a real cache miss records a fixture, and a
               real cache hit replays it with zero additional HTTP requests —
-              <a href="https://github.com/rifatcakir/spring-ai-test-tools/blob/main/src/test/java/io/github/rifatcakir/springai/testtools/recorder/e2e/OllamaEndToEndTests.java" target="_blank" rel="noopener"><code>OllamaEndToEndTests</code></a>.
+              <a href="https://github.com/rifatcakir/spring-ai-test-tools/blob/main/spring-ai-test-tools/src/test/java/io/github/rifatcakir/springai/testtools/recorder/e2e/OllamaEndToEndTests.java" target="_blank" rel="noopener"><code>OllamaEndToEndTests</code></a>.
             </p>
           </div>
 
@@ -326,7 +326,7 @@
               <strong>What this proves:</strong> the real <code>@Tool</code> method runs
               exactly once — on the call that records it — and zero times on an identical
               replay, full isolation, by default —
-              <a href="https://github.com/rifatcakir/spring-ai-test-tools/blob/main/src/test/java/io/github/rifatcakir/springai/testtools/recorder/e2e/OllamaToolIsolationEndToEndTests.java" target="_blank" rel="noopener"><code>OllamaToolIsolationEndToEndTests</code></a>.
+              <a href="https://github.com/rifatcakir/spring-ai-test-tools/blob/main/spring-ai-test-tools/src/test/java/io/github/rifatcakir/springai/testtools/recorder/e2e/OllamaToolIsolationEndToEndTests.java" target="_blank" rel="noopener"><code>OllamaToolIsolationEndToEndTests</code></a>.
             </p>
           </div>
 
@@ -400,7 +400,7 @@
               <strong>What this proves:</strong> a replayed embedding is
               <code>assertThat(replayed).isEqualTo(recorded)</code> exact, not
               "same length" or "close enough" —
-              <a href="https://github.com/rifatcakir/spring-ai-test-tools/blob/main/src/test/java/io/github/rifatcakir/springai/testtools/recorder/e2e/OllamaEmbeddingEndToEndTests.java" target="_blank" rel="noopener"><code>OllamaEmbeddingEndToEndTests</code></a>.
+              <a href="https://github.com/rifatcakir/spring-ai-test-tools/blob/main/spring-ai-test-tools/src/test/java/io/github/rifatcakir/springai/testtools/recorder/e2e/OllamaEmbeddingEndToEndTests.java" target="_blank" rel="noopener"><code>OllamaEmbeddingEndToEndTests</code></a>.
             </p>
           </div>
 
@@ -476,7 +476,7 @@
               <strong>What this proves:</strong> the same judge verdict replays
               deterministically in CI — a frozen regression check, not a live evaluation —
               and a genuinely different judged answer still reaches the judge model again —
-              <a href="https://github.com/rifatcakir/spring-ai-test-tools/blob/main/src/test/java/io/github/rifatcakir/springai/testtools/recorder/e2e/OllamaEvaluatorEndToEndTests.java" target="_blank" rel="noopener"><code>OllamaEvaluatorEndToEndTests</code></a>.
+              <a href="https://github.com/rifatcakir/spring-ai-test-tools/blob/main/spring-ai-test-tools/src/test/java/io/github/rifatcakir/springai/testtools/recorder/e2e/OllamaEvaluatorEndToEndTests.java" target="_blank" rel="noopener"><code>OllamaEvaluatorEndToEndTests</code></a>.
             </p>
           </div>
 
@@ -550,7 +550,7 @@
               <strong>What this proves:</strong> a replayed stream emits the exact same
               chunk-for-chunk sequence — tool calls included — asserted chunk-by-chunk, not
               just on the aggregated text —
-              <a href="https://github.com/rifatcakir/spring-ai-test-tools/blob/main/src/test/java/io/github/rifatcakir/springai/testtools/recorder/e2e/OllamaStreamingEndToEndTests.java" target="_blank" rel="noopener"><code>OllamaStreamingEndToEndTests</code></a>.
+              <a href="https://github.com/rifatcakir/spring-ai-test-tools/blob/main/spring-ai-test-tools/src/test/java/io/github/rifatcakir/springai/testtools/recorder/e2e/OllamaStreamingEndToEndTests.java" target="_blank" rel="noopener"><code>OllamaStreamingEndToEndTests</code></a>.
             </p>
           </div>
 
@@ -657,6 +657,11 @@
           <span class="stt-card__ico">⇉</span>
           <span class="stt-card__title">Streaming</span>
           <span class="stt-card__body"><code>Flux</code> responses replayed chunk-for-chunk, tool calls included. No single-chunk fake.</span>
+        </a>
+        <a class="stt-card" href="{{ 'cassette-server/' | url }}">
+          <span class="stt-card__ico">⇄</span>
+          <span class="stt-card__title">Cassette Server</span>
+          <span class="stt-card__body">One fixture store for a whole test environment. Same advisor, same files, switched on from YAML.</span>
         </a>
       </div>
     </div>

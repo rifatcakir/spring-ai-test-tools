@@ -1,66 +1,97 @@
 # Publishing to Maven Central
 
-Last updated: 2026-08-25
+Last updated: 2026-10-10
 
-**Status: `0.1.0` published; `0.1.1` prepared, not yet published.**
-`io.github.rifatcakir:spring-ai-test-tools:0.1.0` is live on Maven Central — `mvn deploy
--Prelease` was run by hand on 2026-08-03, the bundle validated (Deployment ID
-`b12ff567-ec49-4324-9141-337fe3958e07`, 1/1 components validated) on the Central Portal,
-and the maintainer clicked "Publish" the same day. That click is permanent: `0.1.0`
-cannot be deleted or overwritten on Central, only superseded by a later version.
-`0.1.1` (`docs/R6-CACHE-TOKEN-USAGE-PRD.md` — cache-token usage fidelity fix) has its
-version already bumped in `pom.xml` (`mvn versions:set -DnewVersion=0.1.1`) and
-`mvn clean test` green (253/253) as of this update, but **no release build, signing, or
-upload has been run for it** — see "Next release: `0.1.1`" immediately below for the
-exact remaining steps. Everything further below is kept as a historical record of how
-`0.1.0` was prepared and as the general runbook this next release reuses — every step
-that requires a secret, a key, or an account was written as something *you* do, by hand,
-outside of anything an agent should be doing on your behalf — see "Why this is a manual
-walkthrough" at the bottom.
+**Status: `0.1.0` and `0.1.1` published; `0.2.0` prepared, not yet published.**
+Both earlier versions are live on Maven Central (`repo1.maven.org` answers HTTP 200 for
+`spring-ai-test-tools-0.1.0.pom` and `-0.1.1.pom`, checked 2026-10-10; this document
+still called `0.1.1` unpublished until then). `0.2.0` adds the Cassette Server's client
+(the remote store, `docs/SERVER-PRD.md`) and redaction on every write path; see
+[`CHANGELOG.md`](../CHANGELOG.md), including its upgrade notes. Its version is set in
+every module and `mvn test` is green at the root, but **no release build, signing,
+upload, image push or tag has been run for it.** The steps below are what remains, all
+of them yours to run. Everything further down is the historical record of how `0.1.0`
+was prepared, kept as the general runbook (GPG key, Sonatype token, `settings.xml`).
 
-## Next release: `0.1.1`
+## Next release: `0.2.0`
 
-Namespace verification and the GPG key (steps 1–2 below) don't need to be redone — only
-steps 3–5 repeat, and step 3/4 only if your Sonatype token has expired or `settings.xml`
-needs attention. In order, run yourself, in your own terminal:
+Two things ship, in two different ways:
+
+| What | Where | How |
+|---|---|---|
+| The library `io.github.rifatcakir:spring-ai-test-tools:0.2.0` | Maven Central | `mvn deploy -Prelease` in `spring-ai-test-tools/`, as before |
+| The Cassette Server `0.2.0` | `ghcr.io/rifatcakir/spring-ai-test-tools-server` and a GitHub Release asset | `docker push` and `gh release create`; **never Maven Central** (`maven.deploy.skip` is set in its pom) |
+
+Ship them together and keep their versions equal: the server refuses fixtures with a
+`schemaVersion` newer than it knows, so "library X.Y works with server X.Y" is the rule
+users can follow. Nothing else in the repository is published: not the root aggregator,
+not `spring-ai-test-tools-it`, not `examples/`.
+
+### 1. Check everything from the root
 
 ```bash
-# The repository is a multi-module build since the Cassette Server was added
-# (docs/SERVER-PRD.md). Only the library is published, so every release command runs
-# inside its module directory. The root pom is a build aggregator that is never deployed.
-cd spring-ai-test-tools
-
-# 1. Confirm the version is what you expect (already done, verify it stuck):
-grep -m1 "<version>" pom.xml
-# should print: <version>0.1.1</version>
-
-# 2. A real release build -- this is the first command that attempts to sign anything.
-#    If gpg-agent doesn't already have your key cached, expect a pinentry prompt for
-#    your key's passphrase.
-mvn clean verify -Prelease
-
-# 3. Upload and validate the bundle on the Central Portal (does NOT publish automatically
-#    -- autoPublish is false in pom.xml on purpose).
-mvn deploy -Prelease
+mvn clean test                              # library + server unit tests, no Docker needed
+mvn -Pintegration-test verify               # needs Docker: library e2e + Cassette Server e2e
 ```
 
-Then go to <https://central.sonatype.com>, find the pending `0.1.1` deployment, review
-it, and click "Publish" yourself. That click is the last, deliberately manual gate —
-once clicked, `0.1.1` is permanent on Central too.
+Both green at the time of writing (library 321 unit tests, server 69, library e2e 19,
+Cassette Server e2e 11).
 
-If step 2 fails at `gpg:sign` with "no secret key," your GPG key isn't available to this
-shell (wrong `gpg-agent`, different user, different machine) — see step 2 in the general
-walkthrough below for the key's fingerprint and where its public half was published; the
-private key and passphrase live only wherever you originally generated them, never in
-this repository. If step 3 fails with an authentication error, your Sonatype user token
-in `~/.m2/settings.xml` under the `central` server entry has likely expired — generate a
-fresh one under your account at <https://central.sonatype.com> and update that file (see
-step 4 in the general walkthrough for the exact shape; never commit it anywhere).
+### 2. Release the library (Maven Central)
 
-**No agent should run any of the three commands above, generate a GPG passphrase, or
-write real Sonatype credentials into `settings.xml`.** This section exists so you have
-the exact commands; running them is deliberately left to you, for the same reasons laid
-out in "Why this is a manual walkthrough" at the bottom of this document.
+The same three commands as every earlier release, inside the library's module:
+
+```bash
+cd spring-ai-test-tools
+grep -m1 "<version>" pom.xml                # should print: <version>0.2.0</version>
+mvn clean verify -Prelease                  # first command that signs; expect a GPG prompt
+mvn deploy -Prelease                        # uploads and validates; does NOT publish
+```
+
+Then open <https://central.sonatype.com>, review the pending `0.2.0` deployment and click
+"Publish" yourself. That click is permanent.
+
+### 3. Release the Cassette Server (image and jar)
+
+From the root, after the library is out (or at least after step 1 passed):
+
+```bash
+mvn -pl spring-ai-test-tools-server clean package
+docker build -t ghcr.io/rifatcakir/spring-ai-test-tools-server:0.2.0 spring-ai-test-tools-server
+docker tag ghcr.io/rifatcakir/spring-ai-test-tools-server:0.2.0 ghcr.io/rifatcakir/spring-ai-test-tools-server:latest
+echo "$GHCR_TOKEN" | docker login ghcr.io -u rifatcakir --password-stdin   # a PAT with write:packages
+docker push ghcr.io/rifatcakir/spring-ai-test-tools-server:0.2.0
+docker push ghcr.io/rifatcakir/spring-ai-test-tools-server:latest
+```
+
+The first push creates the package as private; make it public under the package's
+settings on GitHub if the README's `docker run` should work for everyone.
+
+### 4. Tag and write the GitHub Release
+
+After merging `feat/cassette-server` into `main`:
+
+```bash
+git tag -a v0.2.0 -m "spring-ai-test-tools 0.2.0: Cassette Server"
+git push origin v0.2.0
+gh release create v0.2.0 spring-ai-test-tools-server/target/spring-ai-test-tools-server-0.2.0.jar --title "0.2.0: Cassette Server" --notes-file release-notes.md
+```
+
+`release-notes.md` is the `## [0.2.0]` section of [`CHANGELOG.md`](../CHANGELOG.md), copied
+into a scratch file (not committed).
+
+### 5. Afterwards
+
+- Point `spring-ai-test-tools-example` at `0.2.0` and add the Cassette Server example there
+  (`examples/cassette-server-demo` in this repository is the starting point).
+- Update the status line at the top of this file and in `docs/STATUS.md`.
+
+**No agent should run any of the commands in steps 2 to 4, generate a GPG passphrase,
+log in to a registry, or write real Sonatype credentials into `settings.xml`.** This
+section exists so you have the exact commands; running them is deliberately left to you,
+for the reasons in "Why this is a manual walkthrough" at the bottom of this document.
+
+### History: `0.1.0` sync check
 
 **Confirmed synced, 2026-08-03.** `repo1.maven.org/maven2/io/github/rifatcakir/spring-ai-test-tools/0.1.0/`
 serves the jar and pom (HTTP 200), and `search.maven.org` indexes the coordinate.

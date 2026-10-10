@@ -249,8 +249,17 @@ public class DeterministicVcrAdvisor implements CallAdvisor, StreamAdvisor {
 	 * (PRD fork b): an admin's change applies to the next call, not the next restart. A
 	 * {@code @Vcr} override still wins, and is consulted first, so an overridden call never
 	 * asks the supplier.
+	 * @param keyGenerator computes the cache key for each request
+	 * @param store reads and writes chat fixtures
+	 * @param mapper translates between Spring AI's response domain and {@code VcrTrack}
 	 * @param mode asked once per call; may throw, which fails the call before the model is
 	 * reached
+	 * @param order the exact {@link org.springframework.core.Ordered} value for this advisor
+	 * @param redactors applied in list order to every fixture before it is written
+	 * @param streamStore reads and writes stream fixtures, or {@code null} to pass streams
+	 * through live
+	 * @param streamMapper translates a collected chunk sequence to {@code VcrStreamTrack}, or
+	 * {@code null} with {@code streamStore}
 	 */
 	public DeterministicVcrAdvisor(VcrCacheKeyGenerator keyGenerator, ChatFixtureStore store, VcrTrackMapper mapper,
 			Supplier<VcrMode> mode, int order, List<VcrFixtureRedactor> redactors, StreamFixtureStore streamStore,

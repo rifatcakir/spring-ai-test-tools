@@ -24,8 +24,8 @@ import org.springframework.util.ClassUtils;
 public class DemoApplication {
 
 	public static void main(String[] args) {
-		// spring-ai-test-tools 0.1.1 from Maven Central predates the remote store and would
-		// silently ignore "store: remote", recording to local files instead. Stop instead.
+		// spring-ai-test-tools 0.1.x predates the remote store (0.2.0) and would silently
+		// ignore "store: remote", recording to local files instead. Stop instead.
 		if (!ClassUtils.isPresent("io.github.rifatcakir.springai.testtools.recorder.remote.CassetteServerClient",
 				null)) {
 			System.err.println("This spring-ai-test-tools jar has no remote store. Build the demo together with the "

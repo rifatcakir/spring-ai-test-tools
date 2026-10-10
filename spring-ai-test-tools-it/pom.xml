@@ -63,7 +63,7 @@
         <dependency>
             <groupId>io.github.rifatcakir</groupId>
             <artifactId>spring-ai-test-tools</artifactId>
-            <version>0.1.1</version>
+            <version>0.2.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>

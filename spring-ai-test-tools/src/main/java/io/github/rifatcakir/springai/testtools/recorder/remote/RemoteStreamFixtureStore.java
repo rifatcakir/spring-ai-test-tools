@@ -23,10 +23,21 @@ public class RemoteStreamFixtureStore implements StreamFixtureStore {
 
 	private final RemoteFixtureDocuments<VcrStreamTrack> documents;
 
+	/**
+	 * Serialize with {@link VcrStreamTrackStore#defaultJsonMapper()}, so the server receives exactly what
+	 * the file store would have written.
+	 * @param client the namespace's client
+	 */
 	public RemoteStreamFixtureStore(CassetteServerClient client) {
 		this(client, VcrStreamTrackStore.defaultJsonMapper());
 	}
 
+	/**
+	 * Serialize with a mapper of your own. Use one configured like {@link
+	 * VcrStreamTrackStore#defaultJsonMapper()}, or exports stop matching locally recorded fixtures.
+	 * @param client the namespace's client
+	 * @param jsonMapper reads and writes the fixture JSON
+	 */
 	public RemoteStreamFixtureStore(CassetteServerClient client, JsonMapper jsonMapper) {
 		this.documents = new RemoteFixtureDocuments<>(client, CassetteServerClient.Kind.STREAM, VcrStreamTrack.class,
 				VcrStreamTrack::hash, jsonMapper, LoggerFactory.getLogger(RemoteStreamFixtureStore.class), "VCR STREAM");

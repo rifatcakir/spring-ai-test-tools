@@ -9,6 +9,7 @@ Tested against, and only against:
 | Java | 21 |
 | Spring Boot | 4.0.0 |
 | Spring AI | 2.0.0 |
+| Cassette Server | the same version as the library |
 
 **Other versions are untested; compatibility is not guaranteed.** Spring AI's API surface
 has moved fast release to release — much of what pre-2.0 tutorials and blog posts say
@@ -24,7 +25,7 @@ Every property is under the `spring.ai.test.vcr` prefix:
 | Property | Type | Default | Description |
 |---|---|---|---|
 | `enabled` | `boolean` | `false` | Whether to attach the advisor at all. Off unless explicitly enabled — a library that silently starts caching model responses is a library that silently makes a production build pass for the wrong reason. |
-| `mode` | `VcrMode` | `RECORD_OR_REPLAY` | Record-and-replay strategy — see [Modes](record-replay.md#modes). |
+| `mode` | `VcrMode` | unset: `RECORD_OR_REPLAY` | Record-and-replay strategy — see [Modes](record-replay.md#modes). Unset with `store: remote` follows the Cassette Server namespace's default; a value set here always wins. |
 | `scope` | `VcrScope` | `OUTSIDE_TOOL_LOOP` | Where the advisor sits relative to tool calling — see [Tool Calling](tool-calling.md). |
 | `cache-directory` | `String` | `src/test/resources/llm-cache` | Where fixtures are read from and written to. Meant to be committed to version control. |
 | `order` | `Integer` | derived from `scope` | Explicit advisor order. Only needed to interleave with other custom advisors at a specific position. |
@@ -48,8 +49,22 @@ Under `spring.ai.test.vcr.embedding`, independent of the chat properties above �
 | Property | Type | Default | Description |
 |---|---|---|---|
 | `enabled` | `boolean` | `false` | Whether to wrap the `EmbeddingModel` bean at all. Independent of the top-level `spring.ai.test.vcr.enabled`. |
-| `mode` | `VcrMode` | `RECORD_OR_REPLAY` | Same mode semantics as the chat advisor. |
+| `mode` | `VcrMode` | unset: `RECORD_OR_REPLAY` | Same mode semantics as the chat advisor, including following the namespace default when unset with `store: remote`. |
 | `cache-directory` | `String` | `src/test/resources/llm-cache-embedding` | A separate directory from the chat cache, by default. |
+
+## Remote store (Cassette Server)
+
+Under `spring.ai.test.vcr`, applying to every fixture family at once — see
+[Cassette Server](cassette-server.md):
+
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `store` | `VcrStoreType` | `FILE` | `FILE` uses the cache directories above; `REMOTE` keeps chat, streaming, tool and embedding fixtures on a Cassette Server, and the cache directories are ignored. |
+| `remote.url` | `String` | none | Server root URL, e.g. `http://cassette-server:9090`. Required with `store: remote`. |
+| `remote.namespace` | `String` | none | This application's namespace. Required with `store: remote`. |
+| `remote.token` | `String` | none | Bearer token, if the server requires one. |
+| `remote.connect-timeout` | `Duration` | `2s` | A timeout fails the call; it is never a cache miss. |
+| `remote.read-timeout` | `Duration` | `5s` | Same. |
 
 ## Stubbing
 

@@ -9,7 +9,7 @@ edit_uri: edit/main/site/docs/
 # many places, especially the left nav). A quiet mention in the footer is the
 # reference-docs-style placement instead: present for anyone who looks, not part of the
 # primary title anywhere.
-copyright: spring-ai-test-tools 0.1.0 &middot; An independent, community-maintained project. Not affiliated with, endorsed by, or an official project of Broadcom, VMware, Spring, or Spring AI.
+copyright: spring-ai-test-tools 0.2.0 &middot; An independent, community-maintained project. Not affiliated with, endorsed by, or an official project of Broadcom, VMware, Spring, or Spring AI.
 
 docs_dir: docs
 site_dir: ../.site-build
@@ -100,5 +100,6 @@ nav:
       - Prompt Normalizer & Redactor: prompt-normalizer-and-redactor.md
       - Assertions: assertions.md
       - Evaluator: evaluator.md
+      - Cassette Server: cassette-server.md
   - Reference:
       - Configuration: configuration.md

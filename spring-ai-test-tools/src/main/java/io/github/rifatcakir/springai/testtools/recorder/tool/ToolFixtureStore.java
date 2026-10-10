@@ -26,6 +26,8 @@ public interface ToolFixtureStore {
 	 * exists but cannot be read is reported as empty, not thrown: a corrupt fixture
 	 * degrades to a cache miss, and in {@code REPLAY_ONLY} the caller turns that absence
 	 * into a loud failure anyway.
+	 * @param hash the fixture's SHA-256
+	 * @return the fixture, or empty
 	 */
 	Optional<VcrToolExecutionTrack> read(String hash);
 
@@ -33,6 +35,7 @@ public interface ToolFixtureStore {
 	 * Store {@code track} under its own hash. A shared store may keep a fixture another
 	 * instance recorded for the same hash in the meantime instead (PRD 5.3); the file
 	 * store always writes.
+	 * @param track the fixture to store
 	 */
 	void write(VcrToolExecutionTrack track);
 
@@ -40,6 +43,7 @@ public interface ToolFixtureStore {
 	 * Store {@code track} under its own hash, replacing any existing fixture: the write
 	 * made when the caller deliberately re-records. Defaults to {@link #write}, which
 	 * for the file store already replaces. See {@code ChatFixtureStore#replace}.
+	 * @param track the fixture to store
 	 */
 	default void replace(VcrToolExecutionTrack track) {
 		write(track);
@@ -50,6 +54,8 @@ public interface ToolFixtureStore {
 	 * live, for log lines and {@link
 	 * io.github.rifatcakir.springai.testtools.recorder.VcrCacheMissException} messages.
 	 * Never parsed.
+	 * @param hash the fixture's SHA-256
+	 * @return a file path, a URL, or whatever names the location for this store
 	 */
 	String locationOf(String hash);
 
@@ -57,6 +63,8 @@ public interface ToolFixtureStore {
 	 * A short name for the fixture of {@code hash}, for the {@code CACHE HIT} log line.
 	 * Defaults to {@link #locationOf(String)}; the file store reports just the file name,
 	 * as it always has.
+	 * @param hash the fixture's SHA-256
+	 * @return a short name for the fixture
 	 */
 	default String fixtureNameOf(String hash) {
 		return locationOf(hash);

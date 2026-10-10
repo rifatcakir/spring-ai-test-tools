@@ -12,7 +12,7 @@ against. Other versions are untested; compatibility is not guaranteed.
 <dependency>
     <groupId>io.github.rifatcakir</groupId>
     <artifactId>spring-ai-test-tools</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
     <scope>test</scope>
 </dependency>
 ```

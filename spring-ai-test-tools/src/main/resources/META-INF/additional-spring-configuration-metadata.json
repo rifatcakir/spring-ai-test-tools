@@ -9,8 +9,7 @@
     {
       "name": "spring.ai.test.vcr.mode",
       "type": "io.github.rifatcakir.springai.testtools.recorder.VcrMode",
-      "description": "Record-and-replay strategy. RECORD_OR_REPLAY replays a fixture if one exists and records on a miss (the default); REPLAY_ONLY replays only, throwing VcrCacheMissException on a miss, intended for CI; RECORD_ALWAYS ignores existing fixtures and always calls the real model, overwriting them; BYPASS performs no reads or writes and always calls the real model.",
-      "defaultValue": "RECORD_OR_REPLAY"
+      "description": "Record-and-replay strategy. RECORD_OR_REPLAY replays a fixture if one exists and records on a miss (the default); REPLAY_ONLY replays only, throwing VcrCacheMissException on a miss, intended for CI; RECORD_ALWAYS ignores existing fixtures and always calls the real model, overwriting them; BYPASS performs no reads or writes and always calls the real model. Unset means RECORD_OR_REPLAY with the file store, and the Cassette Server namespace's default mode with spring.ai.test.vcr.store=remote, asked on every call. A mode set here always wins over the server, in either direction."
     },
     {
       "name": "spring.ai.test.vcr.scope",
@@ -77,8 +76,7 @@
     {
       "name": "spring.ai.test.vcr.embedding.mode",
       "type": "io.github.rifatcakir.springai.testtools.recorder.VcrMode",
-      "description": "Record-and-replay strategy for embedding calls. Same four values and meaning as spring.ai.test.vcr.mode, applied to EmbeddingModel.call(EmbeddingRequest) instead of ChatClient calls.",
-      "defaultValue": "RECORD_OR_REPLAY"
+      "description": "Record-and-replay strategy for embedding calls. Same four values and meaning as spring.ai.test.vcr.mode, applied to EmbeddingModel.call(EmbeddingRequest) instead of ChatClient calls. Unset means RECORD_OR_REPLAY with the file store, and the Cassette Server namespace's default mode with spring.ai.test.vcr.store=remote."
     },
     {
       "name": "spring.ai.test.vcr.embedding.cache-directory",

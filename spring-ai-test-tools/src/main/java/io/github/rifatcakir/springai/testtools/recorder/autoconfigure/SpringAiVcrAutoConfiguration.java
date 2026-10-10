@@ -2,13 +2,17 @@ package io.github.rifatcakir.springai.testtools.recorder.autoconfigure;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.function.Supplier;
 
 import io.github.rifatcakir.springai.testtools.recorder.VcrFixtureRedactor;
 import io.github.rifatcakir.springai.testtools.recorder.VcrMode;
 import io.github.rifatcakir.springai.testtools.recorder.VcrPromptNormalizer;
+import io.github.rifatcakir.springai.testtools.recorder.VcrScope;
+import io.github.rifatcakir.springai.testtools.recorder.VcrStoreType;
 import io.github.rifatcakir.springai.testtools.recorder.advisor.DeterministicVcrAdvisor;
 import io.github.rifatcakir.springai.testtools.recorder.key.VcrCacheKeyGenerator;
 import io.github.rifatcakir.springai.testtools.recorder.remote.CassetteServerClient;
+import io.github.rifatcakir.springai.testtools.recorder.remote.NamespaceDefaultMode;
 import io.github.rifatcakir.springai.testtools.recorder.remote.RemoteChatFixtureStore;
 import io.github.rifatcakir.springai.testtools.recorder.remote.RemoteStreamFixtureStore;
 import io.github.rifatcakir.springai.testtools.recorder.remote.RemoteToolFixtureStore;
@@ -155,25 +159,60 @@ public class SpringAiVcrAutoConfiguration {
 	@ConditionalOnMissingBean
 	public DeterministicVcrAdvisor deterministicVcrAdvisor(VcrCacheKeyGenerator keyGenerator, ChatFixtureStore store,
 			VcrTrackMapper mapper, VcrProperties properties, List<VcrFixtureRedactor> redactors,
-			StreamFixtureStore streamStore, VcrStreamTrackMapper streamMapper) {
+			StreamFixtureStore streamStore, VcrStreamTrackMapper streamMapper,
+			ObjectProvider<CassetteServerClient> cassetteServer) {
 
-		VcrMode mode = properties.getMode();
-		if (mode == VcrMode.RECORD_ALWAYS) {
-			logger.warn("VCR mode is RECORD_ALWAYS: every call reaches the real model and "
-					+ "existing fixtures will be overwritten. This mode is not intended for CI.");
-		}
 		if (!redactors.isEmpty()) {
 			logger.info("VCR using {} fixture redactor(s): {}", redactors.size(), redactors);
 		}
+		int order = (properties.getOrder() != null) ? properties.getOrder()
+				: (properties.getScope() == VcrScope.INSIDE_TOOL_LOOP) ? DeterministicVcrAdvisor.ORDER_INSIDE_TOOL_LOOP
+						: DeterministicVcrAdvisor.ORDER_OUTSIDE_TOOL_LOOP;
+		Supplier<VcrMode> mode = modeSource(properties.getMode(), properties, cassetteServer, "VCR");
 
-		DeterministicVcrAdvisor advisor = (properties.getOrder() != null)
-				? new DeterministicVcrAdvisor(keyGenerator, store, mapper, mode, properties.getOrder(), redactors,
-						streamStore, streamMapper)
-				: new DeterministicVcrAdvisor(keyGenerator, store, mapper, mode, properties.getScope(), redactors,
-						streamStore, streamMapper);
+		DeterministicVcrAdvisor advisor = new DeterministicVcrAdvisor(keyGenerator, store, mapper, mode, order,
+				redactors, streamStore, streamMapper);
 
 		logger.info("VCR enabled — mode={} scope={} order={}", mode, properties.getScope(), advisor.getOrder());
 		return advisor;
+	}
+
+	/**
+	 * Where a mode comes from (PRD fork b): the configured one when set, which always wins
+	 * and never asks the server; otherwise, with {@code store=remote}, the Cassette Server
+	 * namespace's default, asked per call; otherwise {@code RECORD_OR_REPLAY}, as before
+	 * modes could come from a server.
+	 */
+	static Supplier<VcrMode> modeSource(VcrMode configured, VcrProperties properties,
+			ObjectProvider<CassetteServerClient> cassetteServer, String label) {
+		if (configured != null) {
+			if (configured == VcrMode.RECORD_ALWAYS) {
+				logger.warn("{} mode is RECORD_ALWAYS: every call reaches the real model and "
+						+ "existing fixtures will be overwritten. This mode is not intended for CI.", label);
+			}
+			return new ConfiguredMode(configured);
+		}
+		if (properties.getStore() == VcrStoreType.REMOTE) {
+			return new NamespaceDefaultMode(cassetteServer.getObject());
+		}
+		return new ConfiguredMode(VcrMode.RECORD_OR_REPLAY);
+	}
+
+	/**
+	 * A fixed mode whose {@code toString} is its name, for the startup log line.
+	 */
+	record ConfiguredMode(VcrMode mode) implements Supplier<VcrMode> {
+
+		@Override
+		public VcrMode get() {
+			return this.mode;
+		}
+
+		@Override
+		public String toString() {
+			return this.mode.name();
+		}
+
 	}
 
 	@Bean

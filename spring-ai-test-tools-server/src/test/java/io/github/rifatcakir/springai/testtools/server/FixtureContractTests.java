@@ -1,17 +1,20 @@
 package io.github.rifatcakir.springai.testtools.server;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Reader;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -43,6 +46,9 @@ class FixtureContractTests {
 
 	@LocalServerPort
 	int port;
+
+	@Autowired
+	FixtureStorage storage;
 
 	@Test
 	void schemaVersionsMatchTheLibrarysContract() throws IOException {
@@ -86,6 +92,32 @@ class FixtureContractTests {
 				.get("/api/v1/ns/copied/" + sample.kind().pathSegment() + "/" + sample.hash());
 			assertThat(get.statusCode()).as(sample.relativePath()).isEqualTo(200);
 			assertThat(get.body()).isEqualTo(sample.bytes());
+		}
+	}
+
+	/**
+	 * Recorded through the client API, exported as a zip: every entry is the library-written
+	 * sample at its path in {@code fixture-contract/}, byte for byte, and nothing else. The
+	 * library's contract test proves those files replay with the file stores, so this is
+	 * the "a server export replays with {@code store: file}" half of PRD section 8.
+	 */
+	@Test
+	void anExportOfTheSamplesReproducesTheContractDirectory() throws IOException {
+		HttpTestClient http = new HttpTestClient(this.port);
+		List<Sample> samples = samples();
+		for (Sample sample : samples) {
+			http.put("/api/v1/ns/exported/" + sample.kind().pathSegment() + "/" + sample.hash(), sample.bytes());
+		}
+		NamespaceExport export = new NamespaceExport(this.storage);
+		ByteArrayOutputStream zip = new ByteArrayOutputStream();
+		export.writeZip("exported", zip);
+
+		Map<String, byte[]> entries = NamespaceAdminTests.unzip(zip.toByteArray());
+
+		assertThat(entries).hasSameSizeAs(samples);
+		for (Sample sample : samples) {
+			assertThat(entries.get(sample.relativePath().replace('\\', '/'))).as(sample.relativePath())
+				.isEqualTo(sample.bytes());
 		}
 	}
 

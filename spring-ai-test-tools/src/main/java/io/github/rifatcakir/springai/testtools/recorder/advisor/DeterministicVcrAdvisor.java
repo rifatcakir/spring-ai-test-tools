@@ -1,13 +1,12 @@
 package io.github.rifatcakir.springai.testtools.recorder.advisor;
 
-import io.github.rifatcakir.springai.testtools.recorder.stream.StreamFixtureStore;
-import io.github.rifatcakir.springai.testtools.recorder.track.ChatFixtureStore;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import io.github.rifatcakir.springai.testtools.recorder.VcrCacheMissException;
 import io.github.rifatcakir.springai.testtools.recorder.VcrFixtureRedaction;
@@ -17,9 +16,11 @@ import io.github.rifatcakir.springai.testtools.recorder.VcrModeOverride;
 import io.github.rifatcakir.springai.testtools.recorder.VcrScope;
 import io.github.rifatcakir.springai.testtools.recorder.key.VcrCacheKey;
 import io.github.rifatcakir.springai.testtools.recorder.key.VcrCacheKeyGenerator;
+import io.github.rifatcakir.springai.testtools.recorder.stream.StreamFixtureStore;
 import io.github.rifatcakir.springai.testtools.recorder.stream.VcrStreamTrack;
 import io.github.rifatcakir.springai.testtools.recorder.stream.VcrStreamTrackMapper;
 import io.github.rifatcakir.springai.testtools.recorder.stream.VcrStreamTrackStore;
+import io.github.rifatcakir.springai.testtools.recorder.track.ChatFixtureStore;
 import io.github.rifatcakir.springai.testtools.recorder.track.VcrTrack;
 import io.github.rifatcakir.springai.testtools.recorder.track.VcrTrackMapper;
 import io.github.rifatcakir.springai.testtools.recorder.track.VcrTrackStore;
@@ -130,7 +131,12 @@ public class DeterministicVcrAdvisor implements CallAdvisor, StreamAdvisor {
 
 	private final VcrTrackMapper mapper;
 
-	private final VcrMode mode;
+	/**
+	 * Asked once per call. A fixed mode for every constructor that takes a {@link VcrMode};
+	 * the Cassette Server's namespace default when the application configured none (see
+	 * the {@code Supplier} constructor).
+	 */
+	private final Supplier<VcrMode> mode;
 
 	private final int order;
 
@@ -233,6 +239,22 @@ public class DeterministicVcrAdvisor implements CallAdvisor, StreamAdvisor {
 	public DeterministicVcrAdvisor(VcrCacheKeyGenerator keyGenerator, ChatFixtureStore store, VcrTrackMapper mapper,
 			VcrMode mode, int order, List<VcrFixtureRedactor> redactors, StreamFixtureStore streamStore,
 			VcrStreamTrackMapper streamMapper) {
+		this(keyGenerator, store, mapper, fixed(mode), order, redactors, streamStore, streamMapper);
+	}
+
+	/**
+	 * Like the {@code VcrMode} constructor above, but asking {@code mode} for the mode on
+	 * every call instead of fixing it at construction. This is how an application that sets
+	 * no {@code spring.ai.test.vcr.mode} follows its Cassette Server namespace's default
+	 * (PRD fork b): an admin's change applies to the next call, not the next restart. A
+	 * {@code @Vcr} override still wins, and is consulted first, so an overridden call never
+	 * asks the supplier.
+	 * @param mode asked once per call; may throw, which fails the call before the model is
+	 * reached
+	 */
+	public DeterministicVcrAdvisor(VcrCacheKeyGenerator keyGenerator, ChatFixtureStore store, VcrTrackMapper mapper,
+			Supplier<VcrMode> mode, int order, List<VcrFixtureRedactor> redactors, StreamFixtureStore streamStore,
+			VcrStreamTrackMapper streamMapper) {
 		Assert.notNull(keyGenerator, "keyGenerator must not be null");
 		Assert.notNull(store, "store must not be null");
 		Assert.notNull(mapper, "mapper must not be null");
@@ -248,6 +270,27 @@ public class DeterministicVcrAdvisor implements CallAdvisor, StreamAdvisor {
 		this.streamMapper = streamMapper;
 	}
 
+	private static Supplier<VcrMode> fixed(VcrMode mode) {
+		Assert.notNull(mode, "mode must not be null");
+		return new FixedMode(mode);
+	}
+
+	/**
+	 * The mode for this call: a {@code @Vcr} override if there is one, otherwise whatever
+	 * {@link #mode} says now.
+	 */
+	private VcrMode effectiveMode(String what) {
+		Optional<VcrMode> override = VcrModeOverride.current();
+		if (override.isEmpty()) {
+			return this.mode.get();
+		}
+		if (!(this.mode instanceof FixedMode fixed) || fixed.mode() != override.get()) {
+			logger.info("VCR mode overridden to {} for this {} (configured mode is {}) — see @Vcr", override.get(),
+					what, this.mode);
+		}
+		return override.get();
+	}
+
 	private static int orderFor(VcrScope scope) {
 		Assert.notNull(scope, "scope must not be null");
 		return (scope == VcrScope.INSIDE_TOOL_LOOP) ? ORDER_INSIDE_TOOL_LOOP : ORDER_OUTSIDE_TOOL_LOOP;
@@ -258,11 +301,7 @@ public class DeterministicVcrAdvisor implements CallAdvisor, StreamAdvisor {
 		Assert.notNull(chatClientRequest, "chatClientRequest must not be null");
 		Assert.notNull(callAdvisorChain, "callAdvisorChain must not be null");
 
-		VcrMode effectiveMode = VcrModeOverride.current().orElse(this.mode);
-		if (effectiveMode != this.mode) {
-			logger.info("VCR mode overridden to {} for this call (configured mode is {}) — see @Vcr", effectiveMode,
-					this.mode);
-		}
+		VcrMode effectiveMode = effectiveMode("call");
 
 		if (effectiveMode == VcrMode.BYPASS) {
 			logger.debug("VCR BYPASS — delegating to the real model");
@@ -304,11 +343,7 @@ public class DeterministicVcrAdvisor implements CallAdvisor, StreamAdvisor {
 			return streamAdvisorChain.nextStream(chatClientRequest);
 		}
 
-		VcrMode effectiveMode = VcrModeOverride.current().orElse(this.mode);
-		if (effectiveMode != this.mode) {
-			logger.info("VCR mode overridden to {} for this stream (configured mode is {}) — see @Vcr", effectiveMode,
-					this.mode);
-		}
+		VcrMode effectiveMode = effectiveMode("stream");
 
 		if (effectiveMode == VcrMode.BYPASS) {
 			logger.debug("VCR STREAM BYPASS — delegating to the real model");
@@ -430,6 +465,24 @@ public class DeterministicVcrAdvisor implements CallAdvisor, StreamAdvisor {
 	@Override
 	public int getOrder() {
 		return this.order;
+	}
+
+	/**
+	 * A mode fixed at construction; its {@code toString} is the mode's name, so log lines
+	 * read as they did before modes could come from a server.
+	 */
+	private record FixedMode(VcrMode mode) implements Supplier<VcrMode> {
+
+		@Override
+		public VcrMode get() {
+			return this.mode;
+		}
+
+		@Override
+		public String toString() {
+			return this.mode.name();
+		}
+
 	}
 
 	@Override

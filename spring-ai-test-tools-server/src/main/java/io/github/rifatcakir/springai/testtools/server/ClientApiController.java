@@ -1,5 +1,6 @@
 package io.github.rifatcakir.springai.testtools.server;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -37,11 +38,41 @@ public class ClientApiController {
 
 	private final FixtureValidator validator;
 
-	public ClientApiController(FixtureStorage storage, FixtureValidator validator) {
+	private final NamespaceModes modes;
+
+	private final MissLog missLog;
+
+	public ClientApiController(FixtureStorage storage, FixtureValidator validator, NamespaceModes modes,
+			MissLog missLog) {
 		Assert.notNull(storage, "storage must not be null");
 		Assert.notNull(validator, "validator must not be null");
+		Assert.notNull(modes, "modes must not be null");
+		Assert.notNull(missLog, "missLog must not be null");
 		this.storage = storage;
 		this.validator = validator;
+		this.modes = modes;
+		this.missLog = missLog;
+	}
+
+	/**
+	 * The mode for clients that set none (PRD fork b). A client with its own mode never
+	 * asks; one without asks on every call, so an admin's change applies to the next call
+	 * rather than the next restart.
+	 */
+	@GetMapping("/api/v1/ns/{ns}/config")
+	public ResponseEntity<?> config(@PathVariable String ns) {
+		if (!FixtureValidator.isValidNamespace(ns)) {
+			return error(HttpStatus.BAD_REQUEST, "invalid namespace '" + ns + "'");
+		}
+		return ResponseEntity.ok(configOf(this.modes, ns));
+	}
+
+	static Map<String, Object> configOf(NamespaceModes modes, String ns) {
+		Map<String, Object> config = new LinkedHashMap<>();
+		config.put("namespace", ns);
+		config.put("mode", modes.effective(ns).name());
+		config.put("source", modes.get(ns).isPresent() ? "namespace" : "server-default");
+		return config;
 	}
 
 	@GetMapping("/api/v1/ns/{ns}/{kind}/{hash}")
@@ -54,6 +85,7 @@ public class ClientApiController {
 		Optional<byte[]> document = this.storage.read(ns, fixtureKind, hash);
 		if (document.isEmpty()) {
 			logger.info("CASSETTE MISS [{}/{}/{}]", ns, kind, FixtureStorage.shortHash(hash));
+			this.missLog.record(ns, fixtureKind, hash);
 			return error(HttpStatus.NOT_FOUND, "no " + kind + " fixture " + hash + " in namespace " + ns);
 		}
 		logger.info("CASSETTE HIT  [{}/{}/{}]", ns, kind, FixtureStorage.shortHash(hash));

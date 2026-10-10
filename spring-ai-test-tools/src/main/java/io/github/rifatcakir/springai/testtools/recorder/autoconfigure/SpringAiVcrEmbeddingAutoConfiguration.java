@@ -1,6 +1,7 @@
 package io.github.rifatcakir.springai.testtools.recorder.autoconfigure;
 
 import java.nio.file.Path;
+import java.util.function.Supplier;
 
 import io.github.rifatcakir.springai.testtools.recorder.VcrFixtureRedactor;
 import io.github.rifatcakir.springai.testtools.recorder.VcrMode;
@@ -108,12 +109,10 @@ public class SpringAiVcrEmbeddingAutoConfiguration {
 	@Bean
 	public static VcrEmbeddingModelBeanPostProcessor vcrEmbeddingModelBeanPostProcessor(
 			VcrEmbeddingCacheKeyGenerator keyGenerator, EmbeddingFixtureStore store, VcrEmbeddingTrackMapper mapper,
-			VcrProperties properties, ObjectProvider<VcrFixtureRedactor> redactors) {
-		VcrMode mode = properties.getEmbedding().getMode();
-		if (mode == VcrMode.RECORD_ALWAYS) {
-			logger.warn("VCR EMBEDDING mode is RECORD_ALWAYS: every call reaches the real model and "
-					+ "existing fixtures will be overwritten. This mode is not intended for CI.");
-		}
+			VcrProperties properties, ObjectProvider<VcrFixtureRedactor> redactors,
+			ObjectProvider<CassetteServerClient> cassetteServer) {
+		Supplier<VcrMode> mode = SpringAiVcrAutoConfiguration.modeSource(properties.getEmbedding().getMode(),
+				properties, cassetteServer, "VCR EMBEDDING");
 		logger.info("VCR EMBEDDING enabled — mode={}", mode);
 		return new VcrEmbeddingModelBeanPostProcessor(keyGenerator, store, mapper, mode,
 				() -> redactors.orderedStream().toList());

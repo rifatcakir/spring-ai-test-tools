@@ -36,6 +36,8 @@ public final class StubCassetteServer implements AutoCloseable {
 
 	private volatile Duration delay = Duration.ZERO;
 
+	private final Map<String, String> namespaceModes = new ConcurrentHashMap<>();
+
 	private StubCassetteServer(HttpServer server) {
 		this.server = server;
 	}
@@ -73,6 +75,18 @@ public final class StubCassetteServer implements AutoCloseable {
 
 	public void delayResponses(Duration delay) {
 		this.delay = delay;
+	}
+
+	/** Set a namespace's default mode, as the admin API would; unset means RECORD_OR_REPLAY. */
+	public void namespaceMode(String namespace, String mode) {
+		this.namespaceModes.put(namespace, mode);
+	}
+
+	/** Lookups and writes of fixtures, leaving out {@code /config} requests. */
+	public long countFixtureRequests(String method) {
+		return this.requests.stream()
+			.filter(request -> request.method().equals(method) && !request.path().endsWith("/config"))
+			.count();
 	}
 
 	/** Pre-store a document, as if another instance had recorded it. */
@@ -116,7 +130,12 @@ public final class StubCassetteServer implements AutoCloseable {
 				respond(exchange, this.forcedStatus, "{\"error\":\"forced by test\"}");
 				return;
 			}
-			if (method.equals("GET")) {
+			if (method.equals("GET") && path.endsWith("/config")) {
+				String namespace = path.substring(0, path.length() - "/config".length());
+				respond(exchange, 200, "{\"namespace\":\"" + namespace + "\",\"mode\":\""
+						+ this.namespaceModes.getOrDefault(namespace, "RECORD_OR_REPLAY") + "\"}");
+			}
+			else if (method.equals("GET")) {
 				String document = this.documents.get(path);
 				respond(exchange, (document != null) ? 200 : 404, (document != null) ? document : "{\"error\":\"none\"}");
 			}

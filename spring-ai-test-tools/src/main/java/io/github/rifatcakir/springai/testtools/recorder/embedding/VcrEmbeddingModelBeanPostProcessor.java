@@ -33,21 +33,27 @@ public class VcrEmbeddingModelBeanPostProcessor implements BeanPostProcessor {
 
 	private final VcrEmbeddingTrackMapper mapper;
 
-	private final VcrMode mode;
+	private final Supplier<VcrMode> mode;
 
 	private final Supplier<List<VcrFixtureRedactor>> redactors;
 
 	public VcrEmbeddingModelBeanPostProcessor(VcrEmbeddingCacheKeyGenerator keyGenerator, EmbeddingFixtureStore store,
 			VcrEmbeddingTrackMapper mapper, VcrMode mode) {
-		this(keyGenerator, store, mapper, mode, List::of);
+		this(keyGenerator, store, mapper, constant(mode), List::of);
+	}
+
+	private static Supplier<VcrMode> constant(VcrMode mode) {
+		Assert.notNull(mode, "mode must not be null");
+		return () -> mode;
 	}
 
 	/**
+	 * @param mode asked once per embedding call; see {@code VcrEmbeddingModel}
 	 * @param redactors resolved when an {@code EmbeddingModel} is wrapped, not when this
 	 * post-processor is created; see {@code VcrToolCallingManagerBeanPostProcessor} for why
 	 */
 	public VcrEmbeddingModelBeanPostProcessor(VcrEmbeddingCacheKeyGenerator keyGenerator, EmbeddingFixtureStore store,
-			VcrEmbeddingTrackMapper mapper, VcrMode mode, Supplier<List<VcrFixtureRedactor>> redactors) {
+			VcrEmbeddingTrackMapper mapper, Supplier<VcrMode> mode, Supplier<List<VcrFixtureRedactor>> redactors) {
 		Assert.notNull(redactors, "redactors must not be null");
 		this.redactors = redactors;
 		Assert.notNull(keyGenerator, "keyGenerator must not be null");

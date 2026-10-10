@@ -46,6 +46,16 @@ public class CassetteServerProperties {
 	 */
 	private Map<String, String> namespaceTokens = new LinkedHashMap<>();
 
+	/**
+	 * Mode for clients that configure none, in a namespace without its own default.
+	 */
+	private NamespaceModes.Mode defaultMode = NamespaceModes.Mode.RECORD_OR_REPLAY;
+
+	/**
+	 * How many recent client-API misses to keep per namespace.
+	 */
+	private int missesPerNamespace = 100;
+
 	public Path getStorageDir() {
 		return this.storageDir;
 	}
@@ -68,6 +78,22 @@ public class CassetteServerProperties {
 
 	public void setClientToken(@Nullable String clientToken) {
 		this.clientToken = clientToken;
+	}
+
+	public NamespaceModes.Mode getDefaultMode() {
+		return this.defaultMode;
+	}
+
+	public void setDefaultMode(NamespaceModes.Mode defaultMode) {
+		this.defaultMode = defaultMode;
+	}
+
+	public int getMissesPerNamespace() {
+		return this.missesPerNamespace;
+	}
+
+	public void setMissesPerNamespace(int missesPerNamespace) {
+		this.missesPerNamespace = missesPerNamespace;
 	}
 
 	public Map<String, String> getNamespaceTokens() {

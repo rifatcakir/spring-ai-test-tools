@@ -29,9 +29,11 @@ public class VcrProperties {
 	private boolean enabled = false;
 
 	/**
-	 * Record and replay strategy.
+	 * Record and replay strategy. Unset means {@code RECORD_OR_REPLAY} with the file
+	 * store, and the Cassette Server namespace's default with {@code store=remote} (PRD
+	 * fork b). A value set here always wins over the server, in either direction.
 	 */
-	private VcrMode mode = VcrMode.RECORD_OR_REPLAY;
+	private VcrMode mode;
 
 	/**
 	 * Whether the advisor sits outside or inside Spring AI's tool-calling loop.
@@ -98,6 +100,9 @@ public class VcrProperties {
 		this.enabled = enabled;
 	}
 
+	/**
+	 * The configured mode, or {@code null} when none was set; see {@link #mode}.
+	 */
 	public VcrMode getMode() {
 		return this.mode;
 	}
@@ -269,9 +274,11 @@ public class VcrProperties {
 		private boolean enabled = false;
 
 		/**
-		 * Record and replay strategy for embedding calls.
+		 * Record and replay strategy for embedding calls. Unset behaves like the
+		 * top-level {@code mode} when that is unset: {@code RECORD_OR_REPLAY} with files,
+		 * the Cassette Server namespace's default with {@code store=remote}.
 		 */
-		private VcrMode mode = VcrMode.RECORD_OR_REPLAY;
+		private VcrMode mode;
 
 		/**
 		 * Directory holding the embedding JSON fixtures, relative to the module root.

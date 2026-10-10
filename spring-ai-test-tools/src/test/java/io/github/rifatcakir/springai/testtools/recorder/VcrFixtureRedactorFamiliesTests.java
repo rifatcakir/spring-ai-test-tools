@@ -320,7 +320,7 @@ class VcrFixtureRedactorFamiliesTests {
 				() -> List.of(CARD_IN_PROMPT))
 			.postProcessAfterInitialization(mock(ToolCallingManager.class), "toolCallingManager");
 		new VcrEmbeddingModelBeanPostProcessor(new VcrEmbeddingCacheKeyGenerator(),
-				new VcrEmbeddingTrackStore(this.directory), new VcrEmbeddingTrackMapper(), VcrMode.RECORD_OR_REPLAY,
+				new VcrEmbeddingTrackStore(this.directory), new VcrEmbeddingTrackMapper(), () -> VcrMode.RECORD_OR_REPLAY,
 				() -> List.of(CARD_IN_PROMPT))
 			.postProcessAfterInitialization(mock(EmbeddingModel.class), "embeddingModel");
 

@@ -14,6 +14,8 @@ import java.util.regex.Pattern;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
@@ -52,6 +54,8 @@ public class CassetteServerClient {
 	private final Duration readTimeout;
 
 	private final HttpClient httpClient;
+
+	private final JsonMapper jsonMapper = JsonMapper.builder().build();
 
 	/**
 	 * @param baseUrl the server's root URL, e.g. {@code http://cassette-server:9090}
@@ -111,11 +115,11 @@ public class CassetteServerClient {
 	 */
 	public Optional<String> get(Kind kind, String hash) {
 		HttpRequest request = request(kind, hash, false).header("Accept", "application/json").GET().build();
-		HttpResponse<String> response = send(request, kind, hash);
+		HttpResponse<String> response = send(request);
 		return switch (response.statusCode()) {
 			case 200 -> Optional.of(response.body());
 			case 404 -> Optional.empty();
-			default -> throw failure("GET", kind, hash, response);
+			default -> throw failure(request, response);
 		};
 	}
 
@@ -131,13 +135,49 @@ public class CassetteServerClient {
 		HttpRequest request = request(kind, hash, overwrite).header("Content-Type", "application/json")
 			.PUT(HttpRequest.BodyPublishers.ofString(document, StandardCharsets.UTF_8))
 			.build();
-		HttpResponse<String> response = send(request, kind, hash);
+		HttpResponse<String> response = send(request);
 		return switch (response.statusCode()) {
 			case 200 -> WriteOutcome.REPLACED;
 			case 201 -> WriteOutcome.STORED;
 			case 409 -> WriteOutcome.KEPT_EXISTING;
-			default -> throw failure("PUT", kind, hash, response);
+			default -> throw failure(request, response);
 		};
+	}
+
+	/**
+	 * The namespace's default mode, as the server reports it ({@code GET
+	 * /api/v1/ns/{ns}/config}): the mode for a client that configures none (PRD fork b).
+	 * @return the mode's name, e.g. {@code REPLAY_ONLY}
+	 * @throws CassetteServerException when the server cannot be asked or answers without a
+	 * mode; never a silent fallback, since guessing a mode is exactly what could make a
+	 * sealed environment start calling the model
+	 */
+	public String namespaceMode() {
+		HttpRequest.Builder builder = HttpRequest
+			.newBuilder(URI.create(this.baseUrl + "/api/v1/ns/" + this.namespace + "/config"))
+			.timeout(this.readTimeout)
+			.header("Accept", "application/json");
+		if (this.token != null) {
+			builder.header("Authorization", "Bearer " + this.token);
+		}
+		HttpRequest request = builder.GET().build();
+		HttpResponse<String> response = send(request);
+		if (response.statusCode() != 200) {
+			throw failure(request, response);
+		}
+		JsonNode mode;
+		try {
+			mode = this.jsonMapper.readTree(response.body()).path("mode");
+		}
+		catch (RuntimeException ex) {
+			throw new CassetteServerException(describe(request) + " answered with unreadable JSON: "
+					+ abbreviate(response.body()) + ". " + consequence(), ex);
+		}
+		if (!mode.isString()) {
+			throw new CassetteServerException(describe(request) + " answered without a mode: "
+					+ abbreviate(response.body()) + ". " + consequence());
+		}
+		return mode.stringValue();
 	}
 
 	private HttpRequest.Builder request(Kind kind, String hash, boolean overwrite) {
@@ -151,7 +191,7 @@ public class CassetteServerClient {
 		return builder;
 	}
 
-	private HttpResponse<String> send(HttpRequest request, Kind kind, String hash) {
+	private HttpResponse<String> send(HttpRequest request) {
 		try {
 			HttpResponse<String> response = this.httpClient.send(request,
 					HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
@@ -159,32 +199,34 @@ public class CassetteServerClient {
 			return response;
 		}
 		catch (HttpTimeoutException ex) {
-			throw new CassetteServerException(describe(request.method(), kind, hash) + " timed out. " + consequence(),
-					ex);
+			throw new CassetteServerException(describe(request) + " timed out. " + consequence(), ex);
 		}
 		catch (IOException ex) {
-			throw new CassetteServerException(describe(request.method(), kind, hash) + " failed: the server at "
-					+ this.baseUrl + " is unreachable (" + ex + "). " + consequence(), ex);
+			throw new CassetteServerException(describe(request) + " failed: the server at " + this.baseUrl
+					+ " is unreachable (" + ex + "). " + consequence(), ex);
 		}
 		catch (InterruptedException ex) {
 			Thread.currentThread().interrupt();
-			throw new CassetteServerException(describe(request.method(), kind, hash) + " was interrupted", ex);
+			throw new CassetteServerException(describe(request) + " was interrupted", ex);
 		}
 	}
 
-	private CassetteServerException failure(String method, Kind kind, String hash, HttpResponse<String> response) {
+	private CassetteServerException failure(HttpRequest request, HttpResponse<String> response) {
 		int status = response.statusCode();
 		String hint = switch (status) {
 			case 401, 403 -> " Check spring.ai.test.vcr.remote.token.";
 			case 400 -> " The server refused the fixture; see its reason above.";
 			default -> "";
 		};
-		return new CassetteServerException(describe(method, kind, hash) + " answered HTTP " + status + ": "
+		return new CassetteServerException(describe(request) + " answered HTTP " + status + ": "
 				+ abbreviate(response.body()) + "." + hint + " " + consequence());
 	}
 
-	private String describe(String method, Kind kind, String hash) {
-		return "Cassette Server " + method + " " + locationOf(kind, hash) + " (namespace '" + this.namespace + "')";
+	private String describe(HttpRequest request) {
+		String uri = request.uri().toString();
+		int query = uri.indexOf('?');
+		return "Cassette Server " + request.method() + " " + ((query < 0) ? uri : uri.substring(0, query))
+				+ " (namespace '" + this.namespace + "')";
 	}
 
 	private static String consequence() {

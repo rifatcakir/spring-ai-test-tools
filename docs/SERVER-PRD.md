@@ -229,6 +229,17 @@ through a JSON tree changes their digits. `{ns}` is `[A-Za-z0-9][A-Za-z0-9._-]{0
 | `GET /__admin/namespaces/{ns}/export` | Zip of the namespace in the library's file layout, ready to commit |
 | `GET /actuator/health` | Health check |
 
+*As built (step 6):* `PUT …/mode` takes `{"mode": "REPLAY_ONLY"}` (case-insensitive) and
+`DELETE …/mode` clears it; `GET /api/v1/ns/{ns}/config` answers
+`{"namespace", "mode", "source"}` with `source` either `namespace` or `server-default`.
+The server default is `RECORD_OR_REPLAY` unless started with `--default-mode`. Namespace
+modes persist in `{storage-dir}/.cassette-server/namespace-modes.json`, outside every
+namespace directory, so copies and exports carry fixtures only. Each miss in the ring buffer
+(100 per namespace, in memory) carries `recordedSince`, whether the fixture exists now.
+The export holds only readable fixtures, in a fixed order with fixed entry timestamps, so
+exporting an unchanged namespace twice gives identical bytes; it is built in memory so a
+failure is a `500`, never a truncated zip.
+
 ### 6.4 Storage
 
 The same layout the library uses today, one pretty-printed JSON file per hash, atomic
@@ -322,6 +333,13 @@ Following `CLAUDE.md`: assert invocation counts, not just payloads.
 ### Fork (b) — who decides the mode
 
 **Decided: the client decides.** A mode set in the client's config always wins, in either direction. The namespace mode on the server is only the default for clients that set none, and the admin endpoint changes that default.
+
+*As built (step 6):* `spring.ai.test.vcr.mode` and `spring.ai.test.vcr.embedding.mode` are
+now unset by default. Unset with the file store still means `RECORD_OR_REPLAY`. Unset with
+`store: remote` means the advisor and the embedding wrapper ask `GET …/config` on every
+call, so an admin's change applies to the next call rather than the next restart; a
+configured mode (or a `@Vcr` override) never asks. An unreachable server or an unknown
+mode name fails the call loudly instead of guessing a mode.
 
 - **Server decides, client may override only toward stricter (recommended).** The
   namespace's mode from `GET …/config` applies, so an admin can switch an environment to

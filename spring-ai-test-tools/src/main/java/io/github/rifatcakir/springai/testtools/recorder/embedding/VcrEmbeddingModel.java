@@ -2,6 +2,7 @@ package io.github.rifatcakir.springai.testtools.recorder.embedding;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import io.github.rifatcakir.springai.testtools.recorder.VcrCacheMissException;
 import io.github.rifatcakir.springai.testtools.recorder.VcrFixtureRedaction;
@@ -70,7 +71,8 @@ public class VcrEmbeddingModel implements EmbeddingModel {
 
 	private final VcrEmbeddingTrackMapper mapper;
 
-	private final VcrMode mode;
+	/** Asked once per call; see {@code DeterministicVcrAdvisor}'s {@code Supplier} constructor. */
+	private final Supplier<VcrMode> mode;
 
 	private final List<VcrFixtureRedactor> redactors;
 
@@ -85,6 +87,17 @@ public class VcrEmbeddingModel implements EmbeddingModel {
 	 */
 	public VcrEmbeddingModel(EmbeddingModel delegate, VcrEmbeddingCacheKeyGenerator keyGenerator,
 			EmbeddingFixtureStore store, VcrEmbeddingTrackMapper mapper, VcrMode mode,
+			List<VcrFixtureRedactor> redactors) {
+		this(delegate, keyGenerator, store, mapper, constant(mode), redactors);
+	}
+
+	/**
+	 * @param mode asked once per call, so an application without its own embedding mode
+	 * follows its Cassette Server namespace's default (PRD fork b); may throw, which fails
+	 * the call before the model is reached
+	 */
+	public VcrEmbeddingModel(EmbeddingModel delegate, VcrEmbeddingCacheKeyGenerator keyGenerator,
+			EmbeddingFixtureStore store, VcrEmbeddingTrackMapper mapper, Supplier<VcrMode> mode,
 			List<VcrFixtureRedactor> redactors) {
 		Assert.notNull(delegate, "delegate must not be null");
 		Assert.notNull(keyGenerator, "keyGenerator must not be null");
@@ -104,7 +117,8 @@ public class VcrEmbeddingModel implements EmbeddingModel {
 	public EmbeddingResponse call(EmbeddingRequest request) {
 		Assert.notNull(request, "request must not be null");
 
-		if (this.mode == VcrMode.BYPASS) {
+		VcrMode mode = this.mode.get();
+		if (mode == VcrMode.BYPASS) {
 			logger.debug("VCR EMBEDDING BYPASS — delegating to the real model");
 			return this.delegate.call(request);
 		}
@@ -112,7 +126,7 @@ public class VcrEmbeddingModel implements EmbeddingModel {
 		VcrEmbeddingCacheKey key = this.keyGenerator.generate(request);
 		String shortHash = VcrEmbeddingTrackStore.shortHash(key.hash());
 
-		if (this.mode == VcrMode.RECORD_ALWAYS) {
+		if (mode == VcrMode.RECORD_ALWAYS) {
 			logger.info("VCR EMBEDDING RE-RECORD [{}] — mode is RECORD_ALWAYS, ignoring any existing fixture",
 					shortHash);
 			return recordAndReturn(request, key, true);
@@ -126,7 +140,7 @@ public class VcrEmbeddingModel implements EmbeddingModel {
 			return this.mapper.toEmbeddingResponse(existing.get());
 		}
 
-		if (this.mode == VcrMode.REPLAY_ONLY) {
+		if (mode == VcrMode.REPLAY_ONLY) {
 			logger.error("VCR EMBEDDING CACHE MISS [{}] in REPLAY_ONLY — refusing to call the real model", shortHash);
 			throw cacheMiss(key);
 		}
@@ -151,6 +165,11 @@ public class VcrEmbeddingModel implements EmbeddingModel {
 			this.store.write(track);
 		}
 		return response;
+	}
+
+	private static Supplier<VcrMode> constant(VcrMode mode) {
+		Assert.notNull(mode, "mode must not be null");
+		return () -> mode;
 	}
 
 	/**

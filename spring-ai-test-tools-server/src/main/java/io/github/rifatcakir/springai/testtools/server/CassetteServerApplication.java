@@ -60,6 +60,21 @@ public class CassetteServerApplication implements WebMvcConfigurer {
 		return storage;
 	}
 
+	@Bean
+	public NamespaceModes namespaceModes(FixtureStorage storage) {
+		return new NamespaceModes(storage.getRoot(), this.jsonMapper, this.properties.getDefaultMode());
+	}
+
+	@Bean
+	public MissLog missLog() {
+		return new MissLog(this.properties.getMissesPerNamespace());
+	}
+
+	@Bean
+	public NamespaceExport namespaceExport(FixtureStorage storage) {
+		return new NamespaceExport(storage);
+	}
+
 	@Override
 	public void addInterceptors(InterceptorRegistry registry) {
 		registry.addInterceptor(new AccessTokenInterceptor(this.properties, this.jsonMapper))

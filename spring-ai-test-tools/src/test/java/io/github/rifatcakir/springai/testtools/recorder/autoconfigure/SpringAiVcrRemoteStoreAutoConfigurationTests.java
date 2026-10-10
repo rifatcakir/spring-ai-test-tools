@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import io.github.rifatcakir.springai.testtools.recorder.VcrCacheMissException;
 import io.github.rifatcakir.springai.testtools.recorder.advisor.DeterministicVcrAdvisor;
 import io.github.rifatcakir.springai.testtools.recorder.remote.CassetteServerClient;
 import io.github.rifatcakir.springai.testtools.recorder.embedding.EmbeddingFixtureStore;
@@ -41,9 +42,12 @@ import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 /**
  * Store selection from {@code spring.ai.test.vcr.store}: file by default, the Cassette
@@ -168,10 +172,44 @@ class SpringAiVcrRemoteStoreAutoConfigurationTests {
 			advisor.adviseCall(request, chain);
 
 			assertThat(modelCalls).hasValue(1);
-			assertThat(this.server.count("PUT")).isEqualTo(1);
-			assertThat(this.server.count("GET")).isEqualTo(2);
+			assertThat(this.server.countFixtureRequests("PUT")).isEqualTo(1);
+			assertThat(this.server.countFixtureRequests("GET")).isEqualTo(2);
 			assertThat(this.cacheDirectory).isEmptyDirectory();
 		});
+	}
+
+	@Test
+	@DisplayName("store=remote, no mode configured: the auto-configured advisor follows the namespace default")
+	void unsetModeFollowsTheNamespace() {
+		this.server.namespaceMode("order-service", "REPLAY_ONLY");
+		this.contextRunner.withPropertyValues(remote()).run(context -> {
+			CallAdvisorChain chain = mock(CallAdvisorChain.class);
+			ChatClientRequest request = new ChatClientRequest(new Prompt(new UserMessage("unrecorded")), Map.of());
+
+			assertThatExceptionOfType(VcrCacheMissException.class)
+				.isThrownBy(() -> context.getBean(DeterministicVcrAdvisor.class).adviseCall(request, chain));
+			verify(chain, never()).nextCall(any());
+			assertThat(this.server.requests()).anySatisfy(r -> assertThat(r.path()).isEqualTo("order-service/config"));
+		});
+	}
+
+	@Test
+	@DisplayName("store=remote with a configured mode: the server's namespace mode is never asked for")
+	void configuredModeNeverAsks() {
+		this.server.namespaceMode("order-service", "REPLAY_ONLY");
+		this.contextRunner.withPropertyValues(remote())
+			.withPropertyValues("spring.ai.test.vcr.mode=RECORD_OR_REPLAY")
+			.run(context -> {
+				CallAdvisorChain chain = mock(CallAdvisorChain.class);
+				given(chain.nextCall(any())).willReturn(new ChatClientResponse(
+						ChatResponse.builder().generations(List.of(new Generation(new AssistantMessage("ok")))).build(),
+						Map.of()));
+				context.getBean(DeterministicVcrAdvisor.class)
+					.adviseCall(new ChatClientRequest(new Prompt(new UserMessage("q")), Map.of()), chain);
+
+				verify(chain).nextCall(any());
+				assertThat(this.server.requests()).noneSatisfy(r -> assertThat(r.path()).endsWith("/config"));
+			});
 	}
 
 	@Test

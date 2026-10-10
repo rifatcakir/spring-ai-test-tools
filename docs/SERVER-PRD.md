@@ -191,10 +191,20 @@ directory on a volume. A plain Spring Boot application with no Spring AI depende
 |---|---|
 | `GET /api/v1/ns/{ns}/{kind}/{hash}` | `200` with the document, or `404` |
 | `PUT /api/v1/ns/{ns}/{kind}/{hash}` | `201` stored, `409` already exists (body: the existing document), `400` if the body's own `hash` field doesn't match the path |
+| `PUT /api/v1/ns/{ns}/{kind}/{hash}?overwrite=true` | `201` stored or `200` replaced. Sent by the client only under `RECORD_ALWAYS`, the one mode where last write wins (5.3) |
 | `GET /api/v1/ns/{ns}/config` | `{ "mode": "REPLAY_ONLY" }`: the namespace default, used only by clients that set no mode (fork b) |
 
 The server validates that a document is well-formed JSON with matching `hash` and a known
 `schemaVersion`. It does not interpret request or response content.
+
+*Implementation notes (step 3):* `kind` is checked structurally (`toolName`,
+`response.chunks`, `response.embeddings`, `response.generations`), not from
+`canonicalRequest`'s header line, because a client-side redactor may rewrite
+`canonicalRequest`. "Known `schemaVersion`" means 1 up to the latest version of that kind; a
+newer one is refused with a `400` that says to upgrade the server. Documents are stored byte
+for byte as sent, never re-serialized: embedding vectors are `float`s, and a round trip
+through a JSON tree changes their digits. `{ns}` is `[A-Za-z0-9][A-Za-z0-9._-]{0,127}` and
+`{hash}` is 64 lowercase hex characters, so neither can escape the storage directory.
 
 ### 6.3 Admin API (`/__admin`, admin token)
 
@@ -211,10 +221,24 @@ The server validates that a document is well-formed JSON with matching `hash` an
 
 ### 6.4 Storage
 
-The same layout the library uses today, one directory per namespace and kind, one
-pretty-printed JSON file per hash, atomic writes (temp file + move). A storage directory
-can be copied into a project's `src/test/resources/llm-cache` and replay with
-`store: file`, and vice versa. **The fixture format does not change.**
+The same layout the library uses today, one pretty-printed JSON file per hash, atomic
+writes (temp file + move). **The fixture format does not change.**
+
+*Corrected during step 3:* an earlier draft said "one directory per namespace and kind". The
+library does not do that: its chat and stream stores share `llm-cache` (their hashes use
+different canonical-form headers, so they cannot collide), while embeddings and tool
+executions have their own default directories. The server mirrors the library's defaults
+exactly, so a namespace directory is a drop-in `src/test/resources`:
+
+```
+{storage-dir}/{namespace}/llm-cache/{hash}.json             chat and stream
+{storage-dir}/{namespace}/llm-cache-embedding/{hash}.json
+{storage-dir}/{namespace}/llm-cache-tool/{hash}.json
+```
+
+Copying `{namespace}/llm-cache` into a project's `src/test/resources/llm-cache` (and the
+other two alongside it) replays with `store: file`, and the reverse works too.
+`fixture-contract/` at the repository root is such a directory, tested from both modules.
 
 Single instance means one process owns the directory: writes per (namespace, kind, hash)
 are serialized in-process; no file locking across hosts is attempted.
@@ -228,7 +252,9 @@ a later phase.
 
 ### 6.6 Security
 
-- Client API: optional bearer token per namespace; admin API: required admin token.
+- Client API: optional bearer token (`--client-token`, or `cassette.namespace-tokens.{ns}`
+  per namespace); admin API: required admin token. Started without `--admin-token`, the
+  admin API answers `403` to everything rather than being open.
 - Fixtures contain prompts and answers. Redaction stays on the client: `VcrFixtureRedactor`
   is applied in `DeterministicVcrAdvisor` before a chat fixture reaches its store, so with
   the remote store the server receives only redacted content. Whether the stream,
@@ -331,7 +357,12 @@ Following `CLAUDE.md`: assert invocation counts, not just payloads.
 - That every write path already goes through the redactors before reaching a store, so
   nothing unredacted can be sent to the server.
 - Spring Boot 4's executable jar and layered Docker image build in a multi-module setup
-  where only one module is a Boot application.
+  where only one module is a Boot application. **Executable jar verified (step 3):** the
+  server module inherits `spring-boot-starter-parent:4.0.0` with an empty `relativePath`
+  (the root stays a plain aggregator), `mvn package` at the root repackages it, and
+  `java -jar … --port --storage-dir --admin-token` starts and serves. One surprise from
+  that real run: Spring MVC's `FormContentFilter` swallowed a `PUT` body sent as
+  `application/x-www-form-urlencoded` (curl's default); it is disabled.
 
 ## 11. MVP scope and order of work
 

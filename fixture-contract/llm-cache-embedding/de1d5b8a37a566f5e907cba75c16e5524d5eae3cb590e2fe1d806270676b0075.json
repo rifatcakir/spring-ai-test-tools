@@ -1,0 +1,23 @@
+{
+  "schemaVersion" : "1",
+  "hash" : "de1d5b8a37a566f5e907cba75c16e5524d5eae3cb590e2fe1d806270676b0075",
+  "recordedAt" : "2026-10-10T00:00:00Z",
+  "canonicalRequest" : "vcr-embedding-canonical-form/v1\nmodel=nomic-embed-text\ndimensions= null\ninput[0]=hello world\n",
+  "request" : {
+    "model" : "nomic-embed-text",
+    "dimensions" : null,
+    "inputs" : [ "hello world" ]
+  },
+  "response" : {
+    "model" : "nomic-embed-text",
+    "embeddings" : [ {
+      "index" : 0,
+      "vector" : [ 0.013228971, -0.043682855, 3.1415927 ]
+    } ],
+    "usage" : {
+      "promptTokens" : 3,
+      "completionTokens" : 0,
+      "totalTokens" : 3
+    }
+  }
+}

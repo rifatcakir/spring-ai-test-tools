@@ -6,3 +6,6 @@
 # become CRLF on a fresh Windows checkout, the same class of cross-platform fixture bug
 # already fixed once in this project for structured-output schema hashing.
 spring-ai-test-tools/src/test/resources/stub-responses/* text eol=lf
+
+# Contract samples are compared across modules; keep one line ending everywhere.
+fixture-contract/** text eol=lf

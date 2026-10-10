@@ -1,0 +1,61 @@
+{
+  "schemaVersion" : "1",
+  "hash" : "b7b9520739cb46d0f5afb2a0711ee81a491cbf8e16d2f3d0ec0753f444429065",
+  "recordedAt" : "2026-10-10T00:00:00Z",
+  "canonicalRequest" : "vcr-stream-canonical-form/v1\nmodel=llama3.2:1b\ntemperature=0.0\ntopP= null\ntopK= null\nmaxTokens= null\nfrequencyPenalty= null\npresencePenalty= null\nstop=\nmessage[system]=Answer in one word.\nmessage[user]=Capital of France?\n",
+  "request" : {
+    "model" : "llama3.2:1b",
+    "temperature" : 0.0,
+    "topP" : null,
+    "topK" : null,
+    "maxTokens" : null,
+    "stopSequences" : [ ],
+    "messages" : [ {
+      "type" : "system",
+      "text" : "Answer in one word.",
+      "toolCalls" : [ ],
+      "toolResponses" : [ ],
+      "media" : [ ]
+    }, {
+      "type" : "user",
+      "text" : "Capital of France?",
+      "toolCalls" : [ ],
+      "toolResponses" : [ ],
+      "media" : [ ]
+    } ],
+    "tools" : [ ],
+    "structuredOutput" : null
+  },
+  "response" : {
+    "chunks" : [ {
+      "id" : "",
+      "model" : "",
+      "text" : "Par",
+      "finishReason" : null,
+      "toolCalls" : [ ],
+      "usage" : {
+        "promptTokens" : 0,
+        "completionTokens" : 0,
+        "totalTokens" : 0,
+        "cacheReadInputTokens" : null,
+        "cacheWriteInputTokens" : null
+      }
+    }, {
+      "id" : "",
+      "model" : "llama3.2:1b",
+      "text" : "is.",
+      "finishReason" : "STOP",
+      "toolCalls" : [ ],
+      "usage" : {
+        "promptTokens" : 12,
+        "completionTokens" : 2,
+        "totalTokens" : 14,
+        "cacheReadInputTokens" : null,
+        "cacheWriteInputTokens" : null
+      }
+    } ],
+    "aggregateText" : "Paris.",
+    "aggregateFinishReason" : "STOP",
+    "aggregateToolCalls" : [ ]
+  }
+}

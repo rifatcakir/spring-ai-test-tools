@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+        The Cassette Server (docs/SERVER-PRD.md): a standalone executable jar that stores
+        fixtures for the library's remote store. Unlike the library, this module is an
+        application, so it inherits spring-boot-starter-parent for the repackage setup.
+        That parent is NOT the root aggregator (empty relativePath), and this module is
+        never deployed to Maven Central: the library's coordinates and pom stay untouched.
+
+        Deliberately no dependency on spring-ai-test-tools and none on Spring AI: the
+        server treats fixtures as JSON documents and checks only schemaVersion, hash and
+        kind (PRD fork d). The fixture-contract/ directory at the repository root is what
+        keeps the two sides in step, tested from both modules.
+    -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>4.0.0</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>io.github.rifatcakir</groupId>
+    <artifactId>spring-ai-test-tools-server</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>spring-ai-test-tools-server</name>
+    <description>Cassette Server: a standalone fixture store for spring-ai-test-tools' remote store.</description>
+    <url>https://github.com/rifatcakir/spring-ai-test-tools</url>
+
+    <licenses>
+        <license>
+            <name>Apache-2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <properties>
+        <java.version>21</java.version>
+        <!-- Shipped as a jar and a container image, never as a Maven artifact. -->
+        <maven.deploy.skip>true</maven.deploy.skip>
+    </properties>
+
+    <dependencies>
+        <!-- Spring MVC + Tomcat + Jackson 3 (tools.jackson.*). -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
+        </dependency>
+
+        <!-- /actuator/health only; see application.properties. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

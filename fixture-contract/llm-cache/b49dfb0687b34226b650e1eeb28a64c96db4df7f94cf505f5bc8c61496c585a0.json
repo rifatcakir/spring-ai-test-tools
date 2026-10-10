@@ -1,0 +1,46 @@
+{
+  "schemaVersion" : "6",
+  "hash" : "b49dfb0687b34226b650e1eeb28a64c96db4df7f94cf505f5bc8c61496c585a0",
+  "recordedAt" : "2026-10-10T00:00:00Z",
+  "canonicalRequest" : "vcr-canonical-form/v1\nmodel=llama3.2:1b\ntemperature=0.0\ntopP= null\ntopK= null\nmaxTokens= null\nfrequencyPenalty= null\npresencePenalty= null\nstop=\nmessage[system]=Answer in one word.\nmessage[user]=Capital of France?\n",
+  "request" : {
+    "model" : "llama3.2:1b",
+    "temperature" : 0.0,
+    "topP" : null,
+    "topK" : null,
+    "maxTokens" : null,
+    "stopSequences" : [ ],
+    "messages" : [ {
+      "type" : "system",
+      "text" : "Answer in one word.",
+      "toolCalls" : [ ],
+      "toolResponses" : [ ],
+      "media" : [ ]
+    }, {
+      "type" : "user",
+      "text" : "Capital of France?",
+      "toolCalls" : [ ],
+      "toolResponses" : [ ],
+      "media" : [ ]
+    } ],
+    "tools" : [ ],
+    "structuredOutput" : null
+  },
+  "response" : {
+    "id" : "chatcmpl-1",
+    "model" : "llama3.2:1b",
+    "generations" : [ {
+      "text" : "Paris.",
+      "finishReason" : "STOP",
+      "toolCalls" : [ ]
+    } ],
+    "usage" : {
+      "promptTokens" : 12,
+      "completionTokens" : 2,
+      "totalTokens" : 14,
+      "cacheReadInputTokens" : null,
+      "cacheWriteInputTokens" : null
+    },
+    "metadata" : { }
+  }
+}

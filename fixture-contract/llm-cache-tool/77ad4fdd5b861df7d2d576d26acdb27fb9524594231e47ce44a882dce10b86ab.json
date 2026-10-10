@@ -1,0 +1,10 @@
+{
+  "schemaVersion" : "1",
+  "hash" : "77ad4fdd5b861df7d2d576d26acdb27fb9524594231e47ce44a882dce10b86ab",
+  "recordedAt" : "2026-10-10T00:00:00Z",
+  "canonicalRequest" : "vcr-tool-canonical-form/v1\nname=currentWeather\narguments={\"city\":\"Paris\"}\n",
+  "toolName" : "currentWeather",
+  "arguments" : "{\"city\":\"Paris\"}",
+  "result" : "{\"temperatureC\":18}",
+  "returnDirect" : false
+}

@@ -20,16 +20,23 @@ application. The server just stores the documents, one server per environment.
 
 ## Run the server
 
+Java 21 is the only requirement; Docker is optional. The jar, from the
+[GitHub Releases](https://github.com/rifatcakir/spring-ai-test-tools/releases):
+
+```bash
+curl -LO https://github.com/rifatcakir/spring-ai-test-tools/releases/download/v0.2.0/spring-ai-test-tools-server-0.2.0.jar
+java -jar spring-ai-test-tools-server-0.2.0.jar --port=9090 --storage-dir=./cassettes --admin-token=change-me
+```
+
+or the same server as a container:
+
 ```bash
 docker run -p 9090:9090 -v cassettes:/data/cassettes \
   -e CASSETTE_ADMIN_TOKEN=change-me ghcr.io/rifatcakir/spring-ai-test-tools-server:0.2.0
 ```
 
-or, with the jar from the GitHub Release:
-
-```bash
-java -jar spring-ai-test-tools-server-0.2.0.jar --port=9090 --storage-dir=/data/cassettes --admin-token=change-me
-```
+The source is the [`spring-ai-test-tools-server`](https://github.com/rifatcakir/spring-ai-test-tools/tree/main/spring-ai-test-tools-server)
+module of this repository.
 
 Use the same version as the library. Internal test networks only: fixtures contain prompts
 and answers.

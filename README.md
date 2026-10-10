@@ -798,7 +798,15 @@ spring:
 ```
 
 That is the whole change: no code, no `base-url` rewiring, the provider configuration stays
-as it is. What to know before turning it on:
+as it is. The server itself is one jar (Java 21, no Docker needed) from the
+[Releases](https://github.com/rifatcakir/spring-ai-test-tools/releases), or the `ghcr.io/rifatcakir/spring-ai-test-tools-server` image:
+
+```bash
+curl -LO https://github.com/rifatcakir/spring-ai-test-tools/releases/download/v0.2.0/spring-ai-test-tools-server-0.2.0.jar
+java -jar spring-ai-test-tools-server-0.2.0.jar --admin-token=change-me
+```
+
+What to know before turning it on:
 
 - **An unreachable server fails the call.** It is never treated as a miss, so the model is
   never called because the server blipped, and there is no silent fallback to local files.

@@ -19,6 +19,10 @@ RUN set -e; count=$(ls jars/*.jar | wc -l);     if [ "$count" -ne 1 ]; then     
 RUN java -Djarmode=tools -jar app.jar extract --layers --launcher --destination extracted
 
 FROM eclipse-temurin:21-jre
+# Links the ghcr.io package to its source repository on GitHub.
+LABEL org.opencontainers.image.source="https://github.com/rifatcakir/spring-ai-test-tools" \
+      org.opencontainers.image.description="Cassette Server: shared fixture store for spring-ai-test-tools" \
+      org.opencontainers.image.licenses="Apache-2.0"
 RUN groupadd --system cassette \
     && useradd --system --gid cassette --uid 10001 --no-create-home cassette \
     && mkdir -p /data/cassettes \

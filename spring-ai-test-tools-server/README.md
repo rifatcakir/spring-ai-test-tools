@@ -30,25 +30,32 @@ A five-minute walkthrough with no API key and no model to install:
 
 ## Run it
 
+Three ways, all the same server. **Java 21 is the only requirement**; Docker is optional.
+
+**1. The jar** (from the [GitHub Releases](https://github.com/rifatcakir/spring-ai-test-tools/releases)):
+
 ```bash
-mvn -pl spring-ai-test-tools-server package -DskipTests
-java -jar spring-ai-test-tools-server/target/spring-ai-test-tools-server-0.2.0.jar \
-  --port=9090 --storage-dir=/data/cassettes --admin-token=change-me
+curl -LO https://github.com/rifatcakir/spring-ai-test-tools/releases/download/v0.2.0/spring-ai-test-tools-server-0.2.0.jar
+java -jar spring-ai-test-tools-server-0.2.0.jar --port=9090 --storage-dir=./cassettes --admin-token=change-me
 ```
 
-Or as a container. Once 0.2.0 is released, the published image:
+**2. The container image** (`ghcr.io`):
 
 ```bash
-docker run -p 9090:9090 -v cassettes:/data/cassettes   -e CASSETTE_ADMIN_TOKEN=change-me ghcr.io/rifatcakir/spring-ai-test-tools-server:0.2.0
-```
-
-or built locally from the same jar ([`Dockerfile`](Dockerfile), layered):
-
-```bash
-docker build -t spring-ai-test-tools-server spring-ai-test-tools-server
 docker run -p 9090:9090 -v cassettes:/data/cassettes \
-  -e CASSETTE_ADMIN_TOKEN=change-me spring-ai-test-tools-server
+  -e CASSETTE_ADMIN_TOKEN=change-me ghcr.io/rifatcakir/spring-ai-test-tools-server:0.2.0
 ```
+
+**3. From source** (this directory, in [`rifatcakir/spring-ai-test-tools`](https://github.com/rifatcakir/spring-ai-test-tools)):
+
+```bash
+git clone https://github.com/rifatcakir/spring-ai-test-tools.git && cd spring-ai-test-tools
+mvn -pl spring-ai-test-tools-server package -DskipTests
+java -jar spring-ai-test-tools-server/target/spring-ai-test-tools-server-0.2.0.jar --admin-token=change-me
+```
+
+To build the image yourself instead: `docker build -t spring-ai-test-tools-server spring-ai-test-tools-server`
+after the `mvn` step ([`Dockerfile`](Dockerfile), layered).
 
 | Flag | Environment variable | Default | Meaning |
 |---|---|---|---|

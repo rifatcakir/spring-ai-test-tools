@@ -65,7 +65,9 @@ class OllamaStreamingEndToEndTests {
 
 	private static final String OLLAMA_MODEL_TAG = "llama3.2:1b";
 
-	private static final DockerImageName OLLAMA_BASE_IMAGE = DockerImageName.parse("ollama/ollama:latest");
+	// Pinned, not "latest": Ollama 0.40 stopped serving embeddings from llama3.2:1b without
+	// --embeddings, which broke CI the day the image moved. 0.24.0 is what these tests ran on.
+	private static final DockerImageName OLLAMA_BASE_IMAGE = DockerImageName.parse("ollama/ollama:0.24.0");
 
 	private static final String OLLAMA_BAKED_IMAGE = "tc-ollama-llama3-2-1b-vcr-test";
 

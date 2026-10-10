@@ -213,9 +213,15 @@
 
     <build>
         <plugins>
+            <!-- Plugin versions pinned rather than left to the running Maven's defaults: a
+                 GitHub runner image update moved the default maven-surefire-plugin from
+                 3.5.4 to 3.6.0, which stopped honouring excludedGroups below, so every
+                 @Tag("integration") test started running in the plain `mvn test` CI job.
+                 Reproduced locally with both versions before pinning. -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
                 <configuration>
                     <parameters>true</parameters>
                 </configuration>
@@ -223,6 +229,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.4</version>
                 <configuration>
                     <!-- Real end-to-end tests need Docker + a real Ollama model and are
                          comparatively slow; excluded from the default build so `mvn test`

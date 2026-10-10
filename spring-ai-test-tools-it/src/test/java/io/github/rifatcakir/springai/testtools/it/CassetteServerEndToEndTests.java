@@ -161,7 +161,9 @@ class CassetteServerEndToEndTests {
 			.isEmpty();
 		this.ollama = bakedImageExists
 				? new OllamaContainer(DockerImageName.parse(OLLAMA_BAKED_IMAGE).asCompatibleSubstituteFor("ollama/ollama"))
-				: new OllamaContainer(DockerImageName.parse("ollama/ollama:latest"));
+				// Pinned like the library's e2e tests: Ollama 0.40 stopped serving embeddings
+				// from llama3.2:1b without --embeddings.
+				: new OllamaContainer(DockerImageName.parse("ollama/ollama:0.24.0"));
 		this.ollama.withStartupTimeout(Duration.ofMinutes(2));
 		this.ollama.start();
 		if (!bakedImageExists) {

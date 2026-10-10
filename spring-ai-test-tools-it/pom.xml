@@ -118,6 +118,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.4</version>
                 <configuration>
                     <!-- Everything here is an integration test; failsafe runs them. -->
                     <skip>true</skip>

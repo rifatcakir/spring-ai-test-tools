@@ -5,4 +5,4 @@
 # Linux. Without this, a file committed with a literal trailing LF could silently
 # become CRLF on a fresh Windows checkout, the same class of cross-platform fixture bug
 # already fixed once in this project for structured-output schema hashing.
-src/test/resources/stub-responses/* text eol=lf
+spring-ai-test-tools/src/test/resources/stub-responses/* text eol=lf

@@ -1,0 +1,18 @@
+spring:
+  main:
+    banner-mode: off
+  ai:
+    test:
+      vcr:
+        enabled: true                  # record and replay AI calls
+        store: remote                  # ...through the Cassette Server, not local files
+        remote:
+          url: ${CASSETTE_URL:http://localhost:9090}
+          namespace: demo
+
+logging:
+  level:
+    root: WARN
+    io.github.rifatcakir.springai.testtools: INFO
+    # Spring's harmless "not eligible for auto-proxying" notices, hidden to keep the demo readable.
+    org.springframework.context.support.PostProcessorRegistrationDelegate: ERROR

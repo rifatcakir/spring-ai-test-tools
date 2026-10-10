@@ -25,6 +25,9 @@ provider key. Everything Spring AI-specific stays in the library. Design:
 > server publicly. Redaction happens in the client before anything is sent (see the library's
 > "Redacting fixture content"), and the admin API is disabled unless you give it a token.
 
+A five-minute walkthrough with no API key and no model to install:
+[`examples/cassette-server-demo`](../examples/cassette-server-demo/README.md).
+
 ## Run it
 
 ```bash

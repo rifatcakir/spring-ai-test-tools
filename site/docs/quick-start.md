@@ -92,3 +92,9 @@ anything unrecorded — never silently reaching a real model in a pipeline that 
 expecting to. See [Record & Replay](record-replay.md) for the full mode reference and
 what actually busts the cache, or [Stubbing](stub.md#choosing-per-test-real-vs-stub-vs-recordreplay)
 for the full per-test decision guide.
+
+## A complete, runnable example
+
+[`spring-ai-test-tools-example`](https://github.com/rifatcakir/spring-ai-test-tools-example) is a small Spring Boot application with each major
+feature in these docs as a test, and its fixtures committed: clone it and `mvn test`
+replays everything with no model and no API key.

@@ -190,8 +190,13 @@ Interception happens at the advisor layer, above HTTP. No `Authorization` header
 token, or API key ever reaches a fixture — there is nothing to filter, and no
 header-scrubbing step to remember before committing one.
 
-Prompt *content* is another matter: if your prompts carry PII, redact it — see
-[Prompt Normalizer & Redactor](prompt-normalizer-and-redactor.md).
+Prompt and response *content* is another matter: whatever they carry is written into the
+fixture. For personal data or secrets, register a `VcrFixtureRedactor`, which rewrites what
+is stored without changing the hash; not a `VcrPromptNormalizer`, which changes the hash
+and would make requests that differ only in the removed value share one fixture. See
+[Prompt Normalizer & Redactor](prompt-normalizer-and-redactor.md#fixture-redactors-for-real-secrets-or-pii).
+With `store: remote` the redactor runs before anything is sent, so the Cassette Server only
+receives the redacted fixture.
 
 ## Limitations
 

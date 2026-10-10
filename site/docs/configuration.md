@@ -18,6 +18,10 @@ matches the 2.0.0 bytecode. Pinning to one verified combination is deliberate. I
 on a different Spring AI or Spring Boot version, expect to hit real breakage before you
 hit anything this library controls.
 
+Beyond that pin, the [example project](https://github.com/rifatcakir/spring-ai-test-tools-example) runs its whole suite, the Cassette Server
+scenarios included, with this library's 0.2.0 on **Spring AI 2.0.1 and Spring Boot 4.1.1**.
+That is a downstream check, not part of this library's own build.
+
 ## Chat (`ChatClient`)
 
 Every property is under the `spring.ai.test.vcr` prefix:

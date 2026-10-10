@@ -16,15 +16,18 @@ spring.ai.test.vcr.scope: OUTSIDE_TOOL_LOOP   # default
 
 ```java
 @Test
-void testCalledTheRealToolOnEveryReplay() {
-    // With scope=INSIDE_TOOL_LOOP, the model's own turns replay from disk on a hit.
+void answersFromTheToolResult() {
+    // scope=INSIDE_TOOL_LOOP: both model turns (the tool-call request and the final answer)
+    // are fixtures of their own, and the tool's result comes from the tool cassette.
+    // The first run records all three; every run after replays them, reaching neither
+    // the model nor weatherTool.
     String answer = chatClient.prompt()
         .user("What's the weather in Ankara? Use the tool to find out.")
         .tools(weatherTool)
         .call()
         .content();
 
-    assertThat(weatherTool.invocations).hasValue(1);
+    assertThat(answer).containsIgnoringCase("ankara");
 }
 ```
 

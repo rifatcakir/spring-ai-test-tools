@@ -291,6 +291,10 @@ assertThat(answer).isEqualTo("Yes, shipped yesterday.");
 
 See [Stubbing](#stubbing) below for the full builder, including file-sourced responses.
 
+Each major feature on this page also exists as a runnable test in
+[`spring-ai-test-tools-example`](https://github.com/rifatcakir/spring-ai-test-tools-example), a small Spring Boot application with its fixtures
+committed: clone it and `mvn test` replays everything with no model and no API key.
+
 ## Choosing per test: record/replay, a real model, or a stub
 
 All hand back the same `ChatModel`/`EmbeddingModel` — the choice is purely which one gets
@@ -341,6 +345,10 @@ for a partial list of what changed between pre-2.0 tutorials and the actual 2.0.
 bytecode) — pinning to a single, verified combination is deliberate, not an oversight. If
 you're on a different Spring AI/Spring Boot version, expect to hit real breakage before
 you hit anything this library controls.
+
+Beyond that pin, the [example project](https://github.com/rifatcakir/spring-ai-test-tools-example) runs its whole suite, the Cassette Server
+scenarios included, with this library's 0.2.0 on **Spring AI 2.0.1 and Spring Boot 4.1.1**.
+That is a downstream check, not part of this library's own build.
 
 ## Record & Replay
 
@@ -522,7 +530,7 @@ VcrFixtureRedactor redactCustomerId() {
                     track.request().messages().stream()
                         .map(message -> new VcrTrack.MessageSnapshot(message.type(),
                                 message.text().replaceAll("customer-\\d+", "[REDACTED]"),
-                                message.toolCalls(), message.toolResponses()))
+                                message.toolCalls(), message.toolResponses(), message.media()))
                         .toList(),
                     track.request().tools(), track.request().structuredOutput()),
             track.response());
@@ -821,10 +829,24 @@ What to know before turning it on:
   test-environment build; add it through a profile used only for those builds. With
   `store: remote` it logs one `WARN` line at startup so it can never be on unnoticed.
 
-Server flags, the Docker image, the admin API and the storage layout:
-[`rifatcakir/spring-ai-test-tools-server`](https://github.com/rifatcakir/spring-ai-test-tools-server), its own repository, which also has a
-[five-minute demo](https://github.com/rifatcakir/spring-ai-test-tools-server/tree/main/examples/cassette-server-demo) with no API key and no model
-to install.
+The server has its own repository and documentation,
+[`rifatcakir/spring-ai-test-tools-server`](https://github.com/rifatcakir/spring-ai-test-tools-server):
+
+- [Getting started](https://github.com/rifatcakir/spring-ai-test-tools-server/blob/main/docs/getting-started.md): run it, point an application
+  at it, record, seal, export, in ten minutes.
+- [How it works](https://github.com/rifatcakir/spring-ai-test-tools-server/blob/main/docs/how-it-works.md): namespaces, modes, concurrent
+  recording, what the server validates.
+- [Configuration](https://github.com/rifatcakir/spring-ai-test-tools-server/blob/main/docs/configuration.md),
+  [API reference](https://github.com/rifatcakir/spring-ai-test-tools-server/blob/main/docs/api.md),
+  [Operations](https://github.com/rifatcakir/spring-ai-test-tools-server/blob/main/docs/operations.md) (Compose, Kubernetes, backups,
+  security) and [Troubleshooting](https://github.com/rifatcakir/spring-ai-test-tools-server/blob/main/docs/troubleshooting.md).
+
+Two runnable sets of examples: the server repository's
+[five-minute demo](https://github.com/rifatcakir/spring-ai-test-tools-server/tree/main/examples/cassette-server-demo) (no API key, no model to
+install), and the example project's
+[`CassetteServerSharedEnvironmentTest`](https://github.com/rifatcakir/spring-ai-test-tools-example/blob/main/src/test/java/com/example/vcrdemo/CassetteServerSharedEnvironmentTest.java):
+two instances sharing one recording, an admin re-recording and sealing an environment,
+deleting a fixture, exporting back into files, and an unreachable server failing loudly.
 
 ## Stubbing
 
@@ -1148,8 +1170,17 @@ Interception happens at the advisor layer, above HTTP. No `Authorization` header
 token or API key ever reaches a fixture — there is nothing to filter, and no
 header-scrubbing step to remember before committing one.
 
-Prompt *content* is another matter: if your prompts carry PII, redact it with a
-`VcrPromptNormalizer` before committing fixtures.
+Prompt and response *content* is another matter: whatever a prompt or an answer carries is
+written into the fixture. If that includes personal data or secrets, register a
+`VcrFixtureRedactor` (see [Redacting fixture content](#redacting-fixture-content-without-touching-the-cache-key)):
+it rewrites what is stored without changing the hash, so replay keeps working. A
+`VcrPromptNormalizer` is the wrong tool here: it changes the hash too, so requests that
+differ only in the removed value (one customer's data and another's) would silently share
+one fixture.
+
+With `store: remote` the same redactor runs in your application before anything is sent, so
+the Cassette Server only ever receives the redacted fixture. The `remote.token` bearer
+token is sent in a header to the server and, like provider keys, never appears in a fixture.
 
 ## Limitations
 
@@ -1191,14 +1222,15 @@ Prompt *content* is another matter: if your prompts carry PII, redact it with a
   (fixtures are pretty-printed and reviewed in a pull request, not compressed or stored
   externally) — a deliberate trade-off, not an oversight, but a real one for large-context
   use cases. A warning makes the cost visible when it is incurred (see "Large fixtures"
-  below); no compression or external-storage mode exists. See
+  above); no compression or external-storage mode exists. See
   [`docs/ROADMAP.md`](docs/ROADMAP.md)'s v0.2 section.
 - **Re-recording is manual, and orphaned fixtures are not cleaned up automatically.**
   `RECORD_ALWAYS` overwrites every fixture a test run actually touches, but if a prompt
   changes enough that its old hash is never looked up again, that file is simply left on
   disk — nothing today detects or prunes it. There is no bulk re-record or
   orphaned-fixture-pruning CLI/Maven task yet; see
-  [`docs/ROADMAP.md`](docs/ROADMAP.md)'s v0.2 section.
+  [`docs/ROADMAP.md`](docs/ROADMAP.md)'s v0.2 section. On a Cassette Server, the admin API
+  lists each namespace's fixtures (with their first user message) and deletes single ones.
 - **Stubs have no request-matching.** A stub always answers the same way, for any prompt
   — a test that needs two different answers builds two stub instances. Streaming stubs
   are not built yet.

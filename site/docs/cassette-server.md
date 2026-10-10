@@ -87,8 +87,26 @@ The zip is in exactly the library's file layout, so the same tests replay with
 
 ## More
 
-- Flags, environment variables, the full API and the storage layout:
-  [server README](https://github.com/rifatcakir/spring-ai-test-tools-server#readme).
+The server's own documentation, in its repository:
+
+- [Getting started](https://github.com/rifatcakir/spring-ai-test-tools-server/blob/main/docs/getting-started.md): run it, point an application
+  at it, record, seal, export.
+- [How it works](https://github.com/rifatcakir/spring-ai-test-tools-server/blob/main/docs/how-it-works.md): namespaces, modes, concurrent
+  recording, what the server validates.
+- [Configuration](https://github.com/rifatcakir/spring-ai-test-tools-server/blob/main/docs/configuration.md): every flag and environment
+  variable.
+- [API reference](https://github.com/rifatcakir/spring-ai-test-tools-server/blob/main/docs/api.md): client and admin endpoints, with real
+  responses.
+- [Operations](https://github.com/rifatcakir/spring-ai-test-tools-server/blob/main/docs/operations.md): Docker Compose, Kubernetes, backups,
+  security, upgrading.
+- [Troubleshooting](https://github.com/rifatcakir/spring-ai-test-tools-server/blob/main/docs/troubleshooting.md): every error message, and what
+  to do about it.
+
+Runnable examples:
+
 - A five-minute walkthrough with no API key and no model:
   [`examples/cassette-server-demo`](https://github.com/rifatcakir/spring-ai-test-tools-server/tree/main/examples/cassette-server-demo).
+- Shared-environment scenarios as tests (two instances sharing one recording, re-recording
+  and sealing at runtime, delete, export, an unreachable server):
+  [`CassetteServerSharedEnvironmentTest`](https://github.com/rifatcakir/spring-ai-test-tools-example/blob/main/src/test/java/com/example/vcrdemo/CassetteServerSharedEnvironmentTest.java).
 - Design and decisions: [`docs/SERVER-PRD.md`](https://github.com/rifatcakir/spring-ai-test-tools/blob/main/docs/SERVER-PRD.md).

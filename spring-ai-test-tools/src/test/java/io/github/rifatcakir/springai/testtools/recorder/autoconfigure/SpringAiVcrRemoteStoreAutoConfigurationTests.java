@@ -7,8 +7,17 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import io.github.rifatcakir.springai.testtools.recorder.advisor.DeterministicVcrAdvisor;
 import io.github.rifatcakir.springai.testtools.recorder.remote.CassetteServerClient;
+import io.github.rifatcakir.springai.testtools.recorder.embedding.EmbeddingFixtureStore;
+import io.github.rifatcakir.springai.testtools.recorder.embedding.VcrEmbeddingTrackStore;
 import io.github.rifatcakir.springai.testtools.recorder.remote.RemoteChatFixtureStore;
+import io.github.rifatcakir.springai.testtools.recorder.remote.RemoteEmbeddingFixtureStore;
+import io.github.rifatcakir.springai.testtools.recorder.remote.RemoteStreamFixtureStore;
+import io.github.rifatcakir.springai.testtools.recorder.remote.RemoteToolFixtureStore;
 import io.github.rifatcakir.springai.testtools.recorder.remote.StubCassetteServer;
+import io.github.rifatcakir.springai.testtools.recorder.stream.StreamFixtureStore;
+import io.github.rifatcakir.springai.testtools.recorder.stream.VcrStreamTrackStore;
+import io.github.rifatcakir.springai.testtools.recorder.tool.ToolFixtureStore;
+import io.github.rifatcakir.springai.testtools.recorder.tool.VcrToolExecutionTrackStore;
 import io.github.rifatcakir.springai.testtools.recorder.track.ChatFixtureStore;
 import io.github.rifatcakir.springai.testtools.recorder.track.VcrTrackStore;
 import org.junit.jupiter.api.AfterEach;
@@ -91,6 +100,45 @@ class SpringAiVcrRemoteStoreAutoConfigurationTests {
 			assertThat(context).doesNotHaveBean(VcrTrackStore.class);
 			assertThat(context.getBean(CassetteServerClient.class).getNamespace()).isEqualTo("order-service");
 		});
+	}
+
+	@Test
+	@DisplayName("store=remote: stream and tool fixtures are remote too, so nothing stays on local disk")
+	void streamAndToolStoresAreRemote() {
+		this.contextRunner.withPropertyValues(remote()).run(context -> {
+			assertThat(context.getBean(StreamFixtureStore.class)).isInstanceOf(RemoteStreamFixtureStore.class);
+			assertThat(context.getBean(ToolFixtureStore.class)).isInstanceOf(RemoteToolFixtureStore.class);
+			assertThat(context).doesNotHaveBean(VcrStreamTrackStore.class);
+			assertThat(context).doesNotHaveBean(VcrToolExecutionTrackStore.class);
+		});
+	}
+
+	@Test
+	@DisplayName("store=remote with embeddings: the embedding store is remote, sharing one client and one WARN line")
+	void embeddingStoreIsRemoteAndShareTheClient(CapturedOutput output) {
+		this.contextRunner
+			.withConfiguration(AutoConfigurations.of(SpringAiVcrEmbeddingAutoConfiguration.class))
+			.withPropertyValues(remote())
+			.withPropertyValues("spring.ai.test.vcr.embedding.enabled=true")
+			.run(context -> {
+				assertThat(context.getBean(EmbeddingFixtureStore.class)).isInstanceOf(RemoteEmbeddingFixtureStore.class);
+				assertThat(context).doesNotHaveBean(VcrEmbeddingTrackStore.class);
+				assertThat(context).hasSingleBean(CassetteServerClient.class);
+			});
+		assertThat(output.getAll().lines().filter(line -> line.contains("VCR store=remote"))).hasSize(1);
+	}
+
+	@Test
+	@DisplayName("embedding caching alone (chat off) with store=remote still gets its client")
+	void embeddingOnlyGetsAClient() {
+		new ApplicationContextRunner()
+			.withConfiguration(AutoConfigurations.of(SpringAiVcrEmbeddingAutoConfiguration.class))
+			.withPropertyValues("spring.ai.test.vcr.embedding.enabled=true", "spring.ai.test.vcr.store=remote",
+					"spring.ai.test.vcr.remote.url=" + this.server.url(), "spring.ai.test.vcr.remote.namespace=search")
+			.run(context -> {
+				assertThat(context.getBean(EmbeddingFixtureStore.class)).isInstanceOf(RemoteEmbeddingFixtureStore.class);
+				assertThat(context.getBean(CassetteServerClient.class).getNamespace()).isEqualTo("search");
+			});
 	}
 
 	@Test

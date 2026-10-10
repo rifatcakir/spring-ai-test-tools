@@ -1,5 +1,10 @@
 package io.github.rifatcakir.springai.testtools.recorder;
 
+import java.util.Objects;
+
+import io.github.rifatcakir.springai.testtools.recorder.embedding.VcrEmbeddingTrack;
+import io.github.rifatcakir.springai.testtools.recorder.stream.VcrStreamTrack;
+import io.github.rifatcakir.springai.testtools.recorder.tool.VcrToolExecutionTrack;
 import io.github.rifatcakir.springai.testtools.recorder.track.VcrTrack;
 
 /**
@@ -54,6 +59,25 @@ import io.github.rifatcakir.springai.testtools.recorder.track.VcrTrack;
  * match, no exceptions) cannot depend on every redactor implementation being trusted to leave the
  * hash alone, so the guarantee is enforced by the caller rather than merely documented here.
  *
+ * <h2>Every fixture family</h2>
+ *
+ * <p>Chat fixtures are only one of four things this library writes. Streamed calls, tool
+ * executions and embeddings carry the same prompts, tool arguments and results, and with {@code
+ * spring.ai.test.vcr.store=remote} every one of them leaves the process. So each family has its
+ * own method, applied on its own write path, with the same hash and schema-version guarantee:
+ * <ul>
+ * <li>{@link #redactStream(VcrStreamTrack)} defaults to {@link #redact(VcrTrack)}: a stream's
+ * request side has exactly a chat fixture's shape, so an existing redactor covers it unchanged. Its
+ * response is a chunk sequence, which cannot be derived back from a redacted whole; if the default
+ * sees {@code redact} change the response, it fails rather than write chunks that still carry the
+ * original text. Override it to redact chunks.</li>
+ * <li>{@link #redactToolExecution(VcrToolExecutionTrack)} and {@link
+ * #redactEmbedding(VcrEmbeddingTrack)} default to returning the fixture unchanged, because neither
+ * shares a shape with a chat fixture that a chat redactor could be trusted to handle. A registered
+ * redactor that keeps either default is reported with a {@code WARN} when tool isolation or
+ * embedding caching wraps its bean, so the gap is visible rather than silent.</li>
+ * </ul>
+ *
  * <h2>Ordering and composition</h2>
  *
  * <p>Multiple redactors may be registered; they are applied in sequence, each seeing the previous
@@ -85,12 +109,96 @@ public interface VcrFixtureRedactor {
 	VcrTrack redact(VcrTrack track);
 
 	/**
-	 * Compose this redactor with another, applying this one first.
+	 * Transform a streamed-call fixture immediately before it is written.
+	 *
+	 * <p>The default runs {@link #redact(VcrTrack)} over a chat-shaped view of the stream (its
+	 * canonical request, its request snapshot, and its review-only aggregate as the single
+	 * generation) and keeps the redacted request side. If {@code redact} changes that view's
+	 * response, the default throws: the replayed chunks would still hold the unredacted text, a
+	 * partial redaction this interface treats as a leak. Override this method to redact {@link
+	 * VcrStreamTrack.ResponseSnapshot#chunks()} as well.
+	 * @param track the fixture as it would be written with no redaction applied; never {@code null}
+	 * @return the fixture to actually write; never {@code null}. {@code hash()} and {@code
+	 * schemaVersion()} are ignored by the caller
+	 * @throws IllegalStateException if the default cannot redact the response faithfully
+	 */
+	default VcrStreamTrack redactStream(VcrStreamTrack track) {
+		VcrTrack view = VcrFixtureRedaction.chatViewOf(track);
+		VcrTrack redacted = redact(view);
+		Objects.requireNonNull(redacted, "VcrFixtureRedactor must not return null");
+		if (!Objects.equals(view.response(), redacted.response())) {
+			throw new IllegalStateException("VcrFixtureRedactor " + this + " changed the response of streamed "
+					+ "fixture " + track.hash() + ", but a stream replays its chunks, which cannot be derived from "
+					+ "a redacted whole. Override VcrFixtureRedactor#redactStream to redact the chunks too; "
+					+ "nothing was written.");
+		}
+		return new VcrStreamTrack(track.schemaVersion(), track.hash(), redacted.recordedAt(),
+				redacted.canonicalRequest(), redacted.request(), track.response());
+	}
+
+	/**
+	 * Transform a tool-execution fixture immediately before it is written. Returns it unchanged
+	 * unless overridden; see "Every fixture family" above.
+	 *
+	 * <p>Mind what replays: a redacted {@code result} is what a later replay hands back to the
+	 * model in place of the real tool's answer. Under {@code INSIDE_TOOL_LOOP} the next model turn
+	 * is keyed on a prompt that contains that tool response, so redacting a value the recorded turn
+	 * saw makes the replayed turn a different request and a cache miss. Redact what must not be
+	 * stored, knowing the model's next turn will see the redacted form on replay.
+	 * @param track the fixture as it would be written with no redaction applied; never {@code null}
+	 * @return the fixture to actually write; never {@code null}. {@code hash()} and {@code
+	 * schemaVersion()} are ignored by the caller
+	 */
+	default VcrToolExecutionTrack redactToolExecution(VcrToolExecutionTrack track) {
+		return track;
+	}
+
+	/**
+	 * Transform an embedding fixture immediately before it is written. Returns it unchanged
+	 * unless overridden; see "Every fixture family" above.
+	 * @param track the fixture as it would be written with no redaction applied; never {@code null}
+	 * @return the fixture to actually write; never {@code null}. {@code hash()} and {@code
+	 * schemaVersion()} are ignored by the caller
+	 */
+	default VcrEmbeddingTrack redactEmbedding(VcrEmbeddingTrack track) {
+		return track;
+	}
+
+	/**
+	 * Compose this redactor with another, applying this one first, for every fixture family.
 	 * @param next the redactor to apply to this one's output
 	 * @return a composed redactor
 	 */
 	default VcrFixtureRedactor andThen(VcrFixtureRedactor next) {
-		return track -> next.redact(this.redact(track));
+		VcrFixtureRedactor first = this;
+		return new VcrFixtureRedactor() {
+
+			@Override
+			public VcrTrack redact(VcrTrack track) {
+				return next.redact(first.redact(track));
+			}
+
+			@Override
+			public VcrStreamTrack redactStream(VcrStreamTrack track) {
+				return next.redactStream(first.redactStream(track));
+			}
+
+			@Override
+			public VcrToolExecutionTrack redactToolExecution(VcrToolExecutionTrack track) {
+				return next.redactToolExecution(first.redactToolExecution(track));
+			}
+
+			@Override
+			public VcrEmbeddingTrack redactEmbedding(VcrEmbeddingTrack track) {
+				return next.redactEmbedding(first.redactEmbedding(track));
+			}
+
+			@Override
+			public String toString() {
+				return first + " andThen " + next;
+			}
+
+		};
 	}
 
 }

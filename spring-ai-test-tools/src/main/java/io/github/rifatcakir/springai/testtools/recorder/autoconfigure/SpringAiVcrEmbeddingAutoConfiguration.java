@@ -2,15 +2,20 @@ package io.github.rifatcakir.springai.testtools.recorder.autoconfigure;
 
 import java.nio.file.Path;
 
+import io.github.rifatcakir.springai.testtools.recorder.VcrFixtureRedactor;
 import io.github.rifatcakir.springai.testtools.recorder.VcrMode;
+import io.github.rifatcakir.springai.testtools.recorder.embedding.EmbeddingFixtureStore;
 import io.github.rifatcakir.springai.testtools.recorder.embedding.VcrEmbeddingCacheKeyGenerator;
 import io.github.rifatcakir.springai.testtools.recorder.embedding.VcrEmbeddingModelBeanPostProcessor;
 import io.github.rifatcakir.springai.testtools.recorder.embedding.VcrEmbeddingTrackMapper;
 import io.github.rifatcakir.springai.testtools.recorder.embedding.VcrEmbeddingTrackStore;
+import io.github.rifatcakir.springai.testtools.recorder.remote.CassetteServerClient;
+import io.github.rifatcakir.springai.testtools.recorder.remote.RemoteEmbeddingFixtureStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.springframework.ai.embedding.EmbeddingModel;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -65,8 +70,28 @@ public class SpringAiVcrEmbeddingAutoConfiguration {
 		return new VcrEmbeddingTrackMapper();
 	}
 
+	/**
+	 * The same client {@link SpringAiVcrAutoConfiguration} creates, declared here as well
+	 * because embedding caching can be enabled without chat caching. Whichever of the two
+	 * registers first wins, so there is still one client and one startup {@code WARN}.
+	 */
 	@Bean
+	@ConditionalOnProperty(prefix = VcrProperties.PREFIX, name = "store", havingValue = "remote")
 	@ConditionalOnMissingBean
+	public CassetteServerClient vcrCassetteServerClient(VcrProperties properties) {
+		return SpringAiVcrAutoConfiguration.cassetteServerClient(properties);
+	}
+
+	@Bean
+	@ConditionalOnProperty(prefix = VcrProperties.PREFIX, name = "store", havingValue = "remote")
+	@ConditionalOnMissingBean(EmbeddingFixtureStore.class)
+	public RemoteEmbeddingFixtureStore vcrRemoteEmbeddingFixtureStore(CassetteServerClient client) {
+		return new RemoteEmbeddingFixtureStore(client);
+	}
+
+	@Bean
+	@ConditionalOnProperty(prefix = VcrProperties.PREFIX, name = "store", havingValue = "file", matchIfMissing = true)
+	@ConditionalOnMissingBean(EmbeddingFixtureStore.class)
 	public VcrEmbeddingTrackStore vcrEmbeddingTrackStore(VcrProperties properties) {
 		Path directory = Path.of(properties.getEmbedding().getCacheDirectory());
 		logger.info("VCR EMBEDDING cache directory: {}", directory.toAbsolutePath().normalize());
@@ -82,15 +107,16 @@ public class SpringAiVcrEmbeddingAutoConfiguration {
 	 */
 	@Bean
 	public static VcrEmbeddingModelBeanPostProcessor vcrEmbeddingModelBeanPostProcessor(
-			VcrEmbeddingCacheKeyGenerator keyGenerator, VcrEmbeddingTrackStore store, VcrEmbeddingTrackMapper mapper,
-			VcrProperties properties) {
+			VcrEmbeddingCacheKeyGenerator keyGenerator, EmbeddingFixtureStore store, VcrEmbeddingTrackMapper mapper,
+			VcrProperties properties, ObjectProvider<VcrFixtureRedactor> redactors) {
 		VcrMode mode = properties.getEmbedding().getMode();
 		if (mode == VcrMode.RECORD_ALWAYS) {
 			logger.warn("VCR EMBEDDING mode is RECORD_ALWAYS: every call reaches the real model and "
 					+ "existing fixtures will be overwritten. This mode is not intended for CI.");
 		}
 		logger.info("VCR EMBEDDING enabled — mode={}", mode);
-		return new VcrEmbeddingModelBeanPostProcessor(keyGenerator, store, mapper, mode);
+		return new VcrEmbeddingModelBeanPostProcessor(keyGenerator, store, mapper, mode,
+				() -> redactors.orderedStream().toList());
 	}
 
 }

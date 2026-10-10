@@ -1,8 +1,11 @@
 package io.github.rifatcakir.springai.testtools.recorder.embedding;
 
+import java.util.List;
 import java.util.Optional;
 
 import io.github.rifatcakir.springai.testtools.recorder.VcrCacheMissException;
+import io.github.rifatcakir.springai.testtools.recorder.VcrFixtureRedaction;
+import io.github.rifatcakir.springai.testtools.recorder.VcrFixtureRedactor;
 import io.github.rifatcakir.springai.testtools.recorder.VcrMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +49,13 @@ import org.springframework.util.Assert;
  * explicitly accepted tradeoff that an embedding fixture's vector is not meaningfully
  * human-reviewable the way every other fixture type in this project is.
  *
+ * <h2>Redaction</h2>
+ *
+ * <p>Registered {@link VcrFixtureRedactor}s run on every recording through {@link
+ * VcrFixtureRedactor#redactEmbedding}, after the hash is computed, exactly as on the chat
+ * path. Embedding inputs are the user's text verbatim, and with a remote store the fixture
+ * leaves the process, so this path cannot be the one that skips redaction.
+ *
  * @author Rifat Cakir
  */
 public class VcrEmbeddingModel implements EmbeddingModel {
@@ -62,13 +72,27 @@ public class VcrEmbeddingModel implements EmbeddingModel {
 
 	private final VcrMode mode;
 
+	private final List<VcrFixtureRedactor> redactors;
+
 	public VcrEmbeddingModel(EmbeddingModel delegate, VcrEmbeddingCacheKeyGenerator keyGenerator,
 			EmbeddingFixtureStore store, VcrEmbeddingTrackMapper mapper, VcrMode mode) {
+		this(delegate, keyGenerator, store, mapper, mode, List.of());
+	}
+
+	/**
+	 * @param redactors applied in list order to every fixture before it is written; never
+	 * affects the hash or what a replay returns, see {@link VcrFixtureRedactor}
+	 */
+	public VcrEmbeddingModel(EmbeddingModel delegate, VcrEmbeddingCacheKeyGenerator keyGenerator,
+			EmbeddingFixtureStore store, VcrEmbeddingTrackMapper mapper, VcrMode mode,
+			List<VcrFixtureRedactor> redactors) {
 		Assert.notNull(delegate, "delegate must not be null");
 		Assert.notNull(keyGenerator, "keyGenerator must not be null");
 		Assert.notNull(store, "store must not be null");
 		Assert.notNull(mapper, "mapper must not be null");
 		Assert.notNull(mode, "mode must not be null");
+		Assert.notNull(redactors, "redactors must not be null");
+		this.redactors = List.copyOf(redactors);
 		this.delegate = delegate;
 		this.keyGenerator = keyGenerator;
 		this.store = store;
@@ -91,7 +115,7 @@ public class VcrEmbeddingModel implements EmbeddingModel {
 		if (this.mode == VcrMode.RECORD_ALWAYS) {
 			logger.info("VCR EMBEDDING RE-RECORD [{}] — mode is RECORD_ALWAYS, ignoring any existing fixture",
 					shortHash);
-			return recordAndReturn(request, key);
+			return recordAndReturn(request, key, true);
 		}
 
 		Optional<VcrEmbeddingTrack> existing = this.store.read(key.hash());
@@ -108,12 +132,24 @@ public class VcrEmbeddingModel implements EmbeddingModel {
 		}
 
 		logger.info("VCR EMBEDDING CACHE MISS [{}] invoking the real model and recording", shortHash);
-		return recordAndReturn(request, key);
+		return recordAndReturn(request, key, false);
 	}
 
-	private EmbeddingResponse recordAndReturn(EmbeddingRequest request, VcrEmbeddingCacheKey key) {
+	/**
+	 * @param replaceExisting {@code true} under {@code RECORD_ALWAYS}, the one mode where
+	 * the last write wins; a plain miss lets a shared store keep a fixture another instance
+	 * recorded first (PRD 5.3)
+	 */
+	private EmbeddingResponse recordAndReturn(EmbeddingRequest request, VcrEmbeddingCacheKey key,
+			boolean replaceExisting) {
 		EmbeddingResponse response = this.delegate.call(request);
-		this.store.write(this.mapper.toTrack(key, request, response));
+		VcrEmbeddingTrack track = VcrFixtureRedaction.apply(this.redactors, this.mapper.toTrack(key, request, response));
+		if (replaceExisting) {
+			this.store.replace(track);
+		}
+		else {
+			this.store.write(track);
+		}
 		return response;
 	}
 

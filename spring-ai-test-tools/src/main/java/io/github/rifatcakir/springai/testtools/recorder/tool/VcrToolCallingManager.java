@@ -9,6 +9,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
+import io.github.rifatcakir.springai.testtools.recorder.VcrFixtureRedaction;
+import io.github.rifatcakir.springai.testtools.recorder.VcrFixtureRedactor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,12 +87,26 @@ public class VcrToolCallingManager implements ToolCallingManager {
 
 	private final VcrToolMode mode;
 
+	private final List<VcrFixtureRedactor> redactors;
+
 	public VcrToolCallingManager(ToolCallingManager delegate, VcrToolExecutionCacheKeyGenerator keyGenerator,
 			ToolFixtureStore store, VcrToolMode mode) {
+		this(delegate, keyGenerator, store, mode, List.of());
+	}
+
+	/**
+	 * @param redactors applied in list order to every tool-execution fixture before it is
+	 * written, through {@link VcrFixtureRedactor#redactToolExecution}; never affects the hash
+	 * or what a replay returns
+	 */
+	public VcrToolCallingManager(ToolCallingManager delegate, VcrToolExecutionCacheKeyGenerator keyGenerator,
+			ToolFixtureStore store, VcrToolMode mode, List<VcrFixtureRedactor> redactors) {
 		Assert.notNull(delegate, "delegate must not be null");
 		Assert.notNull(keyGenerator, "keyGenerator must not be null");
 		Assert.notNull(store, "store must not be null");
 		Assert.notNull(mode, "mode must not be null");
+		Assert.notNull(redactors, "redactors must not be null");
+		this.redactors = List.copyOf(redactors);
 		this.delegate = delegate;
 		this.keyGenerator = keyGenerator;
 		this.store = store;
@@ -197,6 +213,12 @@ public class VcrToolCallingManager implements ToolCallingManager {
 	 * sibling example project's CI guard ("mvn test modified this project's own working
 	 * tree"), not predicted. A genuinely changed tool result still overwrites, since that
 	 * is real signal a reviewer should see in the diff.
+	 *
+	 * <p>The comparison is against the <em>redacted</em> fixture, because that is what the
+	 * store holds: comparing the raw result to a redacted one would count every redacted
+	 * fixture as changed and rewrite it on every run. A changed fixture is replaced, an
+	 * absent one is written, which on a shared store lets another instance's concurrent
+	 * recording win (PRD 5.3).
 	 */
 	private void record(List<AssistantMessage.ToolCall> toolCalls, ToolExecutionResult result) {
 		List<Message> history = result.conversationHistory();
@@ -220,22 +242,27 @@ public class VcrToolCallingManager implements ToolCallingManager {
 				continue;
 			}
 			VcrToolExecutionCacheKey key = this.keyGenerator.generate(call.name(), call.arguments());
-			if (isUnchanged(key, response.responseData(), result.returnDirect())) {
+			VcrToolExecutionTrack track = VcrFixtureRedaction.apply(this.redactors,
+					new VcrToolExecutionTrack(VcrToolExecutionTrack.CURRENT_SCHEMA_VERSION, key.hash(), recordedAt,
+							key.canonicalRequest(), call.name(), call.arguments(), response.responseData(),
+							result.returnDirect()));
+			Optional<VcrToolExecutionTrack> existing = this.store.read(key.hash());
+			if (existing.isPresent() && isUnchanged(existing.get(), track)) {
 				logger.debug("VCR TOOL fixture [{}] already records this exact result — leaving it untouched",
 						VcrToolExecutionTrackStore.shortHash(key.hash()));
 				continue;
 			}
-			VcrToolExecutionTrack track = new VcrToolExecutionTrack(VcrToolExecutionTrack.CURRENT_SCHEMA_VERSION,
-					key.hash(), recordedAt, key.canonicalRequest(), call.name(), call.arguments(),
-					response.responseData(), result.returnDirect());
-			this.store.write(track);
+			if (existing.isPresent()) {
+				this.store.replace(track);
+			}
+			else {
+				this.store.write(track);
+			}
 		}
 	}
 
-	private boolean isUnchanged(VcrToolExecutionCacheKey key, String result, boolean returnDirect) {
-		return this.store.read(key.hash())
-			.filter(existing -> Objects.equals(existing.result(), result) && existing.returnDirect() == returnDirect)
-			.isPresent();
+	private static boolean isUnchanged(VcrToolExecutionTrack existing, VcrToolExecutionTrack track) {
+		return Objects.equals(existing.result(), track.result()) && existing.returnDirect() == track.returnDirect();
 	}
 
 }

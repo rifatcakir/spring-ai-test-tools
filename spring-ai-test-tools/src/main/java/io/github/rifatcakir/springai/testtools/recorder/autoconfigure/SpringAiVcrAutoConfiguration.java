@@ -10,8 +10,12 @@ import io.github.rifatcakir.springai.testtools.recorder.advisor.DeterministicVcr
 import io.github.rifatcakir.springai.testtools.recorder.key.VcrCacheKeyGenerator;
 import io.github.rifatcakir.springai.testtools.recorder.remote.CassetteServerClient;
 import io.github.rifatcakir.springai.testtools.recorder.remote.RemoteChatFixtureStore;
+import io.github.rifatcakir.springai.testtools.recorder.remote.RemoteStreamFixtureStore;
+import io.github.rifatcakir.springai.testtools.recorder.remote.RemoteToolFixtureStore;
+import io.github.rifatcakir.springai.testtools.recorder.stream.StreamFixtureStore;
 import io.github.rifatcakir.springai.testtools.recorder.stream.VcrStreamTrackMapper;
 import io.github.rifatcakir.springai.testtools.recorder.stream.VcrStreamTrackStore;
+import io.github.rifatcakir.springai.testtools.recorder.tool.ToolFixtureStore;
 import io.github.rifatcakir.springai.testtools.recorder.tool.VcrToolCallingManagerBeanPostProcessor;
 import io.github.rifatcakir.springai.testtools.recorder.tool.VcrToolExecutionCacheKeyGenerator;
 import io.github.rifatcakir.springai.testtools.recorder.tool.VcrToolExecutionTrackStore;
@@ -24,6 +28,7 @@ import org.slf4j.LoggerFactory;
 
 import org.springframework.ai.chat.client.ChatClientBuilderCustomizer;
 import org.springframework.ai.model.tool.ToolCallingManager;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -132,7 +137,15 @@ public class SpringAiVcrAutoConfiguration {
 	}
 
 	@Bean
-	@ConditionalOnMissingBean
+	@ConditionalOnProperty(prefix = VcrProperties.PREFIX, name = "store", havingValue = "remote")
+	@ConditionalOnMissingBean(StreamFixtureStore.class)
+	public RemoteStreamFixtureStore vcrRemoteStreamFixtureStore(CassetteServerClient client) {
+		return new RemoteStreamFixtureStore(client);
+	}
+
+	@Bean
+	@ConditionalOnProperty(prefix = VcrProperties.PREFIX, name = "store", havingValue = "file", matchIfMissing = true)
+	@ConditionalOnMissingBean(StreamFixtureStore.class)
 	public VcrStreamTrackStore vcrStreamTrackStore(VcrProperties properties) {
 		return new VcrStreamTrackStore(Path.of(properties.getCacheDirectory()),
 				VcrStreamTrackStore.defaultJsonMapper(), properties.getFixtureSizeWarnThresholdBytes());
@@ -142,7 +155,7 @@ public class SpringAiVcrAutoConfiguration {
 	@ConditionalOnMissingBean
 	public DeterministicVcrAdvisor deterministicVcrAdvisor(VcrCacheKeyGenerator keyGenerator, ChatFixtureStore store,
 			VcrTrackMapper mapper, VcrProperties properties, List<VcrFixtureRedactor> redactors,
-			VcrStreamTrackStore streamStore, VcrStreamTrackMapper streamMapper) {
+			StreamFixtureStore streamStore, VcrStreamTrackMapper streamMapper) {
 
 		VcrMode mode = properties.getMode();
 		if (mode == VcrMode.RECORD_ALWAYS) {
@@ -185,7 +198,16 @@ public class SpringAiVcrAutoConfiguration {
 
 	@Bean
 	@ConditionalOnClass(ToolCallingManager.class)
-	@ConditionalOnMissingBean
+	@ConditionalOnProperty(prefix = VcrProperties.PREFIX, name = "store", havingValue = "remote")
+	@ConditionalOnMissingBean(ToolFixtureStore.class)
+	public RemoteToolFixtureStore vcrRemoteToolFixtureStore(CassetteServerClient client) {
+		return new RemoteToolFixtureStore(client);
+	}
+
+	@Bean
+	@ConditionalOnClass(ToolCallingManager.class)
+	@ConditionalOnProperty(prefix = VcrProperties.PREFIX, name = "store", havingValue = "file", matchIfMissing = true)
+	@ConditionalOnMissingBean(ToolFixtureStore.class)
 	public VcrToolExecutionTrackStore vcrToolExecutionTrackStore(VcrProperties properties) {
 		Path directory = Path.of(properties.getTool().getCacheDirectory());
 		logger.info("VCR TOOL cache directory: {}", directory.toAbsolutePath().normalize());
@@ -203,11 +225,12 @@ public class SpringAiVcrAutoConfiguration {
 	@Bean
 	@ConditionalOnClass(ToolCallingManager.class)
 	public static VcrToolCallingManagerBeanPostProcessor vcrToolCallingManagerBeanPostProcessor(
-			VcrToolExecutionCacheKeyGenerator keyGenerator, VcrToolExecutionTrackStore store,
-			VcrProperties properties) {
+			VcrToolExecutionCacheKeyGenerator keyGenerator, ToolFixtureStore store, VcrProperties properties,
+			ObjectProvider<VcrFixtureRedactor> redactors) {
 		VcrToolMode toolMode = properties.getTool().getMode();
 		logger.info("VCR TOOL isolation enabled — mode={}", toolMode);
-		return new VcrToolCallingManagerBeanPostProcessor(keyGenerator, store, toolMode);
+		return new VcrToolCallingManagerBeanPostProcessor(keyGenerator, store, toolMode,
+				() -> redactors.orderedStream().toList());
 	}
 
 }

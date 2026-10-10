@@ -1,5 +1,10 @@
 package io.github.rifatcakir.springai.testtools.recorder.embedding;
 
+import java.util.List;
+import java.util.function.Supplier;
+
+import io.github.rifatcakir.springai.testtools.recorder.VcrFixtureRedaction;
+import io.github.rifatcakir.springai.testtools.recorder.VcrFixtureRedactor;
 import io.github.rifatcakir.springai.testtools.recorder.VcrMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,8 +35,21 @@ public class VcrEmbeddingModelBeanPostProcessor implements BeanPostProcessor {
 
 	private final VcrMode mode;
 
+	private final Supplier<List<VcrFixtureRedactor>> redactors;
+
 	public VcrEmbeddingModelBeanPostProcessor(VcrEmbeddingCacheKeyGenerator keyGenerator, EmbeddingFixtureStore store,
 			VcrEmbeddingTrackMapper mapper, VcrMode mode) {
+		this(keyGenerator, store, mapper, mode, List::of);
+	}
+
+	/**
+	 * @param redactors resolved when an {@code EmbeddingModel} is wrapped, not when this
+	 * post-processor is created; see {@code VcrToolCallingManagerBeanPostProcessor} for why
+	 */
+	public VcrEmbeddingModelBeanPostProcessor(VcrEmbeddingCacheKeyGenerator keyGenerator, EmbeddingFixtureStore store,
+			VcrEmbeddingTrackMapper mapper, VcrMode mode, Supplier<List<VcrFixtureRedactor>> redactors) {
+		Assert.notNull(redactors, "redactors must not be null");
+		this.redactors = redactors;
 		Assert.notNull(keyGenerator, "keyGenerator must not be null");
 		Assert.notNull(store, "store must not be null");
 		Assert.notNull(mapper, "mapper must not be null");
@@ -48,7 +66,14 @@ public class VcrEmbeddingModelBeanPostProcessor implements BeanPostProcessor {
 			return bean;
 		}
 		logger.info("VCR EMBEDDING wrapping bean '{}' ({})", beanName, embeddingModel.getClass().getSimpleName());
-		return new VcrEmbeddingModel(embeddingModel, this.keyGenerator, this.store, this.mapper, this.mode);
+		List<VcrFixtureRedactor> redactors = this.redactors.get();
+		for (VcrFixtureRedactor redactor : VcrFixtureRedaction.passingEmbeddingsThrough(redactors)) {
+			logger.warn("VCR EMBEDDING fixture redactor {} does not implement redactEmbedding, so embedding inputs "
+					+ "are written without its redaction. Implement it, even as a pass-through, to make that "
+					+ "explicit.", redactor);
+		}
+		return new VcrEmbeddingModel(embeddingModel, this.keyGenerator, this.store, this.mapper, this.mode,
+				redactors);
 	}
 
 }

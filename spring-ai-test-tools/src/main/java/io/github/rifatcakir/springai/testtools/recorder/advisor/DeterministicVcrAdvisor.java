@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import io.github.rifatcakir.springai.testtools.recorder.VcrCacheMissException;
+import io.github.rifatcakir.springai.testtools.recorder.VcrFixtureRedaction;
 import io.github.rifatcakir.springai.testtools.recorder.VcrFixtureRedactor;
 import io.github.rifatcakir.springai.testtools.recorder.VcrMode;
 import io.github.rifatcakir.springai.testtools.recorder.VcrModeOverride;
@@ -92,9 +93,9 @@ import org.springframework.util.Assert;
  * model has answered and after the cache key has already been computed — never on a replay,
  * and never able to change the hash a fixture is filed under. See {@link VcrFixtureRedactor}
  * for why this is a separate hook from {@link io.github.rifatcakir.springai.testtools.recorder.VcrPromptNormalizer}
- * rather than reusing it. Not yet wired into the streaming path (R3) — the same scope
- * decision R4's {@code VcrEmbeddingModel} already made for its own capability, revisited
- * only if a real need for streaming fixture redaction appears.
+ * rather than reusing it. The streaming path applies them too, through {@link
+ * VcrFixtureRedactor#redactStream}: with a remote store a stream fixture leaves the process
+ * just as a chat fixture does, so an unredacted streaming path would undo the guarantee.
  *
  * <h2>Per-test mode override</h2>
  *
@@ -319,7 +320,7 @@ public class DeterministicVcrAdvisor implements CallAdvisor, StreamAdvisor {
 
 		if (effectiveMode == VcrMode.RECORD_ALWAYS) {
 			logger.info("VCR STREAM RE-RECORD [{}] — mode is RECORD_ALWAYS, ignoring any existing fixture", shortHash);
-			return recordAndReturnStream(chatClientRequest, streamAdvisorChain, key);
+			return recordAndReturnStream(chatClientRequest, streamAdvisorChain, key, true);
 		}
 
 		Optional<VcrStreamTrack> existing = this.streamStore.read(key.hash());
@@ -336,7 +337,7 @@ public class DeterministicVcrAdvisor implements CallAdvisor, StreamAdvisor {
 		}
 
 		logger.info("VCR STREAM CACHE MISS [{}] invoking the real model and recording", shortHash);
-		return recordAndReturnStream(chatClientRequest, streamAdvisorChain, key);
+		return recordAndReturnStream(chatClientRequest, streamAdvisorChain, key, false);
 	}
 
 	private Flux<ChatClientResponse> replayStream(ChatClientRequest request, VcrStreamTrack track) {
@@ -357,7 +358,7 @@ public class DeterministicVcrAdvisor implements CallAdvisor, StreamAdvisor {
 	 * section 4.
 	 */
 	private Flux<ChatClientResponse> recordAndReturnStream(ChatClientRequest request, StreamAdvisorChain chain,
-			VcrCacheKey key) {
+			VcrCacheKey key, boolean replaceExisting) {
 		List<ChatResponse> collected = Collections.synchronizedList(new ArrayList<>());
 		return chain.nextStream(request).doOnNext(response -> {
 			ChatResponse chatResponse = response.chatResponse();
@@ -370,8 +371,14 @@ public class DeterministicVcrAdvisor implements CallAdvisor, StreamAdvisor {
 						VcrStreamTrackStore.shortHash(key.hash()));
 				return;
 			}
-			this.streamStore
-				.write(this.streamMapper.toTrack(key, request.prompt(), request.context(), List.copyOf(collected)));
+			VcrStreamTrack track = VcrFixtureRedaction.apply(this.redactors,
+					this.streamMapper.toTrack(key, request.prompt(), request.context(), List.copyOf(collected)));
+			if (replaceExisting) {
+				this.streamStore.replace(track);
+			}
+			else {
+				this.streamStore.write(track);
+			}
 		});
 	}
 
@@ -411,24 +418,13 @@ public class DeterministicVcrAdvisor implements CallAdvisor, StreamAdvisor {
 
 	/**
 	 * Applies every configured {@link VcrFixtureRedactor}, in registration order, to what is
-	 * about to be written — and only to what is about to be written.
-	 *
-	 * <p>{@code track.hash()} and {@code track.schemaVersion()} are re-applied from the
-	 * original, un-redacted track after every step, regardless of what a redactor returns for
-	 * those two fields. This is deliberate belt-and-suspenders: rule #1 (exact SHA-256 match)
-	 * cannot depend on every {@code VcrFixtureRedactor} implementation being trusted to leave
-	 * the cache key alone, so a redactor is structurally unable to change it, not merely asked
-	 * not to.
+	 * about to be written, and only to what is about to be written. {@code hash} and {@code
+	 * schemaVersion} are put back from the original after every step, so a redactor is
+	 * structurally unable to change the cache key, not merely asked not to; see {@link
+	 * VcrFixtureRedaction}.
 	 */
 	private VcrTrack applyRedactors(VcrTrack track) {
-		VcrTrack redacted = track;
-		for (VcrFixtureRedactor redactor : this.redactors) {
-			VcrTrack candidate = redactor.redact(redacted);
-			Assert.notNull(candidate, "VcrFixtureRedactor must not return null");
-			redacted = new VcrTrack(track.schemaVersion(), track.hash(), candidate.recordedAt(),
-					candidate.canonicalRequest(), candidate.request(), candidate.response());
-		}
-		return redacted;
+		return VcrFixtureRedaction.apply(this.redactors, track);
 	}
 
 	@Override

@@ -1,5 +1,10 @@
 package io.github.rifatcakir.springai.testtools.recorder.tool;
 
+import java.util.List;
+import java.util.function.Supplier;
+
+import io.github.rifatcakir.springai.testtools.recorder.VcrFixtureRedaction;
+import io.github.rifatcakir.springai.testtools.recorder.VcrFixtureRedactor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,14 +43,29 @@ public class VcrToolCallingManagerBeanPostProcessor implements BeanPostProcessor
 
 	private final VcrToolMode mode;
 
+	private final Supplier<List<VcrFixtureRedactor>> redactors;
+
 	public VcrToolCallingManagerBeanPostProcessor(VcrToolExecutionCacheKeyGenerator keyGenerator,
 			ToolFixtureStore store, VcrToolMode mode) {
+		this(keyGenerator, store, mode, List::of);
+	}
+
+	/**
+	 * @param redactors resolved when the {@code ToolCallingManager} is wrapped, not when this
+	 * post-processor is created: a {@code BeanPostProcessor} is instantiated before ordinary
+	 * beans, and resolving the user's redactor beans that early would make them ineligible
+	 * for post-processing themselves
+	 */
+	public VcrToolCallingManagerBeanPostProcessor(VcrToolExecutionCacheKeyGenerator keyGenerator,
+			ToolFixtureStore store, VcrToolMode mode, Supplier<List<VcrFixtureRedactor>> redactors) {
 		Assert.notNull(keyGenerator, "keyGenerator must not be null");
 		Assert.notNull(store, "store must not be null");
 		Assert.notNull(mode, "mode must not be null");
+		Assert.notNull(redactors, "redactors must not be null");
 		this.keyGenerator = keyGenerator;
 		this.store = store;
 		this.mode = mode;
+		this.redactors = redactors;
 	}
 
 	@Override
@@ -54,7 +74,13 @@ public class VcrToolCallingManagerBeanPostProcessor implements BeanPostProcessor
 			return bean;
 		}
 		logger.info("VCR TOOL wrapping bean '{}' ({})", beanName, toolCallingManager.getClass().getSimpleName());
-		return new VcrToolCallingManager(toolCallingManager, this.keyGenerator, this.store, this.mode);
+		List<VcrFixtureRedactor> redactors = this.redactors.get();
+		for (VcrFixtureRedactor redactor : VcrFixtureRedaction.passingToolExecutionsThrough(redactors)) {
+			logger.warn("VCR TOOL fixture redactor {} does not implement redactToolExecution, so tool arguments "
+					+ "and results are written without its redaction. Implement it, even as a pass-through, "
+					+ "to make that explicit.", redactor);
+		}
+		return new VcrToolCallingManager(toolCallingManager, this.keyGenerator, this.store, this.mode, redactors);
 	}
 
 }

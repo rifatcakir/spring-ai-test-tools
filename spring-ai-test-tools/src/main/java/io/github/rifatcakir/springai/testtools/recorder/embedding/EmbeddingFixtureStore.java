@@ -30,9 +30,20 @@ public interface EmbeddingFixtureStore {
 	Optional<VcrEmbeddingTrack> read(String hash);
 
 	/**
-	 * Store {@code track} under its own hash.
+	 * Store {@code track} under its own hash. A shared store may keep a fixture another
+	 * instance recorded for the same hash in the meantime instead (PRD 5.3); the file
+	 * store always writes.
 	 */
 	void write(VcrEmbeddingTrack track);
+
+	/**
+	 * Store {@code track} under its own hash, replacing any existing fixture: the write
+	 * made when the caller deliberately re-records. Defaults to {@link #write}, which
+	 * for the file store already replaces. See {@code ChatFixtureStore#replace}.
+	 */
+	default void replace(VcrEmbeddingTrack track) {
+		write(track);
+	}
 
 	/**
 	 * A human-readable description of where the fixture for {@code hash} lives or would

@@ -2,7 +2,7 @@
 
 Last updated: 2026-10-10
 
-Status: **proposed, not started.** Decisions already made by the project owner, not open
+Status: **design signed off 2026-10-10, implementation in progress.** Decisions already made by the project owner, not open
 for debate here:
 
 - **Client–server, not a proxy.** The existing library stays the client: the advisor,
@@ -17,7 +17,7 @@ for debate here:
 - It lives **in this repository** as a module of a multi-module Maven build.
 - Design first (this document), code after sign-off.
 
-What is still open is captured as forks in section 9.
+The forks in section 9 were resolved by the project owner on 2026-10-10; each one records the decision.
 
 ## 1. Problem
 
@@ -123,7 +123,7 @@ spring:
     test:
       vcr:
         enabled: true                 # still required, still off by default
-        mode: REPLAY_ONLY             # or omit to take the server's mode, see fork (b)
+        mode: REPLAY_ONLY             # the client's mode wins; omit to use the server's namespace default
         store: remote                 # file (default) | remote
         remote:
           url: http://cassette-server:9090
@@ -191,7 +191,7 @@ directory on a volume. A plain Spring Boot application with no Spring AI depende
 |---|---|
 | `GET /api/v1/ns/{ns}/{kind}/{hash}` | `200` with the document, or `404` |
 | `PUT /api/v1/ns/{ns}/{kind}/{hash}` | `201` stored, `409` already exists (body: the existing document), `400` if the body's own `hash` field doesn't match the path |
-| `GET /api/v1/ns/{ns}/config` | `{ "mode": "REPLAY_ONLY" }`, see fork (b) |
+| `GET /api/v1/ns/{ns}/config` | `{ "mode": "REPLAY_ONLY" }`: the namespace default, used only by clients that set no mode (fork b) |
 
 The server validates that a document is well-formed JSON with matching `hash` and a known
 `schemaVersion`. It does not interpret request or response content.
@@ -239,16 +239,18 @@ a later phase.
 ## 7. Modules
 
 ```
-spring-ai-test-tools-parent        (pom, new)
-├── spring-ai-test-tools           (the library — artifactId UNCHANGED)
-└── spring-ai-test-tools-server    (Spring Boot 4 executable jar, new)
+pom.xml                            build aggregator only (never deployed, never a <parent>)
+├── spring-ai-test-tools/          the library — coordinates and pom UNCHANGED
+└── spring-ai-test-tools-server/   Spring Boot 4 executable jar, new
 ```
 
-`io.github.rifatcakir:spring-ai-test-tools` is already on Maven Central at `0.1.0`; its
-coordinates must not change. The library module keeps its current pom content apart from
-the new `<parent>`. The server depends only on Spring Boot and Jackson 3, not on the
-library and not on Spring AI; the document format is shared as a written contract with a
-round-trip test on each side (fork d).
+`io.github.rifatcakir:spring-ai-test-tools` is already on Maven Central at `0.1.0`. A shared
+parent pom would have to be published next to it for consumers to resolve the library, so
+there is none: the root pom only lists the modules, and the library's pom is byte-for-byte
+what it was. Releases run inside the library's directory (`docs/PUBLISHING.md`). The
+server depends only on Spring Boot and Jackson 3, not on the library and not on Spring AI;
+the document format is shared as a written contract with a round-trip test on each side
+(fork d).
 
 ## 8. Test strategy
 
@@ -273,6 +275,8 @@ Following `CLAUDE.md`: assert invocation counts, not just payloads.
 
 ### Fork (a) — server unreachable during `RECORD_OR_REPLAY`
 
+**Decided: fail loudly.**
+
 - **Fail loudly (recommended).** Same as `REPLAY_ONLY`. A test environment that silently
   starts calling the model when the server blips is exactly the flakiness this exists to
   remove.
@@ -280,6 +284,8 @@ Following `CLAUDE.md`: assert invocation counts, not just payloads.
   outage, at the cost of silent model calls. Possible as an explicit opt-in later.
 
 ### Fork (b) — who decides the mode
+
+**Decided: the client decides.** A mode set in the client's config always wins, in either direction. The namespace mode on the server is only the default for clients that set none, and the admin endpoint changes that default.
 
 - **Server decides, client may override only toward stricter (recommended).** The
   namespace's mode from `GET …/config` applies, so an admin can switch an environment to
@@ -289,12 +295,16 @@ Following `CLAUDE.md`: assert invocation counts, not just payloads.
 
 ### Fork (c) — local read-through cache
 
+**Decided: no local cache in the MVP.**
+
 - **None in the MVP (recommended).** Every lookup goes to the server; on a test-environment
   network that's a few milliseconds.
 - **Optional on-disk cache** in the client, for chatty suites. Adds an invalidation story
   that the MVP doesn't need.
 
 ### Fork (d) — shared fixture-format module
+
+**Decided: no shared module.** Contract test only.
 
 - **No shared module (recommended for the MVP).** The server treats documents as JSON with
   three fields it checks (`schemaVersion`, `hash`, kind); the contract test in section 8
@@ -304,6 +314,8 @@ Following `CLAUDE.md`: assert invocation counts, not just payloads.
   the server to work.
 
 ### Fork (e) — store abstraction shape
+
+**Decided: one interface per family.**
 
 - **One interface per family (recommended):** `ChatFixtureStore`, `StreamFixtureStore`,
   `EmbeddingFixtureStore`, `ToolFixtureStore`, each with a file and a remote
@@ -323,13 +335,13 @@ Following `CLAUDE.md`: assert invocation counts, not just payloads.
 
 ## 11. MVP scope and order of work
 
-1. Parent pom; library moved under it with unchanged coordinates; CI green.
+1. Root build aggregator; library moved into its own module with an unchanged pom; CI green.
 2. Store abstraction refactor in the library, file implementations only; all existing
    tests green with no behavior change.
 3. Server jar: client API, storage, admin token, health.
 4. `RemoteFixtureStore` for chat; unit tests in section 8.
 5. Stream, embedding and tool remote stores.
-6. Mode from server (fork b), misses ring buffer, export endpoint.
+6. Namespace default mode (fork b), misses ring buffer, export endpoint.
 7. Docker image; server README; README section "Shared fixtures with the Cassette Server".
 8. Integration tests against Ollama.
 

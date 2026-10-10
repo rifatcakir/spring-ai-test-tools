@@ -84,4 +84,4 @@ jobs:
       # cadence as the rest of this job for the same reason: a real Ollama pull is too
       # slow for every push.
       - name: mvn test -Pintegration-test (real-model e2e proofs)
-        run: mvn --batch-mode --no-transfer-progress test -Pintegration-test -Dtest=OllamaEndToEndTests,OllamaEvaluatorEndToEndTests,OllamaStreamingEndToEndTests
+        run: mvn --batch-mode --no-transfer-progress test -pl spring-ai-test-tools -Pintegration-test -Dtest=OllamaEndToEndTests,OllamaEvaluatorEndToEndTests,OllamaStreamingEndToEndTests

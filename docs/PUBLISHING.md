@@ -25,6 +25,11 @@ steps 3–5 repeat, and step 3/4 only if your Sonatype token has expired or `set
 needs attention. In order, run yourself, in your own terminal:
 
 ```bash
+# The repository is a multi-module build since the Cassette Server was added
+# (docs/SERVER-PRD.md). Only the library is published, so every release command runs
+# inside its module directory. The root pom is a build aggregator that is never deployed.
+cd spring-ai-test-tools
+
 # 1. Confirm the version is what you expect (already done, verify it stuck):
 grep -m1 "<version>" pom.xml
 # should print: <version>0.1.1</version>

@@ -195,6 +195,15 @@ java -jar spring-ai-test-tools-server-0.1.0.jar \
 The same jar inside `ghcr.io/rifatcakir/spring-ai-test-tools-server`, with the storage
 directory on a volume. A plain Spring Boot application with no Spring AI dependency.
 
+*As built (step 7):* a two-stage `Dockerfile` in the server module unpacks the jar into
+Spring Boot's layers (`-Djarmode=tools extract --layers --launcher`) on `eclipse-temurin:21-jre`
+and runs `JarLauncher` as a non-root user, with `/data/cassettes` as the volume and every
+flag also settable as an environment variable (`CASSETTE_ADMIN_TOKEN`, …). Verified by
+building and running it. A Dockerfile rather than `spring-boot:build-image` because the
+integration tests build the image from it, and buildpacks would need network access to a
+builder image on every CI run. The image is not published to `ghcr.io` yet; that is a
+release step for the maintainer.
+
 ### 6.2 Client API (used by the library)
 
 | Method and path | Result |

@@ -368,13 +368,18 @@ Every property is under the `spring.ai.test.vcr` prefix:
 | Property | Type | Default | Description |
 |---|---|---|---|
 | `enabled` | `boolean` | `false` | Whether to attach the advisor at all. Off unless explicitly enabled — a library that silently starts caching model responses is a library that silently makes a production build pass for the wrong reason. |
-| `mode` | `VcrMode` | `RECORD_OR_REPLAY` | Record-and-replay strategy — see "Modes" below. |
+| `mode` | `VcrMode` | unset: `RECORD_OR_REPLAY` | Record-and-replay strategy — see "Modes" below. Unset with `store: remote` follows the Cassette Server namespace's default; a value set here always wins. |
 | `scope` | `VcrScope` | `OUTSIDE_TOOL_LOOP` | Where the advisor sits relative to tool calling — see "Tool calling" below. |
 | `cache-directory` | `String` | `src/test/resources/llm-cache` | Where fixtures are read from and written to. Meant to be committed to version control. |
 | `order` | `Integer` | derived from `scope` | Explicit advisor order. Only needed to interleave with other custom advisors at a specific position. |
 | `fixture-size-warn-threshold` | `DataSize` | `256KB` | Log a warning when a written fixture reaches this size. Advisory only — nothing is refused, truncated or compressed. `0` disables. See "Large fixtures" below. |
 | `tool.mode` | `VcrToolMode` | `REPLAY_FROM_CASSETTE` | Whether a tool invocation is isolated from replay or allowed to run for real — see "Tool calling" below. |
 | `tool.cache-directory` | `String` | `src/test/resources/llm-cache-tool` | Where tool-invocation fixtures are read from and written to — a separate directory from the chat cache. |
+| `store` | `VcrStoreType` | `FILE` | `FILE` keeps fixtures under the cache directories; `REMOTE` keeps all four kinds on a Cassette Server — see "Shared fixtures with the Cassette Server" below. |
+| `remote.url` | `String` | none | Cassette Server root URL. Required with `store: remote`. |
+| `remote.namespace` | `String` | none | This application's namespace on the server. Required with `store: remote`. |
+| `remote.token` | `String` | none | Bearer token, if the server requires one. |
+| `remote.connect-timeout` / `remote.read-timeout` | `Duration` | `2s` / `5s` | A timeout fails the call; it is never treated as a cache miss. |
 
 ### Modes
 
@@ -536,6 +541,21 @@ ignored — the fixture is always filed under the hash actually computed, regard
 what a redactor's return value claims. Multiple redactors run in registration order
 (`Ordered` sequence when Spring-managed); a redactor that throws is not swallowed, so a
 broken redactor fails the recording loudly rather than shipping a half-redacted fixture.
+
+**Streams, tool executions and embeddings are fixtures too**, and each has its own method
+on the same interface, applied on its own write path with the same hash guarantee:
+
+| Method | Default | Override it when |
+|---|---|---|
+| `redact(VcrTrack)` | — (the one you implement) | always |
+| `redactStream(VcrStreamTrack)` | runs `redact` over the stream's request side; fails loudly if `redact` changes the answer | the streamed answer itself needs redacting (chunk by chunk) |
+| `redactToolExecution(VcrToolExecutionTrack)` | unchanged | tool arguments or results carry something to keep out |
+| `redactEmbedding(VcrEmbeddingTrack)` | unchanged | embedded texts carry something to keep out |
+
+A registered redactor that keeps the tool or embedding default is reported with a `WARN`
+when tool isolation or embedding caching starts, so the gap is visible. A redacted tool
+result is what a later replay hands back to the model, so redact what must not be stored,
+knowing the model's next turn sees the redacted form on replay.
 
 ### Validating committed fixtures
 
@@ -737,6 +757,55 @@ This is the foundation the roadmap's semantic/embedding assertions layer depends
 assertion that computes cosine similarity against a reference answer needs its own
 embedding call to be exactly this deterministic, or every CI run would make a live,
 non-reproducible embedding call to check a "deterministic" test.
+
+## Shared fixtures with the Cassette Server
+
+Fixtures on the local file system work for a laptop and for CI. They do not work for an
+application running in a shared test, QA or demo environment, which has no checked-out
+`src/test/resources`, may run as several instances, and whose recordings nobody can see
+without shelling into a container. For that, keep the library exactly as it is and move only
+the fixtures: run one [Cassette Server](spring-ai-test-tools-server/README.md) per
+environment and point the applications at it.
+
+| | File store (default) | Remote store + Cassette Server |
+|---|---|---|
+| Where fixtures live | `src/test/resources/llm-cache*` | The server's storage, per namespace |
+| Who records and replays | The advisor in your application | **The same advisor** |
+| Hash, fixture format | unchanged | **unchanged**, byte for byte |
+| Tool isolation, streaming, embeddings | yes | **yes** |
+| Calls a model provider | your application, on a miss | your application, on a miss; **the server never does** |
+| Typical use | unit and CI tests | deployed test environments, shared fixtures, e2e, QA |
+
+```yaml
+spring:
+  ai:
+    test:
+      vcr:
+        enabled: true
+        store: remote
+        remote:
+          url: http://cassette-server:9090
+          namespace: order-service
+```
+
+That is the whole change: no code, no `base-url` rewiring, the provider configuration stays
+as it is. What to know before turning it on:
+
+- **An unreachable server fails the call.** It is never treated as a miss, so the model is
+  never called because the server blipped, and there is no silent fallback to local files.
+- **The client decides the mode.** Set `mode` and it always wins. Leave it unset and the
+  application follows its namespace's default, which an admin can change at runtime (for
+  example to `RECORD_ALWAYS` for an afternoon of re-recording) without a redeploy.
+- **Recordings are still reviewed as diffs.** `GET /__admin/namespaces/{ns}/export` returns a
+  zip in exactly this library's file layout; unzip it into `src/test/resources`, commit, and
+  the same tests replay with `store: file`.
+- **Redaction runs in your application**, before anything is sent, on all four fixture kinds.
+- **Keep it out of production.** The library has to be on the runtime classpath of the
+  test-environment build; add it through a profile used only for those builds. With
+  `store: remote` it logs one `WARN` line at startup so it can never be on unnoticed.
+
+Server flags, the Docker image, the admin API and the storage layout:
+[`spring-ai-test-tools-server/README.md`](spring-ai-test-tools-server/README.md).
 
 ## Stubbing
 

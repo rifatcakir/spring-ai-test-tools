@@ -79,6 +79,25 @@ The Cassette Server (`docs/SERVER-PRD.md`) lives in its own repository,
 no Spring AI dependency and no dependency on this library; it keeps a copy of
 `fixture-contract/`.
 
+The consumer-side proof is
+[`rifatcakir/spring-ai-test-tools-example`](https://github.com/rifatcakir/spring-ai-test-tools-example): every feature as a test against the
+published artifact, including the Cassette Server scenarios. A documented feature that
+has no test there yet is worth adding one for. Both sibling repositories have their own
+`CLAUDE.md`.
+
+## Working agreements with the maintainer
+
+- Work on a branch, push it, run CI (`gh workflow run CI --ref <branch>` where the
+  workflow does not run on branch pushes), then fast-forward `main` once it is green.
+  No pull request unless asked.
+- Never publish anything (Maven Central, ghcr.io, GitHub Releases) without being asked
+  in the conversation. The maintainer enters GPG passphrases, Sonatype tokens and
+  registry logins and clicks Publish on the Central Portal; never type a credential.
+- Verify before claiming: compile documentation snippets against the released jar,
+  build the site with `mkdocs build --strict`, run the tests that cover the change.
+- The maintainer writes in Turkish; answer in Turkish, keep code, commits and docs in
+  English.
+
 ## Non-negotiable design rules
 
 1. **Exact match only.** SHA-256 over the canonicalised prompt. No semantic similarity,

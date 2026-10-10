@@ -1,55 +1,70 @@
 # Project status
 
-Last updated: 2026-10-10 (Cassette Server, branch `feat/cassette-server`) · Version `0.2.0` (library published 2026-10-10)
+Last updated: 2026-10-10 · Library `0.2.0` on Maven Central · `main` and `feat/cassette-server` are identical
 
-## Cassette Server
+## Start here: where things stand
 
-**Moved 2026-10-10 to its own repository,
-[`rifatcakir/spring-ai-test-tools-server`](https://github.com/rifatcakir/spring-ai-test-tools-server)**, with its history, end-to-end tests and
-demo; its tests use this library's published `0.2.0` from Maven Central. What follows is the
-record of how it was built here; the server module, `spring-ai-test-tools-it/` and `examples/`
-no longer exist in this repository.
+Three repositories, one product. Work happens in whichever one the change belongs to:
 
-`docs/SERVER-PRD.md` section 11, steps 1 to 8, all done. The repository is a multi-module
-build: the root `pom.xml` is an aggregator only (never a parent, never deployed);
-`spring-ai-test-tools/` is the library with its published coordinates and an unchanged pom;
-`spring-ai-test-tools-server/` is the Cassette Server (Spring Boot 4 executable jar and
-Dockerfile, no Spring AI, no dependency on the library, never deployed to Central);
-`spring-ai-test-tools-it/` holds its end-to-end tests (never installed or deployed).
-`fixture-contract/` is the format contract both modules test against.
+| Repository | What | State on 2026-10-10 |
+|---|---|---|
+| [`rifatcakir/spring-ai-test-tools`](https://github.com/rifatcakir/spring-ai-test-tools) (this one) | The library: recorder, remote-store client, assertions, stubs, evaluator; the docs site (`site/`) | `0.2.0` published to Maven Central. GitHub Release `v0.2.0`, library notes only, no assets. CI and the Docs workflow green on `main`. |
+| [`rifatcakir/spring-ai-test-tools-server`](https://github.com/rifatcakir/spring-ai-test-tools-server) | The Cassette Server (Spring Boot 4 jar and image, no Spring AI), its end-to-end tests, a demo, its documentation (`docs/`) | `0.2.0` released: jar on its GitHub Release, image `ghcr.io/rifatcakir/spring-ai-test-tools-server:0.2.0` and `:latest` (public). `main` has one unreleased fix, see below. Has its own `CLAUDE.md`. |
+| [`rifatcakir/spring-ai-test-tools-example`](https://github.com/rifatcakir/spring-ai-test-tools-example) | A third-party-style consumer: one test per feature, committed fixtures, Cassette Server scenarios | Uses library `0.2.0` on **Spring AI 2.0.1 / Spring Boot 4.1.1**. `mvn test` green (37), CI green. Has its own `CLAUDE.md`. |
 
-- **Default build:** `mvn test` at the root: library 321, server 69, all green.
-- **Integration:** `mvn -Pintegration-test verify` at the root. `CassetteServerEndToEndTests`
-  (11 ordered tests) builds the server image from its Dockerfile, records chat, streaming,
-  an embedding and a two-turn tool call through it against real Ollama, stops Ollama,
-  switches the namespace to `REPLAY_ONLY` via the admin API, replays everything in fresh
-  contexts with no mode of their own (identical content, zero model requests, zero real
-  `@Tool` runs), then replays the exported zip with `store: file`. Verified green on
-  2026-10-10. Run it through the reactor, not `-pl spring-ai-test-tools-it` alone: on its
-  own, Maven resolves the library from `~/.m2`, and an older jar without the remote store
-  silently writes local files instead (the test now asserts the remote stores are in use
-  for exactly this reason).
+**Library facts a new session needs:**
+
+- Build: `mvn test` at the root (aggregator; the library is `spring-ai-test-tools/`). Ollama
+  e2e: `mvn test -Pintegration-test` (Docker). The docs site: `mkdocs build --strict` in
+  `site/` (mkdocs-material).
+- `0.2.0` added the remote store (`spring.ai.test.vcr.store: remote`, `remote.url`,
+  `remote.namespace`, `remote.token`, timeouts), redaction on all four fixture kinds, and
+  `replace()` on the stores for `RECORD_ALWAYS`. See `CHANGELOG.md`.
+- The fixture format is a contract with the server: `fixture-contract/` holds one
+  library-written fixture per kind, tested on both sides. A format change means a new
+  `schemaVersion`, regenerated samples, a copy in the server repository, and releasing
+  the server first.
+- CI pins, both needed: surefire `3.5.4` (3.6.0 ignores `excludedGroups`) and the test
+  image `ollama/ollama:0.24.0` (0.40 stopped serving embeddings from `llama3.2:1b`).
+- Releasing: `docs/PUBLISHING.md` (Central Portal, `mvn deploy -Prelease`, autoPublish off,
+  the maintainer clicks Publish). Never publish without the maintainer asking; GPG
+  passphrases, Sonatype and GitHub tokens are entered by the maintainer only.
+
+**Open, each waiting on a decision by the maintainer:**
+
+1. **Server `0.2.1`.** The server's `main` fixes flag precedence: in `0.2.0` the short flags
+   (`--storage-dir`, `--port`, ...) lost to environment variables, so in Docker
+   `--storage-dir` was ignored. Documented there as a `0.2.0` caveat with a workaround.
+   Releasing needs a new jar, image and GitHub Release from the server repository
+   (`docs/RELEASING.md` there). The library needs no release for it.
+2. Moving this library's own build from Spring AI 2.0.0 / Boot 4.0.0 to 2.0.1 / 4.1.1. The
+   example project already proves `0.2.0` works there; the pin in `CLAUDE.md` stays until
+   this is decided.
+
+## Cassette Server: how it was built here
+
+The server was built in this repository (`docs/SERVER-PRD.md`, section 11, steps 1 to 8)
+and **moved on 2026-10-10 to its own repository** with its history. What follows is the
+record of that work; the server module, `spring-ai-test-tools-it/` and `examples/` no
+longer exist here.
+
+- **Integration, as it was verified here:** `CassetteServerEndToEndTests` (11 ordered tests)
+  builds the server image, records chat, streaming, an embedding and a two-turn tool call
+  through it against real Ollama, stops Ollama, switches the namespace to `REPLAY_ONLY`
+  via the admin API, replays everything in fresh contexts (zero model requests, zero real
+  `@Tool` runs), then replays the exported zip with `store: file`. Green on 2026-10-10;
+  now runs nightly in the server repository.
 - **Found on the way:** the stream, tool and embedding write paths never applied
-  `VcrFixtureRedactor`; fixed (see the PRD, section 10). `.gitattributes` still pointed at
-  the pre-module stub-responses path, which failed one test on Windows checkouts; fixed.
-- **Release prepared as `0.2.0`, nothing published.** Library and server versions are
-  `0.2.0` (`0.1.0` and `0.1.1` are on Central; `0.2.0` is not). `CHANGELOG.md` has the
-  release notes and upgrade notes; `docs/PUBLISHING.md` has the runbook (library to
-  Central, server image to `ghcr.io`, jar to a GitHub Release, tag). Checked:
-  `mvn clean package -Prelease` in the library builds the jar, `-sources.jar` and
-  `-javadoc.jar` with no Javadoc errors (unsigned; signing is the maintainer's step), and
-  `mkdocs build --strict` passes with the new Cassette Server page. The library's own
-  Ollama e2e suite is now 19 tests (the "seventeen" further down predates two additions),
-  all green on 2026-10-10.
-- **Published 2026-10-10:** `io.github.rifatcakir:spring-ai-test-tools:0.2.0` on Maven
-  Central, from `main` at `18ff237` (fast-forwarded from this branch).
-- **CI on `main` had been red since 2026-10-09** for two external reasons, both fixed by
-  pinning: surefire 3.6.0 (a runner image update) ignored `excludedGroups`, and Ollama
-  0.40 stopped serving embeddings from `llama3.2:1b`. See the commit "build: pin
-  surefire/compiler and the Ollama test image".
-- **Not done, needs the maintainer:** the Cassette Server image (`ghcr.io`) and GitHub
-  Release (`docs/PUBLISHING.md` steps 3 and 4), and optionally adding the Cassette Server
-  IT to the nightly `e2e` CI job.
+  `VcrFixtureRedactor`; fixed (PRD section 10). `.gitattributes` still pointed at the
+  pre-module stub-responses path; fixed.
+- **Released 2026-10-10:** the library to Central from `main` at `18ff237`; the server jar
+  and image from here, before the move. The first image push inherited the base image's
+  Ubuntu labels and was re-pushed with correct labels; the server jar was first attached
+  to this repository's `v0.2.0` release by mistake and removed.
+- **Documentation fixed after the release** (2026-10-10): the redactor example did not
+  compile (`MessageSnapshot` takes `media` as a fifth argument), "Secrets" recommended a
+  normalizer for PII, and the tool-calling example contradicted tool isolation. All 40
+  Java snippets in the README and the site were compile-checked against `0.2.0`.
 
 ## Rename: `spring-ai-test-vcr` → `spring-ai-test-tools`
 
@@ -72,7 +87,7 @@ is the **Recorder** layer. `Assertions` now has real code for both its planned i
 `ChatClient.Builder` (E1, see below) — see `docs/VISION.md` for why the Recorder has to
 exist first for anything built on top of it to be usable in CI at all.
 
-## Current state
+## State before 0.2.0 (historical record)
 
 Core architecture scaffolded and now proven end-to-end. **`mvn test` is green (253/253)**,
 plus seventeen real Testcontainers + Ollama integration tests (excluded from the default run,
